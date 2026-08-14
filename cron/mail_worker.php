@@ -1,0 +1,146 @@
+<?php
+/* ============================================================
+ *  cron/mail_worker.php — ตัวส่งอีเมลที่ค้างอยู่ในคิว
+ *
+ *  ระบบเขียนอีเมลลงคิว (tb_mail_queue) ตอนเกิดเหตุการณ์ ไม่ส่งทันที
+ *  ผู้ใช้จะได้ไม่ต้องรอ SMTP ตอนกดบันทึก ไฟล์นี้คือคนที่มาหยิบไปส่ง
+ *
+ *  ตั้งให้วิ่งเอง (Command Prompt แบบผู้ดูแลระบบ รันครั้งเดียว):
+ *      schtasks /create /tn "StockHL Mail Worker" /sc minute /mo 1 ^
+ *        /tr "C:\AppServ\php5\php.exe C:\AppServ\www\stock_hl\cron\mail_worker.php" /ru SYSTEM
+ *      ลบ:    schtasks /delete /tn "StockHL Mail Worker" /f
+ *      สถานะ: schtasks /query  /tn "StockHL Mail Worker"
+ *  ทุก 1 นาที ไม่ใช่ 5 เพราะตัวนี้วนเช็คคิวเองทุก 10 วินาทีตลอดหนึ่งนาที
+ *
+ *  เครื่องที่ตั้ง Task Scheduler ไม่ได้ เรียกผ่านเว็บแทน:
+ *      http://เครื่อง/stock_hl/cron/mail_worker.php?key=<cron_key>
+ *  ต้องตั้ง cron_key ใน tb_app_setting ก่อน ไม่งั้นการเรียกผ่านเว็บถูกปฏิเสธหมด
+ *  เรียกจากบรรทัดคำสั่งไม่ต้องใช้กุญแจ เพราะเข้าถึงฐานข้อมูลได้อยู่แล้ว
+ *
+ *  เขียนให้รองรับ PHP 5.2.6
+ * ============================================================ */
+
+error_reporting(E_ALL ^ E_NOTICE);
+set_time_limit(300);        // ส่ง 20 ฉบับที่ฉบับละไม่กี่วินาที ต้องมีเวลาพอ
+
+$is_cli = (php_sapi_name() === 'cli');
+
+require_once dirname(dirname(__FILE__)) . '/backend/mailer.php';
+require_once dirname(dirname(__FILE__)) . '/backend/notify.php';
+
+
+/* ---------- ตรวจสิทธิ์เมื่อถูกเรียกผ่านเว็บ ---------- */
+if (!$is_cli) {
+
+    header('Content-Type: text/plain; charset=utf-8');
+
+    $expect = trim(setting_get('cron_key', ''));
+    $sent   = isset($_GET['key']) ? trim($_GET['key']) : '';
+
+    if ($expect === '') {
+        header('HTTP/1.1 403 Forbidden');
+        echo "ปฏิเสธ: ยังไม่ได้ตั้งค่า cron_key ในตาราง tb_app_setting\n"
+           . "ตั้งด้วยคำสั่ง:\n"
+           . "  INSERT INTO tb_app_setting (setting_key, setting_value, setting_group, created_at)\n"
+           . "  VALUES ('cron_key', '<ข้อความสุ่มยาว ๆ>', 'mail', NOW());\n";
+        exit();
+    }
+
+    if ($sent !== $expect) {
+        header('HTTP/1.1 403 Forbidden');
+        echo "ปฏิเสธ: กุญแจไม่ถูกต้อง\n";
+        exit();
+    }
+}
+
+
+/* ============================================================
+ *  วนเก็บคิวถี่ ๆ ตลอดหนึ่งรอบของ Task Scheduler
+ * ============================================================
+ *  Task Scheduler ของ Windows ตั้งถี่สุดได้ 1 นาที แต่ผู้เบิกที่ยืนรออยู่หน้าจอ
+ *  ไม่ควรต้องรอเมลนานถึงหนึ่งนาที
+ *
+ *  ตัวนี้จึงวนเช็คคิวทุก 10 วินาที ตลอดเกือบหนึ่งนาที แล้วจบรอบพอดีก่อนที่
+ *  Task Scheduler จะปลุกตัวใหม่ขึ้นมา ผลคือเมลออกภายใน 10 วินาที
+ *  โดยใช้งานตั้งเวลาแค่รายการเดียว และไม่ต้องมีตัวที่รันค้างตลอดเวลา
+ *
+ *  เรียกด้วย --once เพื่อส่งรอบเดียวแล้วจบ (ใช้ตอนทดสอบ)
+ *  เรียกผ่านเว็บจะเป็น --once เสมอ เพราะ PHP ฝั่งเว็บมีเพดานเวลาของตัวเอง
+ *  และการค้าง connection ไว้ทั้งนาทีเพื่อรอ จะกิน worker ของ Apache ไปฟรี ๆ
+ *
+ *  ---------------------------------------------------------------
+ *  กันตัวส่งสองตัวทำงานพร้อมกัน
+ *  ---------------------------------------------------------------
+ *  ถ้ารอบก่อนยังไม่จบ (SMTP อืด) แล้ว Task Scheduler ปลุกตัวใหม่ขึ้นมา
+ *  จะมีสองตัวหยิบเมลฉบับเดียวกันไปส่ง ผู้รับได้เมลซ้ำสองฉบับ
+ *
+ *  GET_LOCK ของ MySQL แก้ได้ตรงจุด: ล็อกผูกกับ connection ไม่ใช่ไฟล์
+ *  ถ้ากระบวนการตายกลางคัน ล็อกหลุดเองเมื่อ connection ปิด
+ *  ไม่มีไฟล์ล็อกค้างให้ต้องมาไล่ลบเหมือนวิธีเขียนไฟล์
+ * ============================================================ */
+
+$once = !$is_cli;
+for ($i = 1; $i < $argc; $i++) {
+    if ($argv[$i] === '--once') { $once = true; }
+}
+
+$connect = db_connect();
+$lock    = @mysqli_query($connect, "SELECT GET_LOCK('stockhl_mail_worker', 0) AS `got`");
+$got     = $lock ? mysqli_fetch_assoc($lock) : null;
+
+if (!$got || (int)$got['got'] !== 1) {
+    echo date('Y-m-d H:i:s') . "  ข้ามรอบนี้ — มีตัวส่งเมลตัวอื่นทำงานอยู่\n";
+    exit();
+}
+
+/* จบรอบที่วินาทีที่ 55 เผื่อเวลาให้รอบสุดท้ายส่งจบก่อนตัวถัดไปมาถึง */
+$stop_after = 55;
+$poll       = 10;
+$started    = time();
+$rounds     = 0;
+$sent_all   = 0;
+$fail_all   = 0;
+
+while (true) {
+    $rounds++;
+
+    /* 20 ฉบับต่อรอบ ถ้าคิวยาวกว่านั้นรอบถัดไปในอีก 10 วินาทีจะมาเก็บต่อ
+       ตั้งใจไม่ส่งทีเดียวทั้งคิว เพราะรอบที่กินเวลาหลายนาทีจะทำให้
+       เมลฉบับที่เพิ่งเข้าคิวต้องรอจนกว่าคิวเก่าจะหมด */
+    $result    = mail_dispatch(20, 'cron');
+    $sent_all += $result['sent'];
+    $fail_all += $result['failed'];
+
+    if ($result['sent'] > 0 || $result['failed'] > 0) {
+        echo date('Y-m-d H:i:s') . '  ส่งสำเร็จ ' . $result['sent']
+           . ' / ล้มเหลว ' . $result['failed'] . ' — ' . $result['message'] . "\n";
+    }
+
+    if ($once) { break; }
+    if ((time() - $started) + $poll > $stop_after) { break; }
+
+    sleep($poll);
+}
+
+if ($sent_all === 0 && $fail_all === 0) {
+    echo date('Y-m-d H:i:s') . '  คิวว่าง (ตรวจ ' . $rounds . " รอบ)\n";
+} else {
+    echo date('Y-m-d H:i:s') . '  รวมรอบนี้: ส่งสำเร็จ ' . $sent_all
+       . ' / ล้มเหลว ' . $fail_all . ' จากการตรวจ ' . $rounds . " รอบ\n";
+}
+
+
+/* ---------- เก็บกวาดแจ้งเตือนเก่า ----------
+ * ทำวันละครั้งตอนดึกก็พอ ไม่ต้องทำทุกรอบ
+ * ตารางแจ้งเตือนโตเร็วกว่าตารางอื่นเพราะเอกสารหนึ่งใบสร้างได้หลายแถว
+ * ของที่อ่านไปแล้วเกินสามเดือนไม่มีใครย้อนกลับไปดู
+ *
+ * เช็คนาทีด้วย ไม่ใช่แค่ชั่วโมง เพราะตอนนี้ตัวนี้ถูกปลุกทุกนาที
+ * ถ้าเช็คแค่ชั่วโมงจะไล่ล้างซ้ำ 60 รอบติดกันในชั่วโมงตี 3
+ */
+if ((int)date('G') === 3 && (int)date('i') === 0) {
+    $removed = notify_purge_old(90);
+    echo date('Y-m-d H:i:s') . '  ล้างแจ้งเตือนเก่าที่อ่านแล้ว ' . $removed . " รายการ\n";
+}
+
+@mysqli_query($connect, "SELECT RELEASE_LOCK('stockhl_mail_worker')");

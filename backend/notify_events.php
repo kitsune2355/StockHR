@@ -1,0 +1,435 @@
+<?php
+/* ============================================================
+ *  backend/notify_events.php — แปลง "เหตุการณ์ทางธุรกิจ" เป็นการแจ้งเตือน
+ *
+ *  ไฟล์นี้เป็นชั้นเดียวที่รู้ว่า "ใบเบิกถูกส่ง" แปลว่าต้องเตือนใคร ด้วยข้อความอะไร
+ *  backend/request.php กับ backend/issue.php แค่เรียกฟังก์ชันที่นี่ตอนงานสำเร็จ
+ *  จึงไม่ต้องรู้เรื่องกระดิ่งหรืออีเมลเลย
+ *
+ *  ---------------------------------------------------------------
+ *  กติกาเหล็กของไฟล์นี้: ห้ามทำให้งานหลักพัง
+ *  ---------------------------------------------------------------
+ *  ทุกฟังก์ชันถูกเรียก "หลัง" ธุรกรรมหลัก commit ไปแล้ว
+ *  ถ้าเขียนแจ้งเตือนไม่สำเร็จหรือเมลเข้าคิวไม่ได้ ใบเบิกที่บันทึกไปแล้วต้องยังอยู่ครบ
+ *  จึงไม่มีฟังก์ชันไหนโยน error ออกไป และผู้เรียกไม่ต้องตรวจผลลัพธ์
+ *
+ *  เหตุผล: ใบเบิกคือความจริงทางธุรกิจ ส่วนแจ้งเตือนคือความสะดวก
+ *  ถ้าเมลเซิร์ฟเวอร์ล่มแล้วทำให้เบิกของไม่ได้ทั้งบริษัท นั่นคือการออกแบบที่ผิด
+ *
+ *  ---------------------------------------------------------------
+ *  สองช่องทางที่ส่งพร้อมกันเสมอ
+ *  ---------------------------------------------------------------
+ *    กระดิ่งในระบบ  ทำงานทันทีตลอด ไม่ขึ้นกับค่าตั้งใด ๆ
+ *    อีเมล          เข้าคิวเสมอ แล้วตัวส่งค่อยหยิบไปทีหลัง
+ *                   ถ้าปิดสวิตช์ mail_enabled ไว้ เมลจะค้างอยู่ในคิวเฉย ๆ
+ *                   ไม่หายไปไหน เปิดสวิตช์เมื่อไรก็ส่งออกได้
+ *
+ *  เขียนให้รองรับ PHP 5.2.6
+ * ============================================================ */
+
+require_once dirname(__FILE__) . '/db.php';
+require_once dirname(__FILE__) . '/thai_date.php';
+require_once dirname(__FILE__) . '/notify.php';
+require_once dirname(__FILE__) . '/mailer.php';
+require_once dirname(__FILE__) . '/user.php';
+require_once dirname(__FILE__) . '/document.php';
+
+
+/* ---------- สรุปรายการสินค้าในเอกสารเป็นข้อความสั้น ----------
+ * "ปากกาลูกลื่น 5 ด้าม และอีก 3 รายการ"
+ *
+ * ใส่ชื่อสินค้าตัวแรกจริง ๆ ไม่ใช่แค่ "4 รายการ" เพราะคนที่เห็นแจ้งเตือน
+ * ต้องตัดสินใจได้ว่าเรื่องนี้ด่วนไหมโดยไม่ต้องกดเข้าไปดู
+ */
+function notify_items_summary($items)
+{
+    if (!is_array($items) || count($items) === 0) {
+        return 'ไม่มีรายการสินค้า';
+    }
+
+    $first = $items[0];
+    $name  = isset($first['product_name']) ? $first['product_name'] : 'สินค้า';
+    $qty   = isset($first['qty']) ? $first['qty'] : 0;
+    $unit  = isset($first['unit_name']) ? $first['unit_name'] : '';
+
+    $text = $name . ' ' . stock_format($qty) . ' ' . $unit;
+
+    $more = count($items) - 1;
+    if ($more > 0) {
+        $text .= ' และอีก ' . $more . ' รายการ';
+    }
+    return trim($text);
+}
+
+
+/* ---------- ตารางรายละเอียดที่ใช้ในเนื้ออีเมล ---------- */
+function notify_doc_pairs($doc, $extra = array())
+{
+    $pairs = array(
+        array('เลขที่เอกสาร', $doc['doc_no']),
+        array('วันที่',        thai_date_long($doc['doc_date'])),
+        array('หน่วยงาน',      $doc['department_name'] !== '' ? $doc['department_name'] : '-'),
+        array('ผู้ขอเบิก',      $doc['requester_name'] !== '' ? $doc['requester_name'] : $doc['requester'])
+    );
+
+    for ($i = 0; $i < count($extra); $i++) {
+        $pairs[] = $extra[$i];
+    }
+
+    if (trim($doc['note']) !== '') {
+        $pairs[] = array('หมายเหตุ', $doc['note']);
+    }
+    return $pairs;
+}
+
+
+/* วันที่แบบไทยย้ายไปอยู่ที่ backend/thai_date.php แล้ว
+   อีเมลใช้แบบปีเต็ม เพราะคนรับอาจเปิดอ่านย้อนหลังหลายเดือน */
+
+
+/* ---------- รายการสินค้าเป็นตาราง HTML สำหรับอีเมล ----------
+ * ผู้อนุมัติหลายคนตัดสินใจจากมือถือโดยไม่เปิดระบบ ถ้าเมลบอกแค่
+ * "มีใบเบิกใหม่" เขาต้องเปิดคอมพิวเตอร์ก่อนถึงจะรู้ว่าเรื่องอะไร
+ * ใส่ของทั้งใบมาให้เลย จะได้ตัดสินใจได้ตั้งแต่อ่านเมล
+ *
+ * จำกัดที่ 15 บรรทัด เมลที่ยาวเป็นหน้าจอไม่มีใครอ่าน และ Gmail ตัดเนื้อหา
+ * ที่ยาวเกิน 102 KB ทิ้งพร้อมขึ้นลิงก์ "ดูข้อความทั้งหมด" ซึ่งกดยากบนมือถือ
+ */
+function notify_items_html($items, $max = 15)
+{
+    if (!is_array($items) || count($items) === 0) { return ''; }
+
+    $html = '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
+          . 'style="width:100%;margin:14px 0 4px;font-size:14px;border-collapse:collapse">'
+          . '<tr>'
+          . '<th align="left"  style="padding:7px 8px;background:#f1f5f9;color:#475569;'
+          . 'font-weight:600;border-bottom:1px solid #e2e8f0">รายการ</th>'
+          . '<th align="right" style="padding:7px 8px;background:#f1f5f9;color:#475569;'
+          . 'font-weight:600;border-bottom:1px solid #e2e8f0;white-space:nowrap">จำนวน</th>'
+          . '</tr>';
+
+    $n = count($items);
+    $show = ($n > $max) ? $max : $n;
+
+    for ($i = 0; $i < $show; $i++) {
+        $it   = $items[$i];
+        $name = isset($it['product_name']) ? $it['product_name'] : '';
+        $code = isset($it['product_code']) ? $it['product_code'] : '';
+        $qty  = isset($it['qty'])       ? $it['qty']       : 0;
+        $unit = isset($it['unit_name']) ? $it['unit_name'] : '';
+
+        $html .= '<tr>'
+               . '<td style="padding:7px 8px;border-bottom:1px solid #f1f5f9">'
+               . '<span style="color:#94a3b8;font-size:12px">'
+               . htmlspecialchars($code, ENT_QUOTES, 'UTF-8') . '</span><br>'
+               . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . '</td>'
+               . '<td align="right" style="padding:7px 8px;border-bottom:1px solid #f1f5f9;'
+               . 'white-space:nowrap;font-weight:600">'
+               . htmlspecialchars(stock_format($qty) . ' ' . $unit, ENT_QUOTES, 'UTF-8')
+               . '</td></tr>';
+    }
+
+    if ($n > $show) {
+        $html .= '<tr><td colspan="2" style="padding:7px 8px;color:#64748b;font-size:13px">'
+               . 'และอีก ' . ($n - $show) . ' รายการ — เปิดในระบบเพื่อดูทั้งหมด</td></tr>';
+    }
+
+    return $html . '</table>';
+}
+
+
+/* ---------- ส่งทั้งกระดิ่งและอีเมลให้คนกลุ่มหนึ่ง ----------
+ * $people = array(array('username','full_name','email'), ...)
+ *
+ * รวมสองช่องทางไว้ในฟังก์ชันเดียว เพราะทุกเหตุการณ์ส่งทั้งคู่เสมอ
+ * ถ้าแยกเรียก จะมีวันที่ใครสักคนเพิ่มเหตุการณ์ใหม่แล้วลืมเรียกอันใดอันหนึ่ง
+ */
+function notify_deliver($people, $args)
+{
+    if (!is_array($people) || count($people) === 0) { return 0; }
+
+    $type      = $args['type'];
+    $title     = $args['title'];
+    $message   = $args['message'];
+    $link_page = isset($args['link_page']) ? $args['link_page'] : '';
+    $doc_id    = isset($args['doc_id'])    ? (int)$args['doc_id'] : 0;
+    $actor     = isset($args['actor'])     ? $args['actor'] : null;
+
+    $subject   = isset($args['subject'])   ? $args['subject']   : $title;
+    $heading   = isset($args['heading'])   ? $args['heading']   : $title;
+    $body      = isset($args['body_html']) ? $args['body_html'] : '<p>' . htmlspecialchars($message, ENT_QUOTES, 'UTF-8') . '</p>';
+    $btn_text  = isset($args['button'])    ? $args['button']    : 'เปิดดูในระบบ';
+    $ref_type  = isset($args['ref_type'])  ? $args['ref_type']  : $type;
+
+    /* ---------- ปุ่มในเมลจะพาไปที่ไหน ----------
+     * ปกติชี้เข้าหน้าในระบบ ซึ่งต้องล็อกอินก่อน
+     *
+     * ยกเว้นเมล "ของพร้อมให้รับแล้ว" ที่ส่งหาผู้ขอเบิก — คนกลุ่มนี้ส่วนใหญ่
+     * ไม่มีบัญชี หรือมีแต่ไม่มีสิทธิ์เข้าหน้าประวัติการจ่ายออก กดปุ่มแล้วไปจบที่
+     * หน้าล็อกอิน ใบจ่ายเลยค้างสถานะ "จ่ายแล้ว" จนคลังต้องโทรตามให้มาเซ็น
+     *
+     * ฉบับนั้นจึงใช้ลิงก์กุญแจของ sign.php แทน ซึ่งเปิดได้เลยไม่ต้องล็อกอิน
+     * ถ้าออกกุญแจไม่สำเร็จ (เช่นยังไม่ได้ตั้ง site_url) ค่อยตกกลับไปใช้ลิงก์เดิม
+     * ดีกว่าส่งเมลที่ไม่มีปุ่มอะไรให้กดเลย
+     */
+    $url = '';
+    if (isset($args['sign_link']) && $args['sign_link'] && $doc_id > 0) {
+        require_once dirname(__FILE__) . '/sign_link.php';
+        $url = sign_link_for($doc_id, $actor);
+    }
+    if ($url === '') { $url = mail_page_url($link_page, $doc_id); }
+
+    $html = mail_layout($heading, $body, ($url !== '' ? $btn_text : ''), $url);
+
+    $n = 0;
+    for ($i = 0; $i < count($people); $i++) {
+
+        $u = isset($people[$i]['username']) ? $people[$i]['username'] : '';
+        if ($u === '' || $u === $actor) { continue; }   // ไม่เตือนคนที่เพิ่งกดเอง
+
+        notify_push($u, $type, $title, $message, $link_page, $doc_id, $actor);
+
+        /* คนที่ยังไม่ได้กรอกอีเมลจะข้ามส่วนนี้ไปเงียบ ๆ (mail_enqueue คืน false)
+           แต่ยังได้กระดิ่งครบ — ไม่มีใครพลาดแจ้งเตือนเพราะไม่มีอีเมล */
+        $email = isset($people[$i]['email']) ? $people[$i]['email'] : '';
+        $name  = isset($people[$i]['full_name']) ? $people[$i]['full_name'] : '';
+        mail_enqueue($email, $name, $subject, $html, $ref_type, $doc_id, $actor);
+
+        $n++;
+    }
+    return $n;
+}
+
+
+/* ---------- หาแถวผู้ใช้หนึ่งคนในรูปแบบที่ notify_deliver ใช้ได้ ---------- */
+function notify_person($username)
+{
+    $u = user_find($username);
+    if ($u === null) { return array(); }
+
+    return array(array(
+        'username'  => $u['username'],
+        'full_name' => $u['full_name'],
+        'email'     => $u['email']
+    ));
+}
+
+
+/* ============================================================
+ *  เหตุการณ์ที่ 1 — ผู้ขอส่งใบเบิกเข้ามา
+ *  ปลายทาง: ผู้อนุมัติของหน่วยงานนั้น (ไม่มีก็ถอยไปหาผู้ดูแลระบบ)
+ * ============================================================ */
+function notify_event_request_submitted($doc_id, $actor)
+{
+    $doc = doc_find($doc_id);
+    if ($doc === null || $doc['doc_type'] !== 'request') { return 0; }
+
+    $people = user_approvers_for_dept($doc['department_id'], $actor);
+    if (count($people) === 0) { return 0; }
+
+    $who     = ($doc['requester_name'] !== '') ? $doc['requester_name'] : $doc['requester'];
+    $summary = notify_items_summary($doc['items']);
+
+    return notify_deliver($people, array(
+        'type'      => 'request_waiting',
+        'title'     => 'ใบเบิก ' . $doc['doc_no'] . ' รอคุณอนุมัติ',
+        'message'   => $who . ' (' . $doc['department_name'] . ') ขอเบิก ' . $summary,
+        'link_page' => 'request_list',
+        'doc_id'    => $doc['doc_id'],
+        'actor'     => $actor,
+        'subject'   => '[รออนุมัติ] ใบเบิก ' . $doc['doc_no'] . ' จาก ' . $who,
+        'heading'   => 'มีใบเบิกรอการอนุมัติ',
+        'button'    => 'เปิดใบเบิกเพื่ออนุมัติ',
+        'ref_type'  => 'request_waiting',
+        'body_html' =>
+              '<p>' . htmlspecialchars($who, ENT_QUOTES, 'UTF-8')
+            . ' ส่งใบเบิกเข้ามาให้คุณพิจารณา</p>'
+            . mail_detail_table(notify_doc_pairs($doc))
+            . notify_items_html($doc['items'])
+    ));
+}
+
+
+/* ============================================================
+ *  เหตุการณ์ที่ 2 — ผู้อนุมัติตัดสินใบเบิก
+ *  ปลายทาง: ผู้ขอเบิก
+ * ============================================================ */
+function notify_event_request_decided($doc_id, $decision, $reason, $actor)
+{
+    $doc = doc_find($doc_id);
+    if ($doc === null || $doc['doc_type'] !== 'request') { return 0; }
+
+    $people = notify_person($doc['requester']);
+    if (count($people) === 0) { return 0; }
+
+    $approver = user_find($actor);
+    $by       = ($approver !== null && $approver['full_name'] !== '')
+                ? $approver['full_name'] : $actor;
+
+    $approved = ($decision === 'approved');
+
+    $extra = array(array('ผู้ตัดสิน', $by));
+    if (trim($reason) !== '') {
+        $extra[] = array($approved ? 'หมายเหตุจากผู้อนุมัติ' : 'เหตุผลที่ไม่อนุมัติ', $reason);
+    }
+
+    /* ข้อความต่อจากนี้ต่างกันคนละเรื่อง จึงเขียนแยกไม่ใช่ใช้ประโยคเดียวแล้วสลับคำ
+       อนุมัติแล้ว = รอของ ยังไม่ต้องทำอะไร
+       ไม่อนุมัติ  = ต้องลงมือแก้แล้วยื่นใหม่ */
+    if ($approved) {
+        $body = '<p>ใบเบิกของคุณผ่านการอนุมัติแล้ว ขั้นต่อไปคลังจะจัดของและบันทึกจ่ายออก '
+              . 'ระบบจะแจ้งคุณอีกครั้งเมื่อของพร้อมให้มาเซ็นรับ</p>';
+    } else {
+        $body = '<p>ใบเบิกของคุณไม่ได้รับอนุมัติ กรุณาดูเหตุผลด้านล่าง '
+              . 'แก้ไขแล้วทำใบเบิกใหม่ได้ทันที ใบเดิมจะถูกปิดไว้เป็นประวัติ</p>';
+    }
+
+    return notify_deliver($people, array(
+        'type'      => $approved ? 'request_approved' : 'request_rejected',
+        'title'     => ($approved ? 'อนุมัติใบเบิก ' : 'ไม่อนุมัติใบเบิก ') . $doc['doc_no'],
+        'message'   => $approved
+                       ? 'ผู้อนุมัติเห็นชอบแล้ว รอคลังจ่ายของ'
+                       : 'เหตุผล: ' . ($reason !== '' ? $reason : 'ไม่ได้ระบุ'),
+        'link_page' => 'request_list',
+        'doc_id'    => $doc['doc_id'],
+        'actor'     => $actor,
+        'subject'   => ($approved ? '[อนุมัติแล้ว] ' : '[ไม่อนุมัติ] ')
+                     . 'ใบเบิก ' . $doc['doc_no'],
+        'heading'   => $approved ? 'ใบเบิกได้รับการอนุมัติ' : 'ใบเบิกไม่ได้รับการอนุมัติ',
+        'button'    => 'เปิดใบเบิก',
+        'ref_type'  => $approved ? 'request_approved' : 'request_rejected',
+        'body_html' => $body
+                     . mail_detail_table(notify_doc_pairs($doc, $extra))
+                     . notify_items_html($doc['items'])
+    ));
+}
+
+
+/* ============================================================
+ *  เหตุการณ์ที่ 3 — คลังบันทึกจ่ายของ
+ *  ปลายทาง: ผู้ขอเบิก (ต้องมาเซ็นรับ)
+ * ============================================================ */
+function notify_event_issue_created($doc_id, $actor)
+{
+    $doc = doc_find($doc_id);
+    if ($doc === null || $doc['doc_type'] !== 'issue') { return 0; }
+
+    $people = notify_person($doc['requester']);
+    if (count($people) === 0) { return 0; }
+
+    $summary = notify_items_summary($doc['items']);
+
+    $extra = array();
+    if ($doc['ref_doc_no'] !== '') {
+        $extra[] = array('อ้างอิงใบเบิก', $doc['ref_doc_no']);
+    }
+
+    return notify_deliver($people, array(
+        'type'      => 'issue_created',
+        'title'     => 'ของพร้อมให้รับแล้ว — ใบจ่าย ' . $doc['doc_no'],
+        'message'   => $summary . ' กรุณามารับของและเซ็นรับในระบบ',
+        'link_page' => 'issue_history',
+        'doc_id'    => $doc['doc_id'],
+        'actor'     => $actor,
+        'subject'   => '[รับของ] ใบจ่าย ' . $doc['doc_no']
+                     . ($doc['ref_doc_no'] !== '' ? ' ตามใบเบิก ' . $doc['ref_doc_no'] : ''),
+        'heading'   => 'คลังจ่ายของให้แล้ว',
+        'button'    => 'เปิดหน้าเซ็นรับของ',
+        'ref_type'  => 'issue_created',
+        /* ฉบับเดียวในระบบที่ใช้ลิงก์แบบไม่ต้องล็อกอิน เพราะปลายทางคือผู้ขอเบิก
+           ซึ่งส่วนใหญ่ไม่มีบัญชีหรือไม่มีสิทธิ์เข้าหน้าประวัติการจ่ายออก */
+        'sign_link' => true,
+        'body_html' =>
+              '<p>คลังบันทึกจ่ายของตามใบเบิกของคุณเรียบร้อยแล้ว '
+            . 'เมื่อรับของครบ กรุณากดปุ่มด้านล่างเพื่อเซ็นรับ '
+            . 'ไม่ต้องเข้าสู่ระบบ เปิดจากมือถือได้เลย</p>'
+            . '<p style="color:#64748b;font-size:13px;margin:8px 0 0">'
+            . 'ลิงก์นี้ใช้ได้เฉพาะใบจ่ายใบนี้ และหมดอายุใน 7 วัน '
+            . 'กรุณาอย่าส่งต่อให้ผู้อื่น เพราะผู้ที่ได้รับลิงก์เซ็นรับแทนคุณได้</p>'
+            . mail_detail_table(notify_doc_pairs($doc, $extra))
+            . notify_items_html($doc['items'])
+    ));
+}
+
+
+/* ============================================================
+ *  เหตุการณ์ที่ 4 — ผู้เบิกเซ็นรับของ
+ *  ปลายทาง: คนที่ทำใบจ่าย (คลัง) — เป็นการปิดวงรอบให้คนคลังรู้ว่างานจบ
+ * ============================================================ */
+function notify_event_issue_acknowledged($doc_id, $actor)
+{
+    $doc = doc_find($doc_id);
+    if ($doc === null || $doc['doc_type'] !== 'issue') { return 0; }
+
+    $people = notify_person($doc['created_by']);
+    if (count($people) === 0) { return 0; }
+
+    $who = ($doc['receiver_name'] !== '') ? $doc['receiver_name'] : $doc['requester_name'];
+
+    return notify_deliver($people, array(
+        'type'      => 'issue_acknowledged',
+        'title'     => 'เซ็นรับของแล้ว — ใบจ่าย ' . $doc['doc_no'],
+        'message'   => $who . ' เซ็นรับของเรียบร้อย รายการนี้ปิดแล้ว',
+        'link_page' => 'issue_history',
+        'doc_id'    => $doc['doc_id'],
+        'actor'     => $actor,
+        'subject'   => '[ปิดรายการ] ใบจ่าย ' . $doc['doc_no'] . ' เซ็นรับแล้ว',
+        'heading'   => 'ผู้เบิกเซ็นรับของแล้ว',
+        'button'    => 'เปิดใบจ่าย',
+        'ref_type'  => 'issue_acknowledged',
+        'body_html' =>
+              '<p>ใบจ่ายที่คุณบันทึกไว้ถูกเซ็นรับเรียบร้อยแล้ว รายการนี้ถือว่าปิดสมบูรณ์</p>'
+            . mail_detail_table(notify_doc_pairs($doc, array(
+                  array('ผู้เซ็นรับ', $who),
+                  array('เวลาที่เซ็นรับ', $doc['received_at'])
+              )))
+    ));
+}
+
+
+/* ============================================================
+ *  เหตุการณ์ที่ 5 — ยกเลิกเอกสาร
+ *  ปลายทาง: อีกฝ่ายที่ไม่ใช่คนกด
+ *    ผู้ขอยกเลิกเอง  -> เตือนผู้อนุมัติที่กำลังจะต้องตัดสิน จะได้ไม่เสียเวลาเปิดดู
+ *    ผู้ดูแลยกเลิกให้ -> เตือนผู้ขอ เพราะเป็นคนที่เสียประโยชน์และต้องรู้เหตุผล
+ * ============================================================ */
+function notify_event_doc_cancelled($doc_id, $reason, $actor)
+{
+    $doc = doc_find($doc_id);
+    if ($doc === null) { return 0; }
+    if ($doc['doc_type'] !== 'request' && $doc['doc_type'] !== 'issue') { return 0; }
+
+    $is_request = ($doc['doc_type'] === 'request');
+
+    if ($is_request && $doc['requester'] === $actor) {
+        $people    = user_approvers_for_dept($doc['department_id'], $actor);
+        $link_page = 'request_list';
+        $lead      = '<p>ผู้ขอเบิกยกเลิกใบนี้เอง ไม่ต้องพิจารณาแล้ว</p>';
+    } else {
+        $people    = notify_person($doc['requester']);
+        $link_page = $is_request ? 'request_list' : 'issue_history';
+        $lead      = '<p>เอกสารของคุณถูกยกเลิก กรุณาดูเหตุผลด้านล่าง</p>';
+    }
+
+    if (count($people) === 0) { return 0; }
+
+    $label = $is_request ? 'ใบเบิก' : 'ใบจ่าย';
+
+    return notify_deliver($people, array(
+        'type'      => $is_request ? 'request_cancelled' : 'issue_cancelled',
+        'title'     => 'ยกเลิก' . $label . ' ' . $doc['doc_no'],
+        'message'   => 'เหตุผล: ' . (trim($reason) !== '' ? $reason : 'ไม่ได้ระบุ'),
+        'link_page' => $link_page,
+        'doc_id'    => $doc['doc_id'],
+        'actor'     => $actor,
+        'subject'   => '[ยกเลิก] ' . $label . ' ' . $doc['doc_no'],
+        'heading'   => 'มีการยกเลิก' . $label,
+        'button'    => 'เปิดเอกสาร',
+        'ref_type'  => $is_request ? 'request_cancelled' : 'issue_cancelled',
+        'body_html' => $lead
+                     . mail_detail_table(notify_doc_pairs($doc, array(
+                           array('ผู้ยกเลิก', $actor),
+                           array('เหตุผล', trim($reason) !== '' ? $reason : 'ไม่ได้ระบุ')
+                       )))
+    ));
+}
