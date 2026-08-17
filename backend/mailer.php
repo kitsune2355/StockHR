@@ -31,6 +31,21 @@ require_once dirname(__FILE__) . '/db.php';
 require_once dirname(__FILE__) . '/setting.php';
 
 
+/* ---------- พฤติกรรมการส่ง ----------
+ * MAIL_SEND_INSTANT  true = ส่งทันทีตอนเกิดเหตุการณ์ ไม่ต้องรอ cron หรือกดปุ่ม
+ *                    การส่งจริงถูกเลื่อนไปทำหลังตอบผู้ใช้แล้ว (api_after_response)
+ *                    ผู้ใช้จึงไม่ได้รอ SMTP ซึ่งวัดจริงแล้วใช้ 4-15 วินาทีต่อฉบับ
+ * MAIL_INSTANT_LIMIT ส่งได้สูงสุดกี่ฉบับต่อการกดหนึ่งครั้ง กันวันที่คิวค้างเยอะ
+ * MAIL_TIMEOUT       วินาทีที่ยอมรอ SMTP ต่อฉบับ เกินกว่านี้ปล่อยค้างให้ cron ส่งต่อ
+ *
+ * ส่วนค่าที่ผู้ดูแลระบบต้องแก้บ่อย (โฮสต์ พอร์ต บัญชี รหัสผ่าน เปิด/ปิดการส่ง)
+ * อยู่ในตาราง tb_app_setting แก้ได้จากหน้าอีเมลแจ้งเตือน ไม่ต้องแตะโค้ด
+ */
+define('MAIL_SEND_INSTANT',  true);
+define('MAIL_INSTANT_LIMIT', 5);
+define('MAIL_TIMEOUT',       8);
+
+
 /* ---------- ที่อยู่ของ PHPMailer ---------- */
 function mail_lib_dir()
 {
@@ -172,13 +187,11 @@ function mail_enqueue($to_email, $to_name, $subject, $body_html,
  */
 function mail_flush_instant($actor = null)
 {
-    require_once dirname(__FILE__) . '/env.php';
-
-    if (strtolower(env_get('MAIL_SEND_MODE', 'queue')) !== 'instant') {
+    if (!MAIL_SEND_INSTANT) {
         return array('sent' => 0, 'failed' => 0, 'skipped' => 0, 'message' => '');
     }
 
-    $limit = env_get_int('MAIL_INSTANT_LIMIT', 5);
+    $limit = MAIL_INSTANT_LIMIT;
     if ($limit < 1)  { $limit = 1; }
     if ($limit > 20) { $limit = 20; }
 
@@ -346,14 +359,9 @@ function mail_build($cfg)
     $mail->CharSet  = 'UTF-8';
     $mail->Encoding = 'base64';
 
-    /* เครือข่ายในไทยไปหา Zoho บางช่วงช้า ตั้งได้ที่ MAIL_TIMEOUT ใน .env
-       โหมดส่งทันทีควรตั้งสั้นกว่า เพราะมีคนนั่งรอหน้าจออยู่จริง
+    /* เครือข่ายในไทยไปหา Zoho บางช่วงช้า วัดจากคิวจริงแล้วใช้ 4-15 วินาทีต่อฉบับ
        ฉบับที่ส่งไม่ทันยังอยู่ในคิว รอ cron หรือปุ่มมาส่งต่อได้ */
-    require_once dirname(__FILE__) . '/env.php';
-    $timeout = env_get_int('MAIL_TIMEOUT', 10);
-    if ($timeout < 3)  { $timeout = 3; }
-    if ($timeout > 60) { $timeout = 60; }
-    $mail->Timeout  = $timeout;
+    $mail->Timeout  = MAIL_TIMEOUT;
 
     $mail->SetFrom($cfg['from'], $cfg['from_name']);
 
