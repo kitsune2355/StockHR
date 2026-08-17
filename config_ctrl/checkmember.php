@@ -102,12 +102,27 @@ $_SESSION['sess_tmp_user_id']    = date('His');
 $_SESSION['sess_last_activity']  = time();
 
 /* ---------- บันทึกเวลาเข้าใช้งาน ----------
-   ถ้าตาราง tb_time_login ยังไม่ถูกสร้าง ให้ข้ามไป ไม่ต้องขวางการเข้าระบบ */
-$stmt_log = mysqli_prepare($connect, "INSERT INTO `tb_time_login` SET `tl_name` = ?, `tl_time` = NOW()");
-if ($stmt_log) {
-    mysqli_stmt_bind_param($stmt_log, 's', $u_username);
-    mysqli_stmt_execute($stmt_log);
-    mysqli_stmt_close($stmt_log);
+   ต้องกันไว้สองชั้น เพราะตารางที่ไม่มีทำให้ mysqli บนเครื่องนี้ทั้ง "โยน
+   exception" และ "พิมพ์ warning" ออกมาพร้อมกัน
+
+     try/catch   กัน mysqli_sql_exception ที่โยนตอน prepare
+                 ของเดิมใช้ if ($stmt_log) ซึ่งไม่มีโอกาสได้ทำงานเลย
+     @           กัน warning ที่พิมพ์ออกหน้าจอ
+                 ถ้าไม่กด ข้อความจะถูกส่งออกไปก่อน แล้ว header('Location')
+                 ด้านล่างใช้ไม่ได้ ("headers already sent") คนล็อกอินจะค้าง
+                 อยู่หน้าเปล่า ทั้งที่เซสชันถูกตั้งเรียบร้อยแล้วข้างบน
+
+   บันทึกเวลาเป็นของแถม ไม่ใช่เงื่อนไขของการเข้าระบบ ล้มก็ต้องเงียบ
+   ถ้าอยากให้บันทึกจริง รัน sql/038_create_tb_time_login.sql */
+try {
+    $stmt_log = @mysqli_prepare($connect, "INSERT INTO `tb_time_login` SET `tl_name` = ?, `tl_time` = NOW()");
+    if ($stmt_log) {
+        @mysqli_stmt_bind_param($stmt_log, 's', $u_username);
+        @mysqli_stmt_execute($stmt_log);
+        @mysqli_stmt_close($stmt_log);
+    }
+} catch (Exception $e) {
+    /* ไม่มีตารางก็ข้ามไป */
 }
 
 /* ============================================================

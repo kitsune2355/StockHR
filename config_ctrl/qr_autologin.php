@@ -95,12 +95,17 @@ $_SESSION['sess_tmp_user_id']    = date('His');
 $_SESSION['sess_last_activity']  = time();
 $_SESSION['sess_need_agency_popup'] = 0;
 
-/* ---------- บันทึกเวลาเข้าใช้งาน (ข้ามได้ถ้าตารางยังไม่มี) ---------- */
-$stmt_log = mysqli_prepare($connect, "INSERT INTO `tb_time_login` SET `tl_name` = ?, `tl_time` = NOW()");
-if ($stmt_log) {
-    mysqli_stmt_bind_param($stmt_log, 's', $u_username);
-    mysqli_stmt_execute($stmt_log);
-    mysqli_stmt_close($stmt_log);
+/* ---------- บันทึกเวลาเข้าใช้งาน (ข้ามได้ถ้าตารางยังไม่มี) ----------
+   ต้องกันสองชั้นทั้ง try/catch และ @ ด้วยเหตุผลเดียวกับ checkmember.php */
+try {
+    $stmt_log = @mysqli_prepare($connect, "INSERT INTO `tb_time_login` SET `tl_name` = ?, `tl_time` = NOW()");
+    if ($stmt_log) {
+        @mysqli_stmt_bind_param($stmt_log, 's', $u_username);
+        @mysqli_stmt_execute($stmt_log);
+        @mysqli_stmt_close($stmt_log);
+    }
+} catch (Exception $e) {
+    /* ไม่มีตารางก็ข้ามไป */
 }
 
 /* ---------- โหลดหน่วยงานของผู้ใช้ ---------- */
