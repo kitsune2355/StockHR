@@ -167,10 +167,6 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
                 title="เปิดกล้องเพื่อส่อง QR">
           <i data-lucide="camera" class="h-3.5 w-3.5" aria-hidden="true"></i>
         </button>
-        <button type="button" id="btnScanTest" class="doc-scan-test"
-                title="ทดสอบว่าเครื่องอ่านส่งอะไรมาบ้าง">
-          <i data-lucide="wrench" class="h-3.5 w-3.5" aria-hidden="true"></i>
-        </button>
       </div>
 
       <div class="ml-auto flex flex-wrap items-center gap-2">
@@ -223,21 +219,6 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
 
         <div id="scanCamMsg" class="scan-cam-msg">กำลังเปิดกล้อง…</div>
       </div>
-    </div>
-
-    <!-- โหมดทดสอบเครื่องอ่าน เปิดจากปุ่มประแจข้างช่องยิง
-         มีไว้ตอบคำถามเดียว: ถ้ายิงไม่ติด ปัญหาอยู่ที่เครื่องอ่านหรือที่โปรแกรม -->
-    <div id="scanTest" hidden class="doc-scan-test-box">
-      <div class="doc-scan-test-head">
-        <i data-lucide="wrench" class="h-3.5 w-3.5" aria-hidden="true"></i>
-        <span>ทดสอบเครื่องอ่าน — ยิงหนึ่งครั้งแล้วดูว่าได้อะไรมาบ้าง</span>
-      </div>
-      <pre id="scanTestLog" class="doc-scan-test-log"></pre>
-      <p class="doc-scan-test-note">
-        ควรเห็นปุ่มไล่มาทีละตัวจนครบรหัส แล้วปิดท้ายด้วย Enter
-        ถ้าไม่มี Enter ให้ตั้งค่าเครื่องอ่านให้ส่ง Enter ต่อท้าย (suffix)
-        ถ้าคอลัมน์ "ระบบอ่านเป็น" ถูกต้องแม้ตัวอักษรที่ส่งมาจะเป็นภาษาไทย แปลว่าใช้งานได้ตามปกติ
-      </p>
     </div>
 
 <?php if ($doc_type === 'request') { ?>

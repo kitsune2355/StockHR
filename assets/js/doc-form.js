@@ -726,38 +726,6 @@
         try { row.scrollTo().then(function () {}, function () {}); } catch (e) { /* ไม่สำคัญ */ }
     }
 
-    /* ---------- โหมดทดสอบเครื่องอ่าน ----------
-     * เครื่องอ่านแต่ละรุ่นตั้งค่ามาไม่เหมือนกัน บางตัวไม่ได้ส่ง Enter ปิดท้าย
-     * บางตัวส่งผ่านแป้นตัวเลขด้านขวา บางตัวใส่คำนำหน้า/ต่อท้ายมาด้วย
-     * โหมดนี้แสดงทุกปุ่มที่ได้รับแบบดิบ ๆ เทียบกับตัวอักษรที่แปลงได้
-     * จะได้รู้ว่าถ้ายิงไม่ติด ปัญหาอยู่ที่การตั้งค่าเครื่องอ่านหรือที่โปรแกรม
-     *
-     * ใช้ดูได้อีกอย่างว่าเครื่องที่มีอยู่อ่าน QR ได้หรือไม่ ยิง QR ใส่แล้ว
-     * ถ้าไม่มีปุ่มไหนขึ้นเลย แปลว่าเป็นรุ่นเลเซอร์เส้นตรงซึ่งอ่านได้แต่บาร์โค้ด
-     */
-    var scanTestOn = false;
-
-    function toggleScanTest() {
-        scanTestOn = !scanTestOn;
-        var box = el('scanTest');
-        setHidden(box, !scanTestOn);
-        el('btnScanTest').classList.toggle('is-on', scanTestOn);
-        if (scanTestOn) {
-            el('scanTestLog').textContent = 'รอการยิง… ลองยิงบาร์โค้ดหรือ QR หนึ่งครั้ง';
-            el('scanInput').focus();
-        }
-    }
-
-    function logScanKey(info) {
-        if (!scanTestOn) { return; }
-        var box = el('scanTestLog');
-        var line = 'ปุ่ม ' + (info.code || '(ไม่มี code)') +
-                   '  ตัวอักษรที่ระบบส่งมา "' + (info.key === ' ' ? '␣' : info.key) + '"' +
-                   '  ระบบอ่านเป็น ' + (info.mapped === null ? '— ข้าม —' : '"' + info.mapped + '"');
-        box.textContent = (box.textContent.indexOf('รอการยิง') === 0 ? '' : box.textContent + '\n') + line;
-        box.scrollTop = box.scrollHeight;
-    }
-
     function setupScanner() {
         var input = el('scanInput');
         if (!input || !window.BarcodeScan) { return; }
@@ -766,13 +734,9 @@
 
         scanner = window.BarcodeScan.attach({
             input:  input,
-            onScan: onScan,
-            onKey:  logScanKey
+            onScan: onScan
         });
 
-        if (el('btnScanTest')) {
-            el('btnScanTest').addEventListener('click', toggleScanTest);
-        }
         initScanCam();
 
         /* พอโหลดเสร็จให้เคอร์เซอร์รออยู่ที่ช่องยิงเลย เดินมาถึงก็ยิงได้ทันที

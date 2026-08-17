@@ -51,7 +51,6 @@
      *  opts:
      *    input     ช่อง <input> ที่จะใช้ยิง
      *    onScan    function (code) — เรียกเมื่อยิงจบหนึ่งรหัส
-     *    onKey     function (info) — เรียกทุกปุ่มที่กด ใช้กับโหมดทดสอบเท่านั้น
      *    minLength ความยาวต่ำสุดที่ถือว่าเป็นรหัส (กัน Enter เปล่า ๆ)
      */
     function attach(opts) {
@@ -74,10 +73,6 @@
             /* ปล่อยให้คีย์ผสม (Ctrl+V ฯลฯ) ทำงานตามปกติ
                บางคนจะสะดวกกว่าถ้าคัดลอกรหัสมาวางแทนการยิง */
             if (e.ctrlKey || e.altKey || e.metaKey) { return; }
-
-            if (typeof opts.onKey === 'function') {
-                opts.onKey({ code: e.code, key: e.key, mapped: charOf(e.code) });
-            }
 
             if (isEnter(e.code, e.key)) {
                 e.preventDefault();

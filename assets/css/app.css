@@ -4706,16 +4706,6 @@ button.bc-side-toggle { display: none; }
     font-family: 'Prompt', sans-serif; letter-spacing: 0; color: #94a3b8;
 }
 
-.doc-scan-test {
-    display: flex; align-items: center; justify-content: center;
-    width: 1.75rem; height: 1.75rem; border-radius: .5rem;
-    color: #94a3b8;
-    transition: background .15s, color .15s;
-}
-.doc-scan-test:hover { background: #f1f5f9; color: #475569; }
-.doc-scan-test.is-on { background: #effbf9; color: #0f766e; }
-
-/* ปุ่มเปิดกล้อง ใช้หน้าตาเดียวกับปุ่มประแจ เพราะอยู่ติดกันและเป็นปุ่มระดับเดียวกัน */
 .doc-scan-cam {
     display: flex; align-items: center; justify-content: center;
     width: 1.75rem; height: 1.75rem; border-radius: .5rem;
@@ -4830,46 +4820,14 @@ button.bc-side-toggle { display: none; }
 }
 .tabulator .tabulator-row.row-scanned { animation: docScanFlash 1.2s ease-out; }
 
-/* ---------- กล่องทดสอบเครื่องอ่าน ---------- */
-.doc-scan-test-box {
-    margin: 0 1rem .5rem;
-    border: 1px solid #e2e8f0; border-radius: .75rem;
-    background: #f8fafc;
-    overflow: hidden;
-}
-.doc-scan-test-head {
-    display: flex; align-items: center; gap: .5rem;
-    padding: .5rem .875rem;
-    border-bottom: 1px solid #e2e8f0;
-    font-size: 12px; font-weight: 600; color: #475569;
-}
-.doc-scan-test-log {
-    max-height: 9rem; overflow: auto;
-    margin: 0; padding: .625rem .875rem;
-    font-family: ui-monospace, Consolas, monospace;
-    font-size: 11.5px; line-height: 1.55; color: #334155;
-    white-space: pre-wrap; word-break: break-all;
-}
-.doc-scan-test-note {
-    margin: 0; padding: .5rem .875rem;
-    border-top: 1px solid #e2e8f0;
-    font-size: 11.5px; line-height: 1.6; color: #64748b;
-}
-
 /* ---------- โหมดมืด ---------- */
 .dark .doc-scan            { border-color: #334155; background: #1e293b; }
 .dark .doc-scan:focus-within { border-color: #2dd4bf; box-shadow: 0 0 0 4px rgba(45, 212, 191, .18); }
 .dark .doc-scan-input      { color: #e2e8f0; }
 .dark .doc-scan-icon       { color: #64748b; }
 .dark .doc-scan:focus-within .doc-scan-icon { color: #5eead4; }
-.dark .doc-scan-test:hover { background: rgba(148, 163, 184, .18); color: #cbd5e1; }
-.dark .doc-scan-test.is-on { background: rgba(2, 148, 136, .22); color: #5eead4; }
 .dark .doc-scan-msg.is-ok  { background: rgba(16, 185, 129, .16); color: #6ee7b7; }
 .dark .doc-scan-msg.is-bad { background: rgba(239, 68, 68, .16); color: #fca5a5; }
-.dark .doc-scan-test-box   { border-color: #334155; background: rgba(15, 23, 42, .6); }
-.dark .doc-scan-test-head,
-.dark .doc-scan-test-note  { border-color: #334155; color: #94a3b8; }
-.dark .doc-scan-test-log   { color: #cbd5e1; }
 .dark .tabulator .tabulator-row.row-scanned { animation: docScanFlashDark 1.2s ease-out; }
 @keyframes docScanFlashDark {
     0%   { background: rgba(16, 185, 129, .38); }
