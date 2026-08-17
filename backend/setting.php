@@ -77,23 +77,26 @@ function setting_is_on($key)
 /* ---------- ที่อยู่ของระบบ ลงท้ายด้วย / ----------
  * ใช้ทำลิงก์ที่ต้องมีชื่อโฮสต์เต็ม เช่นปุ่มในอีเมลกับลิงก์เซ็นรับของ
  *
- * คิดจากคำขอที่กำลังเข้ามา ไม่ใช่ค่าที่ตั้งไว้ตายตัว เครื่องพัฒนากับ
- * เซิร์ฟเวอร์จริงจึงได้ลิงก์ของตัวเองโดยไม่ต้องมาแก้ค่าตอน deploy
+ * ลำดับความสำคัญ
+ *   1. ค่า "ที่อยู่ระบบ" ที่ผู้ดูแลตั้งไว้ — ตั้งไว้แล้วต้องชนะเสมอ
+ *   2. เดาจากคำขอที่กำลังเข้ามา — สำหรับที่ที่ยังไม่ได้ตั้งค่า จะได้ใช้ได้เลย
  *
- * ทำแบบนี้ได้เพราะเนื้ออีเมลถูกสร้างตอน "เข้าคิว" ซึ่งอยู่ในคำขอเว็บเสมอ
- * ตัวส่ง (cron/mail_worker.php) แค่หยิบ body_html ที่เก็บไว้ไปส่ง ไม่ได้สร้าง URL เอง
- * ถ้าวันหลังมีงานเบื้องหลังที่ต้องสร้างลิงก์เอง ค่า site_url ที่ตั้งไว้จะถูกใช้แทน
+ * เคยสลับลำดับกันแล้วผิด: ผู้ดูแลตั้ง https://โดเมน/stock_hl/ ไว้ถูกต้อง
+ * แต่โค้ดไปเดาเอง แล้วเดาโฟลเดอร์ไม่เจอ ลิงก์ในเมลจึงกลายเป็น
+ * https://โดเมน/main.php?... ซึ่งกดแล้ว 404
  */
 function app_base_url()
 {
-    $host = isset($_SERVER['HTTP_HOST']) ? trim($_SERVER['HTTP_HOST']) : '';
-
-    /* ไม่มีคำขอ (บรรทัดคำสั่ง) — ใช้ค่าที่ตั้งไว้ */
-    if ($host === '') {
-        $base = trim(setting_get('site_url', ''));
-        if ($base === '') { return ''; }
+    /* 1. ค่าที่ตั้งไว้มาก่อน */
+    $base = trim(setting_get('site_url', ''));
+    if ($base !== '') {
         return (substr($base, -1) === '/') ? $base : ($base . '/');
     }
+
+    /* 2. เดาจากคำขอ — ไม่มีคำขอ (บรรทัดคำสั่ง) ก็จนปัญญา คืนค่าว่าง
+          ผู้เรียกจะได้รู้ว่าสร้างลิงก์ไม่ได้ แทนที่จะส่งลิงก์เสียออกไป */
+    $host = isset($_SERVER['HTTP_HOST']) ? trim($_SERVER['HTTP_HOST']) : '';
+    if ($host === '') { return ''; }
 
     /* https หรือไม่ — โฮสต์ที่มีตัวคั่นหน้าจะบอกผ่าน X-Forwarded-Proto
        ส่วน HTTPS = 'off' คือค่าที่ IIS ใส่มาเมื่อไม่ได้เข้ารหัส ต้องดักด้วย */
@@ -107,21 +110,50 @@ function app_base_url()
         $scheme = 'https';
     }
 
-    /* โฟลเดอร์ของโปรเจกต์เทียบกับรากเว็บ — ได้ '/stock_hl' ทั้งสองที่
-       ใช้ตำแหน่งไฟล์นี้เป็นตัวตั้ง ไม่ใช่ SCRIPT_NAME ซึ่งเปลี่ยนไปตามหน้าที่เรียก */
-    $dir  = '';
-    $root = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] : '';
-    if ($root !== '') {
-        $root = rtrim(str_replace('\\', '/', $root), '/');
-        $proj = rtrim(str_replace('\\', '/', dirname(dirname(__FILE__))), '/');
+    return $scheme . '://' . $host . app_base_dir() . '/';
+}
 
-        /* เทียบแบบไม่สนตัวพิมพ์ เพราะ Windows คืน C:/AppServ บ้าง c:/appserv บ้าง */
-        if (strcasecmp(substr($proj, 0, strlen($root)), $root) === 0) {
-            $dir = substr($proj, strlen($root));
+
+/* ---------- โฟลเดอร์ของโปรเจกต์เทียบกับรากเว็บ ----------
+ * คืน '/stock_hl' หรือ '' ถ้าวางไว้ที่รากเว็บเลย
+ *
+ * วิธีแรกคือเทียบเส้นทางของสคริปต์ที่กำลังรัน (SCRIPT_FILENAME) กับ SCRIPT_NAME
+ * ซึ่งเป็นเส้นทางเดียวกันคนละมุม — อันหนึ่งเป็นของดิสก์ อีกอันเป็นของ URL
+ * ตัดส่วนที่อยู่ใต้รากโปรเจกต์ออกจากทั้งคู่ ที่เหลือคือโฟลเดอร์ที่ต้องการ
+ *
+ * ไม่เทียบกับ DOCUMENT_ROOT เป็นวิธีหลัก เพราะโฮสต์แบบ DirectAdmin ทำ
+ * public_html เป็นลิงก์ไปยัง domains/<โดเมน>/public_html อีกที
+ * เส้นทางสองฝั่งจึงไม่ขึ้นต้นเหมือนกัน เทียบแล้วไม่ตรง ได้ค่าว่างออกมา
+ * แล้วลิงก์ในเมลก็ตกหล่นชื่อโฟลเดอร์ไป (เจอมาแล้วบน develophpg.net)
+ */
+function app_base_dir()
+{
+    $proj = rtrim(str_replace('\\', '/', dirname(dirname(__FILE__))), '/');
+
+    /* วิธีที่ 1 — เทียบ SCRIPT_FILENAME กับ SCRIPT_NAME */
+    if (!empty($_SERVER['SCRIPT_FILENAME']) && !empty($_SERVER['SCRIPT_NAME'])) {
+        $file = str_replace('\\', '/', $_SERVER['SCRIPT_FILENAME']);
+        $name = str_replace('\\', '/', $_SERVER['SCRIPT_NAME']);
+
+        if (strcasecmp(substr($file, 0, strlen($proj)), $proj) === 0) {
+            $tail = substr($file, strlen($proj));        /* เช่น /api/documents.php */
+            $len  = strlen($tail);
+
+            if ($len > 0 && strcasecmp(substr($name, -$len), $tail) === 0) {
+                return rtrim(substr($name, 0, strlen($name) - $len), '/');
+            }
         }
     }
 
-    return $scheme . '://' . $host . $dir . '/';
+    /* วิธีที่ 2 — เทียบกับ DOCUMENT_ROOT เผื่อวิธีแรกใช้ไม่ได้ */
+    if (!empty($_SERVER['DOCUMENT_ROOT'])) {
+        $root = rtrim(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']), '/');
+        if ($root !== '' && strcasecmp(substr($proj, 0, strlen($root)), $root) === 0) {
+            return rtrim(substr($proj, strlen($root)), '/');
+        }
+    }
+
+    return '';
 }
 
 
