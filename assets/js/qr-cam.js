@@ -62,13 +62,25 @@
 
         if (window.jsQR) { done(true, 'ตัวถอดรหัสสำรอง'); return; }
 
+        /* เบราว์เซอร์นี้ไม่มีตัวถอดในตัว (Chrome บน Windows เป็นแบบนั้น
+           มีเฉพาะบน Android, ChromeOS และ macOS) ต้องโหลดตัวสำรองมาใช้ */
         var url = window.QR_CAM_LIB;
-        if (!url) { done(false, ''); return; }
+        if (!url) {
+            done(false, '', 'หน้านี้ไม่ได้บอกที่อยู่ของตัวถอดรหัสสำรอง');
+            return;
+        }
 
         var s = document.createElement('script');
         s.src = url;
-        s.onload  = function () { done(!!window.jsQR, 'ตัวถอดรหัสสำรอง'); };
-        s.onerror = function () { done(false, ''); };
+        s.onload  = function () {
+            if (window.jsQR) { done(true, 'ตัวถอดรหัสสำรอง'); }
+            else { done(false, '', 'ไฟล์ตัวถอดรหัสสำรองโหลดมาแล้วแต่ใช้ไม่ได้'); }
+        };
+        /* บอกไปเลยว่าไฟล์ไหนหาย ไม่งั้นคนแก้ต้องไปไล่เปิด console เอง
+           เคสที่เจอจริง: อัปโหลดขึ้นเซิร์ฟเวอร์ไม่ครบ ไฟล์นี้เลยได้ 404 */
+        s.onerror = function () {
+            done(false, '', 'โหลดตัวถอดรหัสสำรองไม่ได้ — ตรวจว่ามีไฟล์ ' + url + ' บนเซิร์ฟเวอร์หรือยัง');
+        };
         document.body.appendChild(s);
     }
 
@@ -79,8 +91,8 @@
         var c = check();
         if (!c.ok) { fail(c.why); return; }
 
-        prepare(function (ready, engine) {
-            if (!ready) { fail('เตรียมตัวถอดรหัสไม่สำเร็จ'); return; }
+        prepare(function (ready, engine, why) {
+            if (!ready) { fail(why ? why : 'เตรียมตัวถอดรหัสไม่สำเร็จ'); return; }
 
             navigator.mediaDevices.getUserMedia({
                 audio: false,
