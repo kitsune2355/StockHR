@@ -156,6 +156,42 @@ function mail_enqueue($to_email, $to_name, $subject, $body_html,
     return $ok ? true : false;
 }
 
+/* ---------- ส่งเมลที่เพิ่งเข้าคิว ออกทันที ----------
+ * เปิด/ปิดที่ MAIL_SEND_MODE ใน .env  (instant = ส่งเลย, queue = รอ cron หรือปุ่ม)
+ *
+ * ส่งในคำขอเดียวกับที่ผู้ใช้กด ผู้ใช้จึงรอเพิ่มตามเวลาที่ SMTP ใช้จริง
+ * เลือกวิธีนี้เพราะเซิร์ฟเวอร์เป็น apache2handler ไม่มี fastcgi_finish_request
+ * การจะตอบผู้ใช้ก่อนแล้วค่อยส่งเงียบ ๆ ข้างหลังจึงต้องใช้ลูกเล่นปิดการเชื่อมต่อ
+ * ซึ่งพังเมื่อเซิร์ฟเวอร์บีบอัดคำตอบ แลกความแน่นอนไปกับการรอไม่กี่วินาที
+ *
+ * จำกัดจำนวนต่อครั้งไว้ ไม่งั้นวันที่คิวค้างอยู่ร้อยฉบับ คนกดคนแรกจะต้องรอส่งให้หมด
+ * ที่เหลือตกเป็นงานของ cron หรือปุ่ม "ส่งคิวเดี๋ยวนี้" เหมือนเดิม
+ *
+ * ห้ามให้ความล้มเหลวของเมลไปทำให้การบันทึกเอกสารพัง — คืนค่าเงียบ ๆ เสมอ
+ * เมลที่ส่งไม่ออกยังอยู่ในคิวและถูกลองใหม่ได้
+ */
+function mail_flush_instant($actor = null)
+{
+    require_once dirname(__FILE__) . '/env.php';
+
+    if (strtolower(env_get('MAIL_SEND_MODE', 'queue')) !== 'instant') {
+        return array('sent' => 0, 'failed' => 0, 'skipped' => 0, 'message' => '');
+    }
+
+    $limit = env_get_int('MAIL_INSTANT_LIMIT', 5);
+    if ($limit < 1)  { $limit = 1; }
+    if ($limit > 20) { $limit = 20; }
+
+    $res = array('sent' => 0, 'failed' => 0, 'skipped' => 0, 'message' => '');
+    /* PHP 5.2 ไม่มี finally และ mail_dispatch ก็ดักข้อผิดพลาดของตัวเองอยู่แล้ว
+       ห่อไว้อีกชั้นเผื่อกรณีที่คาดไม่ถึง เช่นไลบรารีเมลหาย */
+    if (function_exists('mail_dispatch')) {
+        $res = mail_dispatch($limit, ($actor === null ? 'system' : $actor));
+    }
+    return $res;
+}
+
+
 /* ตัดข้อความแบบไม่พึ่ง backend/notify.php (ไฟล์นี้ถูกเรียกเดี่ยว ๆ จาก cron ได้) */
 function notify_clip_safe($text, $max)
 {
@@ -310,9 +346,14 @@ function mail_build($cfg)
     $mail->CharSet  = 'UTF-8';
     $mail->Encoding = 'base64';
 
-    /* เครือข่ายในไทยไปหา Zoho บางช่วงช้า 10 วินาทีคือรอนานพอแล้ว
-       ตัวส่งวิ่งอยู่เบื้องหลัง ไม่มีใครนั่งรอหน้าจอ แต่ก็ไม่ควรค้างยาว */
-    $mail->Timeout  = 10;
+    /* เครือข่ายในไทยไปหา Zoho บางช่วงช้า ตั้งได้ที่ MAIL_TIMEOUT ใน .env
+       โหมดส่งทันทีควรตั้งสั้นกว่า เพราะมีคนนั่งรอหน้าจออยู่จริง
+       ฉบับที่ส่งไม่ทันยังอยู่ในคิว รอ cron หรือปุ่มมาส่งต่อได้ */
+    require_once dirname(__FILE__) . '/env.php';
+    $timeout = env_get_int('MAIL_TIMEOUT', 10);
+    if ($timeout < 3)  { $timeout = 3; }
+    if ($timeout > 60) { $timeout = 60; }
+    $mail->Timeout  = $timeout;
 
     $mail->SetFrom($cfg['from'], $cfg['from_name']);
 

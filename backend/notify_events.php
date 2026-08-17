@@ -197,6 +197,12 @@ function notify_deliver($people, $args)
 
         $n++;
     }
+
+    /* ส่งออกทันทีถ้า .env ตั้ง MAIL_SEND_MODE=instant
+       เรียกครั้งเดียวหลังเข้าคิวครบทุกคน ไม่ใช่เรียกทีละคนในวง
+       เพราะการต่อ SMTP ใหม่ทุกฉบับช้ากว่าการต่อครั้งเดียวแล้วส่งรวด */
+    if ($n > 0) { mail_flush_instant($actor); }
+
     return $n;
 }
 
