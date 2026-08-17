@@ -633,14 +633,13 @@ function mail_detail_table($pairs)
 
 
 /* ---------- ที่อยู่ของหน้าในระบบ ใช้ทำปุ่มในเมล ----------
- * เอาจากค่าตั้ง site_url ไม่ใช่ $_SERVER เพราะตัวส่งอาจถูกเรียกจาก
- * บรรทัดคำสั่ง (Task Scheduler) ซึ่งไม่มี $_SERVER['HTTP_HOST'] ให้อ่าน
+ * app_base_url() คิดจากคำขอที่กำลังเข้ามา แล้วตกไปใช้ค่าตั้ง site_url
+ * เมื่อไม่มีคำขอ (ดูเหตุผลเต็มที่ backend/setting.php)
  */
 function mail_page_url($page, $doc_id = 0)
 {
-    $base = trim(setting_get('site_url', ''));
+    $base = app_base_url();
     if ($base === '') { return ''; }
-    if (substr($base, -1) !== '/') { $base .= '/'; }
 
     $url = $base . 'main.php?page=' . urlencode($page);
     if ((int)$doc_id > 0) {

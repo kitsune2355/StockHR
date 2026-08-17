@@ -595,6 +595,10 @@
         sheet.style.setProperty('--bc-h', opt.size.h + 'mm');
         sheet.style.setProperty('--bc-cols', opt.size.perRow);
 
+        /* เส้นตัดเป็นเรื่องของตอนพิมพ์ล้วน ๆ (ดู @media print ใน app.css)
+           บนจอยังเห็นเส้นประเสมอ เพราะเป็นตัวช่วยดูว่าเนื้อหาชิดขอบเกินไปไหม */
+        sheet.classList.toggle('no-cut', !el('bcCutLine').checked);
+
         /* ถ้อยคำต้องเปลี่ยนตามชนิดรหัสเสมอ แม้ยังไม่ได้เลือกสินค้าสักตัว
            ไม่งั้นคนที่สลับไป QR ก่อนแล้วค่อยเลือกสินค้า จะไม่เห็นตัวเลือกการจัดวาง
            จนกว่าจะติ๊กสินค้าตัวแรก ซึ่งดูเหมือนตัวเลือกหายไปเฉย ๆ */
@@ -882,7 +886,7 @@
             });
         }
 
-        var settings = ['bcSize', 'bcCopies', 'bcShowName', 'bcShowUnit', 'bcShowCode'];
+        var settings = ['bcSize', 'bcCopies', 'bcShowName', 'bcShowUnit', 'bcShowCode', 'bcCutLine'];
         for (var s = 0; s < settings.length; s++) {
             el(settings[s]).addEventListener('change', renderSheet);
         }

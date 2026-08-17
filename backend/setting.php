@@ -74,6 +74,57 @@ function setting_is_on($key)
 }
 
 
+/* ---------- ที่อยู่ของระบบ ลงท้ายด้วย / ----------
+ * ใช้ทำลิงก์ที่ต้องมีชื่อโฮสต์เต็ม เช่นปุ่มในอีเมลกับลิงก์เซ็นรับของ
+ *
+ * คิดจากคำขอที่กำลังเข้ามา ไม่ใช่ค่าที่ตั้งไว้ตายตัว เครื่องพัฒนากับ
+ * เซิร์ฟเวอร์จริงจึงได้ลิงก์ของตัวเองโดยไม่ต้องมาแก้ค่าตอน deploy
+ *
+ * ทำแบบนี้ได้เพราะเนื้ออีเมลถูกสร้างตอน "เข้าคิว" ซึ่งอยู่ในคำขอเว็บเสมอ
+ * ตัวส่ง (cron/mail_worker.php) แค่หยิบ body_html ที่เก็บไว้ไปส่ง ไม่ได้สร้าง URL เอง
+ * ถ้าวันหลังมีงานเบื้องหลังที่ต้องสร้างลิงก์เอง ค่า site_url ที่ตั้งไว้จะถูกใช้แทน
+ */
+function app_base_url()
+{
+    $host = isset($_SERVER['HTTP_HOST']) ? trim($_SERVER['HTTP_HOST']) : '';
+
+    /* ไม่มีคำขอ (บรรทัดคำสั่ง) — ใช้ค่าที่ตั้งไว้ */
+    if ($host === '') {
+        $base = trim(setting_get('site_url', ''));
+        if ($base === '') { return ''; }
+        return (substr($base, -1) === '/') ? $base : ($base . '/');
+    }
+
+    /* https หรือไม่ — โฮสต์ที่มีตัวคั่นหน้าจะบอกผ่าน X-Forwarded-Proto
+       ส่วน HTTPS = 'off' คือค่าที่ IIS ใส่มาเมื่อไม่ได้เข้ารหัส ต้องดักด้วย */
+    $scheme = 'http';
+    if (!empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off') {
+        $scheme = 'https';
+    } elseif (!empty($_SERVER['HTTP_X_FORWARDED_PROTO'])
+              && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https') {
+        $scheme = 'https';
+    } elseif (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443) {
+        $scheme = 'https';
+    }
+
+    /* โฟลเดอร์ของโปรเจกต์เทียบกับรากเว็บ — ได้ '/stock_hl' ทั้งสองที่
+       ใช้ตำแหน่งไฟล์นี้เป็นตัวตั้ง ไม่ใช่ SCRIPT_NAME ซึ่งเปลี่ยนไปตามหน้าที่เรียก */
+    $dir  = '';
+    $root = isset($_SERVER['DOCUMENT_ROOT']) ? $_SERVER['DOCUMENT_ROOT'] : '';
+    if ($root !== '') {
+        $root = rtrim(str_replace('\\', '/', $root), '/');
+        $proj = rtrim(str_replace('\\', '/', dirname(dirname(__FILE__))), '/');
+
+        /* เทียบแบบไม่สนตัวพิมพ์ เพราะ Windows คืน C:/AppServ บ้าง c:/appserv บ้าง */
+        if (strcasecmp(substr($proj, 0, strlen($root)), $root) === 0) {
+            $dir = substr($proj, strlen($root));
+        }
+    }
+
+    return $scheme . '://' . $host . $dir . '/';
+}
+
+
 /* ---------- อ่านทั้งกลุ่ม ----------
  * คืน array แบน key => value เอาไปใช้ต่อได้เลย
  */

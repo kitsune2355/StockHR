@@ -221,6 +221,13 @@ $field    = 'block text-xs font-semibold uppercase tracking-wide text-slate-500 
         <input type="checkbox" id="bcShowUnit">
         <span>แสดงหน่วยนับ</span>
       </label>
+      <!-- พิมพ์ลงกระดาษเปล่าแล้วตัดเอง ต้องมีเส้นนำ ไม่งั้นตัดไม่ตรง
+           แต่ถ้าพิมพ์ลงแผ่นสติกเกอร์ที่ปรุรอยตัดมาแล้ว เส้นจะไปโผล่บนดวงจริง
+           จึงปิดได้ ค่าเริ่มต้นเปิดไว้เพราะกระดาษเปล่าเป็นกรณีที่พบบ่อยกว่า -->
+      <label class="bc-toggle">
+        <input type="checkbox" id="bcCutLine" checked>
+        <span>พิมพ์เส้นตัดประ</span>
+      </label>
     </div>
 
     <!-- ขนาดของส่วนที่เล็กที่สุดในรหัส เป็นตัวชี้ขาดว่าเครื่องอ่านจะอ่านติดไหม

@@ -127,16 +127,15 @@ function sign_link_ensure($doc_id, $actor = null)
 
 
 /* ---------- ประกอบเป็น URL เต็ม ----------
- * คืน '' ถ้ายังไม่ได้ตั้ง site_url เพราะลิงก์ที่ไม่มีชื่อโฮสต์
- * ส่งไปในเมลแล้วกดไม่ได้ ปล่อยว่างดีกว่าส่งของเสียออกไป
+ * คืน '' ถ้าหาที่อยู่ระบบไม่ได้ เพราะลิงก์ที่ไม่มีชื่อโฮสต์ส่งไปในเมลแล้วกดไม่ได้
+ * ปล่อยว่างดีกว่าส่งของเสียออกไป
  */
 function sign_link_url($token)
 {
     if ($token === '') { return ''; }
 
-    $base = trim(setting_get('site_url', ''));
+    $base = app_base_url();
     if ($base === '') { return ''; }
-    if (substr($base, -1) !== '/') { $base .= '/'; }
 
     return $base . 'sign.php?t=' . urlencode($token);
 }

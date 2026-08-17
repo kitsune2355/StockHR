@@ -4576,8 +4576,8 @@ button.bc-side-toggle { display: none; }
     width: var(--bc-w, 48.5mm);
     height: var(--bc-h, 25.4mm);
     background: #fff;
-    /* เส้นประคือรอยตัดสมมติ ช่วยให้เห็นว่าเนื้อหาชิดขอบเกินไปไหม
-       ไม่ถูกพิมพ์ลงกระดาษ (ดูบล็อก @media print ด้านล่าง) */
+    /* เส้นประคือรอยตัด ช่วยให้เห็นว่าเนื้อหาชิดขอบเกินไปไหม
+       บนจอแสดงเสมอ ส่วนตอนพิมพ์ปิดได้ที่ช่อง "พิมพ์เส้นตัดประ" */
     outline: 1px dashed #cbd5e1;
     outline-offset: -1px;
 }
@@ -4652,12 +4652,25 @@ button.bc-side-toggle { display: none; }
         justify-content: start !important;
     }
 
+    /* ---------- เส้นตัด ----------
+       ค่าเริ่มต้นพิมพ์เส้นประให้ เพื่อให้ตัดตามได้ตรง
+       ใช้ outline ไม่ใช่ border เพราะ outline วาดทับขอบโดยไม่กินพื้นที่
+       ดวงที่ติดกันจึงใช้เส้นร่วมกัน ไม่กลายเป็นเส้นคู่ และขนาดดวงไม่เพี้ยน
+
+       ต้องบังคับสีให้พิมพ์ออกมาจริง เบราว์เซอร์ตัดพื้นหลังและสีอ่อนทิ้ง
+       ตอนพิมพ์เป็นค่าเริ่มต้น เส้นสีเทาอ่อนจึงหายไปเฉย ๆ */
     .bc-cell {
-        outline: 0 !important;
+        outline: 1px dashed #94a3b8 !important;
+        outline-offset: -1px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
         /* ห้ามให้ดวงหนึ่งถูกตัดครึ่งข้ามหน้ากระดาษ */
         break-inside: avoid;
         page-break-inside: avoid;
     }
+
+    /* ปิดเส้นตัดเมื่อพิมพ์ลงแผ่นสติกเกอร์ที่ปรุรอยตัดมาแล้ว */
+    .bc-sheet.no-cut .bc-cell { outline: 0 !important; }
 
     @page { size: A4; margin: 8mm; }
 }
