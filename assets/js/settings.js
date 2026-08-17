@@ -418,8 +418,24 @@
     }
 
 
+    /* ---------- ตามดูคิวจนกว่าจะไม่มีอะไรค้าง ----------
+     * เซิร์ฟเวอร์ส่งเมลอยู่เบื้องหลังหลังตอบเรามาแล้ว จำนวนที่ค้างจึงลดลงเรื่อย ๆ
+     * โหลดซ้ำเป็นระยะเพื่อให้เห็นความคืบหน้า แล้วหยุดเมื่อคิวว่างหรือครบรอบ
+     * ไม่ถามถี่กว่านี้เพราะการส่งหนึ่งฉบับใช้เวลาหลายวินาทีอยู่แล้ว
+     */
+    function watchQueue(rounds) {
+        var left = rounds || 6;
+
+        function tick() {
+            loadQueue();
+            left--;
+            if (left > 0) { setTimeout(tick, 2500); }
+        }
+        setTimeout(tick, 1500);
+    }
+
     function flushQueue() {
-        if (window.appLoading) { window.appLoading('กำลังส่ง…'); }
+        if (window.appLoading) { window.appLoading('กำลังสั่งส่ง…'); }
 
         post(CFG.apiUrl, { action: 'flush', limit: 20 })
             .then(function (res) {
@@ -427,14 +443,14 @@
 
                 if (!res || !res.ok) {
                     bad(res && res.message ? res.message : 'ส่งคิวไม่สำเร็จ');
-                } else if (res.failed > 0) {
-                    /* ส่งไม่ผ่านบางส่วนไม่ใช่ความสำเร็จ แต่ก็ไม่ใช่ความล้มเหลวทั้งหมด
-                       บอกตามจริงแล้วชี้ให้ไปดูสาเหตุที่รายการด้านล่าง */
-                    if (window.appWarning) { window.appWarning(res.message + ' — ดูสาเหตุที่รายการด้านล่าง'); }
-                } else {
-                    ok(res.message);
+                    loadQueue();
+                    return;
                 }
-                loadQueue();
+
+                ok(res.message);
+                /* คำตอบกลับมาก่อนที่เมลจะถูกส่งจริง จึงยังไม่มีจำนวนให้รายงาน
+                   ตามดูคิวแทน แล้วตัวเลขจะลดลงให้เห็นเอง */
+                if (res.working) { watchQueue(6); } else { loadQueue(); }
             })['catch'](function () {
                 if (window.appClose) { window.appClose(); }
                 bad('เชื่อมต่อไม่ได้ กรุณาลองใหม่');

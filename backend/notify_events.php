@@ -199,9 +199,19 @@ function notify_deliver($people, $args)
     }
 
     /* ส่งออกทันทีถ้า .env ตั้ง MAIL_SEND_MODE=instant
-       เรียกครั้งเดียวหลังเข้าคิวครบทุกคน ไม่ใช่เรียกทีละคนในวง
-       เพราะการต่อ SMTP ใหม่ทุกฉบับช้ากว่าการต่อครั้งเดียวแล้วส่งรวด */
-    if ($n > 0) { mail_flush_instant($actor); }
+       แต่ฝากไว้ให้ทำ "หลังตอบผู้ใช้ไปแล้ว" ไม่ใช่ตรงนี้
+       ไม่งั้นคนกดอนุมัติต้องนั่งรอ SMTP หลายวินาทีทั้งที่งานของเขาเสร็จแล้ว
+       (ดู api_after_response ใน api/_bootstrap.php)
+
+       เส้นทางที่ไม่ได้ผ่าน API เช่นหน้าเซ็นรับของ จะไม่มีตัวรับฝาก
+       เมลจึงค้างในคิวรอ cron หรือปุ่มส่ง เหมือนพฤติกรรมเดิม */
+    if ($n > 0) {
+        if (function_exists('api_after_response')) {
+            api_after_response('mail_flush_instant');
+        } else {
+            mail_flush_instant($actor);
+        }
+    }
 
     return $n;
 }

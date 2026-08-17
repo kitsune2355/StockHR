@@ -163,13 +163,27 @@ if ($action === 'flush') {
 
     api_require_csrf($input);
 
-    $res = mail_dispatch(isset($input['limit']) ? (int)$input['limit'] : 20, $actor);
+    /* ส่งจริงหลังตอบผู้ใช้ไปแล้ว การต่อ SMTP ใช้เวลาหลายวินาทีต่อฉบับ
+       ถ้ารอให้เสร็จก่อนตอบ ปุ่มจะค้างจนคนกดนึกว่าระบบแฮงก์
 
+       ผลจึงยังไม่รู้ตอนตอบ ฝั่งหน้าจอโหลดคิวซ้ำอีกทีเพื่อดูความคืบหน้า */
+    $limit = isset($input['limit']) ? (int)$input['limit'] : 20;
+    $GLOBALS['flush_limit'] = $limit;
+    $GLOBALS['flush_actor'] = $actor;
+
+    function flush_queue_after_response()
+    {
+        mail_dispatch($GLOBALS['flush_limit'], $GLOBALS['flush_actor']);
+    }
+    api_after_response('flush_queue_after_response');
+
+    $q = mail_queue_summary();
     api_ok(array(
-        'message' => $res['message'],
-        'sent'    => $res['sent'],
-        'failed'  => $res['failed'],
-        'queue'   => mail_queue_summary()
+        'message' => 'สั่งส่งแล้ว กำลังทยอยส่งอยู่เบื้องหลัง — กดโหลดใหม่เพื่อดูความคืบหน้า',
+        'working' => true,
+        'sent'    => 0,
+        'failed'  => 0,
+        'queue'   => $q
     ));
 }
 

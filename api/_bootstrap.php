@@ -23,11 +23,63 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
 
-/* ---------- ตอบกลับแล้วจบการทำงาน ---------- */
+/* ---------- งานที่ทำหลังตอบผู้ใช้ไปแล้ว ----------
+ * ฝากงานไว้ด้วย api_after_response('ชื่อฟังก์ชัน') แล้ว api_send จะเรียกให้
+ * หลังปิดการเชื่อมต่อ ผู้ใช้จึงไม่ต้องรอ
+ *
+ * ใช้กับงานที่ช้าและผลลัพธ์ไม่จำเป็นต้องอยู่ในคำตอบ เช่นการส่งอีเมล
+ * ซึ่งใช้เวลาหลายวินาทีต่อฉบับเพราะต้องต่อ SMTP ออกไปข้างนอก
+ */
+$GLOBALS['api_after_response'] = array();
+
+function api_after_response($fn)
+{
+    $GLOBALS['api_after_response'][] = $fn;
+}
+
+
+/* ---------- ตอบกลับแล้วจบการทำงาน ----------
+ * ปิดการเชื่อมต่อก่อนแล้วค่อยทำงานที่ฝากไว้
+ *
+ * บอกความยาวไปด้วยแล้วสั่งปิด เบราว์เซอร์จึงรู้ว่าได้ครบแล้วและเลิกรอ
+ * ส่วน PHP ยังทำงานต่อจนจบสคริปต์ (ignore_user_abort กันไม่ให้ถูกฆ่าทิ้ง)
+ *
+ * ใช้ได้เพราะเซิร์ฟเวอร์ทั้งสองที่ไม่ได้บีบอัดคำตอบ — ถ้าบีบอัด
+ * ความยาวที่บอกไปจะไม่ตรงกับที่ส่งจริง แล้วคำตอบจะขาดกลางคัน (ตรวจแล้วไม่บีบ)
+ * โฮสต์ที่เป็น PHP-FPM จะได้ fastcgi_finish_request ซึ่งตรงไปตรงมากว่า
+ *
+ * ถ้าวิธีนี้ไม่ได้ผลบนเซิร์ฟเวอร์ไหน ผลคือผู้ใช้รอเท่าเดิม ไม่มีอะไรพัง
+ */
 function api_send($payload)
 {
     while (ob_get_level() > 0) { ob_end_clean(); }
-    echo json_encode($payload);
+
+    $body  = json_encode($payload);
+    $tasks = $GLOBALS['api_after_response'];
+
+    if (count($tasks) > 0) {
+        ignore_user_abort(true);
+        @set_time_limit(120);
+
+        if (!headers_sent()) {
+            header('Content-Length: ' . strlen($body));
+            header('Connection: close');
+        }
+    }
+
+    echo $body;
+
+    if (count($tasks) === 0) { exit(); }
+
+    while (ob_get_level() > 0) { @ob_end_flush(); }
+    @flush();
+    if (function_exists('fastcgi_finish_request')) { @fastcgi_finish_request(); }
+
+    /* ห้ามให้งานเบื้องหลังพังแล้วไปกระทบอะไร คำตอบถูกส่งไปแล้ว */
+    for ($i = 0; $i < count($tasks); $i++) {
+        if (is_callable($tasks[$i])) { @call_user_func($tasks[$i]); }
+    }
+
     exit();
 }
 
