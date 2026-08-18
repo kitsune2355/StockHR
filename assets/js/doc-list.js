@@ -233,6 +233,17 @@
             out.push({ key: 'openlink', icon: 'external-link', tone: 'ghost', label: 'เปิดหน้าเซ็นรับของ' });
         }
 
+        /* ---------- ลิงก์อนุมัติ ----------
+         * มีเฉพาะใบเบิกที่ยังรออนุมัติ และเฉพาะผู้ดูแลระบบ ด้วยเหตุผลเดียวกับ
+         * ลิงก์เซ็นรับ: เปิดได้โดยไม่ต้องล็อกอิน ใครถือก็ตัดสินแทนได้
+         *
+         * ต่างกันตรงที่ลิงก์อนุมัติออกให้เป็นรายคน ปุ่มนี้จึงเปิดรายชื่อ
+         * ผู้อนุมัติให้เลือกก่อน ไม่ได้คัดลอกทันทีเหมือนฝั่งเซ็นรับ
+         */
+        if (doc.doc_type === 'request' && doc.status === 'waiting' && isManager()) {
+            out.push({ key: 'approvelink', icon: 'link', tone: 'ghost', label: 'คัดลอกลิงก์อนุมัติ' });
+        }
+
         /* ที่เหลือใช้เงื่อนไขชุดเดียวกับกล่องรายละเอียด จะได้ไม่มีปุ่มที่โผล่
            ในตารางแต่หายไปในกล่อง หรือกลับกัน */
         var acts = actionsFor(doc);
@@ -247,7 +258,7 @@
        ถ้าตั้งแคบตามแถวที่ปุ่มน้อย แถวที่ปุ่มเยอะจะถูกตัดหาย */
     function rowActionWidth() {
         if (TYPE === 'issue')   { return 232; }   // ดู พิมพ์ ลิงก์ เปิด เซ็น ยกเลิก เมล
-        if (TYPE === 'request') { return 204; }   // ดู พิมพ์ อนุมัติ ไม่อนุมัติ ยกเลิก เมล
+        if (TYPE === 'request') { return 232; }   // ดู พิมพ์ ลิงก์ อนุมัติ ไม่อนุมัติ ยกเลิก เมล
         return 100;                               // ใบรับเข้า: ดู พิมพ์ ยกเลิก
     }
 
@@ -740,9 +751,10 @@
                 return;
             }
 
-            if (key === 'open')     { openDetail(id);   return; }
-            if (key === 'copylink') { signLink(doc, 'copy'); return; }
-            if (key === 'openlink') { signLink(doc, 'open'); return; }
+            if (key === 'open')        { openDetail(id);        return; }
+            if (key === 'copylink')    { signLink(doc, 'copy'); return; }
+            if (key === 'openlink')    { signLink(doc, 'open'); return; }
+            if (key === 'approvelink') { approveLink(doc);      return; }
 
             openDoc = doc;
             runAction(key);
@@ -770,6 +782,51 @@
 
         }, bad);
     }
+
+    /* ---------- ลิงก์อนุมัติใบเบิก ----------
+     * ผู้อนุมัติที่หาเมลไม่เจอ ผู้ดูแลส่งลิงก์ให้ทางไลน์ได้
+     *
+     * ต่างจากลิงก์เซ็นรับตรงที่กุญแจออกให้เป็นรายคน เพราะระบบต้องบันทึกได้ว่า
+     * ใครอนุมัติ จึงคัดลอกทันทีไม่ได้ ต้องให้เลือกก่อนว่าจะส่งให้ใคร
+     * ส่งผิดคน = คนนั้นตัดสินใบนี้ในนามของคนที่ลิงก์ออกให้
+     *
+     * มีผู้อนุมัติคนเดียวก็ยังต้องยืนยัน เพื่อให้เห็นชื่อก่อนส่งเสมอ
+     */
+    function approveLink(doc) {
+        post({
+            action: 'approve_link', csrf_token: CFG.csrfToken, doc_id: doc.doc_id
+        }, function (res) {
+            showApproveLinks(doc, res.links, res.days);
+        }, bad);
+    }
+
+    function showApproveLinks(doc, links, days) {
+        if (!window.Swal) {
+            /* ไม่มีกล่องให้เลือก ก็ยังต้องใช้งานได้ — เอาคนแรกไปเลย
+               แล้วบอกชื่อไว้ในกล่อง prompt ให้ตรวจก่อนส่ง */
+            window.prompt('ลิงก์อนุมัติของ ' + links[0].full_name, links[0].url);
+            return;
+        }
+
+        var html = '<p class="ack-lead">เลือกผู้อนุมัติที่จะส่งลิงก์ให้ '
+                 + 'ลิงก์ใช้ได้ ' + days + ' วัน กดได้ครั้งเดียว '
+                 + 'และผู้ที่ถือลิงก์จะตัดสินใบนี้<b>ในนามของคนนั้น</b></p>';
+
+        for (var i = 0; i < links.length; i++) {
+            html += '<p class="ack-lead" style="margin-bottom:2px"><b>'
+                 +  escapeHtml(links[i].full_name) + '</b></p>'
+                 +  '<input type="text" class="swal2-input ack-input" readonly value="'
+                 +  escapeHtml(links[i].url) + '" onclick="this.select()">';
+        }
+
+        window.Swal.fire({
+            title: 'ลิงก์อนุมัติใบ ' + doc.doc_no,
+            html: html,
+            confirmButtonText: 'ปิด',
+            width: 640
+        });
+    }
+
 
     /* คัดลอกลิงก์ลงคลิปบอร์ด
      * navigator.clipboard ใช้ได้เฉพาะบนหน้าที่เป็น https หรือ localhost

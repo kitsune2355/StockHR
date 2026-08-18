@@ -179,7 +179,20 @@ function notify_deliver($people, $args)
     }
     if ($url === '') { $url = mail_page_url($link_page, $doc_id); }
 
-    $html = mail_layout($heading, $body, ($url !== '' ? $btn_text : ''), $url);
+    /* ---------- ลิงก์อนุมัติเป็นของ "รายคน" ไม่ใช่ของทั้งฉบับ ----------
+     * เมล "ใบเบิกรอคุณอนุมัติ" ส่งหาผู้อนุมัติทุกคนของหน่วยงาน แต่กุญแจ
+     * อนุมัติออกให้เป็นรายคน เพราะระบบต้องบันทึกให้ได้ว่าใครเป็นคนกด
+     * (ดู backend/approve_link.php) ปุ่มในเมลจึงต้องต่างกันทุกฉบับ
+     *
+     * โหมดนี้เท่านั้นที่ประกอบ HTML ใหม่ทีละคน ทางปกติยังสร้างครั้งเดียว
+     * เหมือนเดิม เพราะเหตุการณ์ส่วนใหญ่ส่งข้อความเดียวกันให้ทุกคน
+     */
+    $per_person = (isset($args['approve_link']) && $args['approve_link'] && $doc_id > 0);
+    if ($per_person) {
+        require_once dirname(__FILE__) . '/approve_link.php';
+    }
+
+    $html = $per_person ? '' : mail_layout($heading, $body, ($url !== '' ? $btn_text : ''), $url);
 
     $n = 0;
     for ($i = 0; $i < count($people); $i++) {
@@ -193,7 +206,28 @@ function notify_deliver($people, $args)
            แต่ยังได้กระดิ่งครบ — ไม่มีใครพลาดแจ้งเตือนเพราะไม่มีอีเมล */
         $email = isset($people[$i]['email']) ? $people[$i]['email'] : '';
         $name  = isset($people[$i]['full_name']) ? $people[$i]['full_name'] : '';
-        mail_enqueue($email, $name, $subject, $html, $ref_type, $doc_id, $actor);
+
+        $mine = $html;
+        if ($per_person) {
+            /* ออกกุญแจไม่สำเร็จ (เช่นยังไม่ได้ตั้ง site_url, ยังไม่ได้รัน sql/043
+               หรือใบถูกตัดสินไปแล้วระหว่างทาง) ให้ตกกลับไปใช้ลิงก์เข้าระบบแบบเดิม
+               ดีกว่าส่งเมลที่ไม่มีปุ่มอะไรให้กดเลย
+
+               ครอบ try ไว้อีกชั้นตามกติกาเหล็กที่หัวไฟล์: แจ้งเตือนห้ามทำให้
+               งานหลักพัง ใบเบิกถูกบันทึกไปแล้วตั้งแต่ก่อนเข้าฟังก์ชันนี้
+               ต่อให้ตัวออกกุญแจพังยับก็ต้องไม่มีอะไรเด้งกลับไปหาคนกดส่งใบ */
+            $one = '';
+            try {
+                $one = approve_link_for($doc_id, $u, $actor);
+            } catch (Exception $e) {
+                $one = '';
+            }
+            if ($one === '') { $one = $url; }
+
+            $mine = mail_layout($heading, $body, ($one !== '' ? $btn_text : ''), $one);
+        }
+
+        mail_enqueue($email, $name, $subject, $mine, $ref_type, $doc_id, $actor);
 
         $n++;
     }
@@ -237,6 +271,11 @@ function notify_person($username)
  * ============================================================ */
 function notify_event_request_submitted($doc_id, $actor)
 {
+    /* ต้องโหลดก่อนประกอบข้อความ เพราะเนื้อเมลอ้างถึง APPROVE_LINK_DAYS
+       ถ้ารอไปโหลดตอน notify_deliver ค่าคงที่ยังไม่มี แล้วข้อความจะขึ้นเป็น
+       ชื่อค่าคงที่ดิบ ๆ ในเมลที่ส่งออกไปแล้ว */
+    require_once dirname(__FILE__) . '/approve_link.php';
+
     $doc = doc_find($doc_id);
     if ($doc === null || $doc['doc_type'] !== 'request') { return 0; }
 
@@ -255,13 +294,24 @@ function notify_event_request_submitted($doc_id, $actor)
         'actor'     => $actor,
         'subject'   => '[รออนุมัติ] ใบเบิก ' . $doc['doc_no'] . ' จาก ' . $who,
         'heading'   => 'มีใบเบิกรอการอนุมัติ',
-        'button'    => 'เปิดใบเบิกเพื่ออนุมัติ',
+        'button'    => 'เปิดหน้าอนุมัติ',
         'ref_type'  => 'request_waiting',
+
+        /* ปุ่มในเมลพาไปหน้าอนุมัติที่กดได้เลยโดยไม่ต้องล็อกอิน
+           ของเดิมชี้เข้าหน้าในระบบ ผู้อนุมัติที่อ่านเมลจากมือถือจึงต้องพิมพ์
+           รหัสผ่านบนจอเล็ก ๆ ก่อน ส่วนใหญ่เลยเลื่อนไว้ทำทีหลังแล้วลืม
+           กุญแจออกให้เป็นรายคน เมลแต่ละฉบับจึงมีปุ่มคนละอัน */
+        'approve_link' => true,
+
         'body_html' =>
               '<p>' . htmlspecialchars($who, ENT_QUOTES, 'UTF-8')
-            . ' ส่งใบเบิกเข้ามาให้คุณพิจารณา</p>'
+            . ' ส่งใบเบิกเข้ามาให้คุณพิจารณา '
+            . 'กดปุ่มด้านล่างเพื่ออนุมัติหรือไม่อนุมัติได้เลย ไม่ต้องเข้าสู่ระบบ</p>'
             . mail_detail_table(notify_doc_pairs($doc))
             . notify_items_html($doc['items'])
+            . '<p style="font-size:13px;color:#94a3b8;margin-top:16px">'
+            . 'ลิงก์นี้ใช้ได้ครั้งเดียวและหมดอายุใน ' . (int)APPROVE_LINK_DAYS . ' วัน '
+            . 'กรุณาอย่าส่งต่อให้ผู้อื่น เพราะผู้ที่ถือลิงก์จะตัดสินใบนี้ในนามของคุณได้</p>'
     ));
 }
 

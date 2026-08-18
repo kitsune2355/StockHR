@@ -43,6 +43,26 @@ function notify_type_meta($type)
 }
 
 
+/* ---------- ชื่อผู้กระทำที่เขียนลงคอลัมน์ซึ่งมี foreign key ได้ ----------
+ * created_by / updated_by ของ tb_notification ผูก FK ไว้กับ tb_user.username
+ * ค่าที่ไม่ใช่ชื่อผู้ใช้จริง โดยเฉพาะสตริงว่าง จะทำให้ทั้งคำสั่งล้ม
+ * ด้วย error 1452 ไม่ใช่แค่คอลัมน์นั้นเป็นค่าว่าง
+ *
+ * เส้นทางที่ไม่มีผู้กระทำจริงมีอยู่จริงและถูกต้อง — ปุ่ม "ส่งเมลซ้ำ" ส่ง
+ * actor = '' มาโดยตั้งใจ เพราะระบบเป็นคนส่ง ไม่ใช่คนใดคนหนึ่ง
+ * จึงต้องแปลงเป็น NULL ที่ชั้นนี้ ไม่ใช่ไปแก้ให้ผู้เรียกส่งชื่อปลอมมาแทน
+ *
+ * ทำไมเพิ่งโผล่: เดิม @mysqli_stmt_execute() กลบ warning ไว้ แถวไม่ถูกเขียน
+ * แบบเงียบ ๆ แต่ mysqli บน PHP รุ่นใหม่โยน exception ซึ่ง @ กดไม่อยู่
+ * บั๊กที่ซ่อนมานานจึงกลายเป็นหน้าจอ fatal error ทั้งที่งานหลักสำเร็จไปแล้ว
+ */
+function notify_actor($actor)
+{
+    $actor = trim((string)$actor);
+    return ($actor === '') ? null : $actor;
+}
+
+
 /* ---------- สร้างแจ้งเตือนให้คนเดียว ----------
  * คืน true/false — ผู้เรียกจะตรวจหรือไม่ตรวจก็ได้
  *
@@ -74,9 +94,10 @@ function notify_push($username, $type, $title, $message,
     $message = notify_clip($message, 500);
 
     $doc_id = ($link_doc_id === null || (int)$link_doc_id <= 0) ? null : (int)$link_doc_id;
+    $by     = notify_actor($actor);
 
     mysqli_stmt_bind_param($stmt, 'sssssis',
-        $username, $type, $title, $message, $link_page, $doc_id, $actor);
+        $username, $type, $title, $message, $link_page, $doc_id, $by);
 
     $ok = @mysqli_stmt_execute($stmt);
     mysqli_stmt_close($stmt);
