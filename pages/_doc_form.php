@@ -233,8 +233,29 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
          ตัวกรองสินค้าอยู่ในหัวฝั่งซ้ายซึ่งเป็นฝั่งที่มันกรองโดยตรง -->
     <div class="tf-wrap">
 
+      <!-- ===== แท็บสลับสองฝั่ง — โผล่เฉพาะจอเล็ก (ดู .tf-tabs ใน app.css) =====
+           บนมือถือสองฝั่งต้องเรียงบนล่าง "รายการที่จะเบิก" จึงไปอยู่ใต้รายการสินค้า
+           ทั้งทะเบียน ซึ่งเลื่อนไม่ถึงกันจริง ๆ แท็บทำให้กดถึงได้ทันที
+           และเหลือกล่องที่เลื่อนได้ชั้นเดียวแทนที่จะซ้อนกันสามชั้น
+
+           ตัวเลขบนแท็บซ้ำกับป้ายในหัวของแต่ละฝั่งโดยตั้งใจ เพราะหัวฝั่งที่ไม่ได้เลือก
+           ถูกซ่อนอยู่ ตัวเลข "เลือกไปกี่รายการแล้ว" จึงต้องอยู่บนแท็บด้วย
+           ไม่งั้นแตะเลือกของแล้วมันหายเข้าไปในฝั่งที่มองไม่เห็น -->
+      <div class="tf-tabs" role="tablist" aria-label="สลับฝั่งที่แสดง">
+        <button type="button" class="tf-tab is-active" data-pane="src"
+                role="tab" aria-selected="true" aria-controls="tfPaneSrc">
+          <span class="tf-tab-text">สินค้าทั้งหมด</span>
+          <span class="tf-tab-num" id="tfTabSrc">0</span>
+        </button>
+        <button type="button" class="tf-tab" data-pane="dst"
+                role="tab" aria-selected="false" aria-controls="tfPaneDst" tabindex="-1">
+          <span class="tf-tab-text">รายการที่จะเบิก</span>
+          <span class="tf-tab-num is-on" id="tfTabDst">0</span>
+        </button>
+      </div>
+
       <!-- ---------- ฝั่งซ้าย ---------- -->
-      <section class="tf-pane tf-pane-src" aria-labelledby="tfLeftHead">
+      <section id="tfPaneSrc" class="tf-pane tf-pane-src" aria-labelledby="tfLeftHead">
         <div class="tf-pane-head">
           <h3 id="tfLeftHead" class="tf-pane-title">
             สินค้าทั้งหมด
@@ -251,15 +272,29 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
               <i data-lucide="search" class="h-4 w-4"></i>
             </span>
             <input type="search" id="tfSearch" autocomplete="off"
-                   placeholder="ค้นรหัส ชื่อสินค้า หรือหมวดหมู่ย่อย"
+                   placeholder="ค้นรหัส ชื่อสินค้า หรือหมวดหมู่"
                    class="<?php echo $input; ?> pl-10">
           </div>
 
-          <div class="tf-filters-row">
+          <div class="tf-filters-row tf-filters-row3">
             <select id="tfCategory" class="<?php echo $input; ?>"
                     data-search data-search-placeholder="พิมพ์ชื่อหมวดหมู่"
                     aria-label="กรองตามหมวดหมู่หลัก">
               <option value="">ทุกหมวดหมู่</option>
+            </select>
+
+            <!-- หมวดหมู่หลักมีแค่สองอัน กรองแล้วยังเหลือเป็นร้อยรายการ
+                 หมวดหมู่ย่อยคือชั้นที่ทำให้เหลือขนาดที่กวาดตาจนจบได้จริง
+                 (เช่น "รายการยารักษาโรค" เหลือ 15 รายการ)
+
+                 รายการในช่องนี้ตัดให้เหลือเฉพาะหมวดย่อยของหมวดหลักที่เลือกไว้
+                 และสร้างจากสินค้าที่โหลดมาจริง ไม่ใช่จากทะเบียนหมวดหมู่ทั้งชุด
+                 หมวดย่อยที่ไม่มีของให้เบิกจึงไม่โผล่มาเป็นทางตัน
+                 (ดู fillSubCategories() ใน doc-transfer.js) -->
+            <select id="tfSubCategory" class="<?php echo $input; ?>"
+                    data-search data-search-placeholder="พิมพ์ชื่อหมวดหมู่ย่อย"
+                    aria-label="กรองตามหมวดหมู่ย่อย">
+              <option value="">ทุกหมวดหมู่ย่อย</option>
             </select>
 
             <label class="tf-check">
@@ -273,7 +308,7 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
       </section>
 
       <!-- ---------- ฝั่งขวา ---------- -->
-      <section class="tf-pane tf-pane-dst" aria-labelledby="tfRightHead">
+      <section id="tfPaneDst" class="tf-pane tf-pane-dst" aria-labelledby="tfRightHead">
         <div class="tf-pane-head">
           <h3 id="tfRightHead" class="tf-pane-title">
             รายการที่จะเบิก
@@ -340,6 +375,8 @@ window.QR_CAM_LIB = '<?php echo asset_url('assets/js/jsqr.js', $ASSET_BASE); ?>'
 <?php if ($doc_type === 'request') { ?>
 <!-- หน้าเบิกใช้ตัวเลือกสองฝั่ง ไม่ต้องโหลด Tabulator ที่หนัก 430 KB -->
 <script src="<?php echo asset_url('assets/js/doc-transfer.js', $ASSET_BASE); ?>"></script>
+<!-- แท็บสลับสองฝั่งบนจอเล็ก — ใช้ร่วมกับหน้าสินค้าของหน่วยงาน -->
+<script src="<?php echo asset_url('assets/js/tf-tabs.js', $ASSET_BASE); ?>"></script>
 <?php } else { ?>
 <script src="<?php echo asset_url('assets/js/tabulator.min.js', $ASSET_BASE); ?>"></script>
 <script src="<?php echo asset_url('assets/js/grid-common.js', $ASSET_BASE); ?>"></script>

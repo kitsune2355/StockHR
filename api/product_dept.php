@@ -3,7 +3,7 @@
  *  api/product_dept.php — สินค้าที่แต่ละหน่วยงานเบิกได้
  *
  *    { "action": "bootstrap" }
- *        รายชื่อหน่วยงาน (พร้อมจำนวนที่ผูกไว้แล้ว) + สินค้าทั้งหมด + หมวดหมู่
+ *        รายชื่อหน่วยงาน (พร้อมจำนวนที่ผูกไว้แล้ว) + สินค้าทั้งหมด + หมวดหมู่หลัก/ย่อย
  *
  *    { "action": "get",  "department_id": 4 }
  *        รหัสสินค้าที่หน่วยงานนี้ถูกผูกไว้
@@ -20,6 +20,7 @@ require_once dirname(dirname(__FILE__)) . '/backend/product_department.php';
 require_once dirname(dirname(__FILE__)) . '/backend/department.php';
 require_once dirname(dirname(__FILE__)) . '/backend/stock.php';
 require_once dirname(dirname(__FILE__)) . '/backend/category.php';
+require_once dirname(dirname(__FILE__)) . '/backend/sub_category.php';
 
 api_require_post();
 $actor = api_require_login();
@@ -66,6 +67,11 @@ if ($action === 'bootstrap') {
            เพราะหน้านี้คือที่ที่ใช้ "เลือก" ว่าจะให้เห็นอะไร ต้องเห็นครบก่อน */
         'products'    => stock_list(array('only_active' => true)),
         'categories'  => category_options(true),
+
+        /* หมวดหมู่ย่อยส่งไปทั้งชุดพร้อม category_id ติดมาด้วย ให้ฝั่งหน้าจอกรอง
+           รายการในช่อง "หมวดหมู่ย่อย" ให้เหลือเฉพาะของหมวดหลักที่เลือกไว้ได้เอง
+           โดยไม่ต้องยิงถามเซิร์ฟเวอร์ใหม่ทุกครั้งที่เปลี่ยนหมวดหลัก */
+        'subCategories' => sub_category_options(true),
 
         /* ---------- สินค้าตัวไหนถูกหน่วยงานใดจองไว้แล้วบ้าง ----------
          * ข้อมูลชิ้นนี้เปลี่ยนหน้าจอจาก "ติ๊กถูก/ไม่ติ๊ก" เป็นการตัดสินใจที่มีข้อมูลครบ

@@ -87,6 +87,12 @@
                 el = null;
             }
 
+            /* บนจอเล็ก ตัวเลือกสินค้าแบบสองฝั่งแสดงทีละฝั่งผ่านแท็บ ฝั่งที่ไม่ได้เลือก
+               ถูกซ่อนด้วย display:none ขั้นตอนที่ชี้ไปที่ฝั่งนั้นจึงจะถูกกรองทิ้งตรงนี้
+               พาไปที่ฝั่งของมันก่อนวัด ขั้นตอนจะได้อยู่ครบ
+               (ตอนเดินคู่มือจริง onHighlighted สลับให้อีกทีตามขั้นที่กำลังอยู่) */
+            if (el && window.TfTabs && window.TfTabs.reveal) { window.TfTabs.reveal(el); }
+
             if (!el || !isVisible(el)) { continue; }
 
             out.push({ element: el, popover: popover });
@@ -183,7 +189,16 @@
              * ตามตำแหน่งเก่าไปแล้ว ถ้าไม่คำนวณใหม่จะเหลื่อมกันเท่ากับระยะที่ดึงกลับ
              */
             onHighlighted: function (element) {
-                var moved = undoHiddenScroll(element || document.body);
+
+                /* ขั้นตอนนี้ชี้ไปที่ฝั่งที่ถูกซ่อนอยู่หลังแท็บบนจอเล็กหรือเปล่า
+                   ถ้าใช่ ต้องสลับไปฝั่งนั้นก่อน ไม่งั้นกรอบไฮไลต์จะไปตีที่ว่างเปล่า
+                   การสลับทำให้ทุกอย่างขยับ จึงนับเป็น moved เพื่อสั่งคำนวณใหม่ */
+                var moved = false;
+                if (element && window.TfTabs && window.TfTabs.reveal) {
+                    moved = window.TfTabs.reveal(element);
+                }
+
+                if (undoHiddenScroll(element || document.body)) { moved = true; }
 
                 window.setTimeout(function () {
                     if (undoHiddenScroll(element || document.body)) { moved = true; }

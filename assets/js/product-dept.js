@@ -35,8 +35,22 @@
     var deptNames  = {};
     var deptLabels = {};   // ป้ายเต็มพร้อมชื่อบริษัท ใช้ในข้อความตอนชี้ค้าง
 
+    /* หมวดหมู่ย่อยทั้งชุด (แต่ละอันมี category_id ของหมวดหลักติดมาด้วย)
+       เก็บไว้ทั้งก้อนเพราะช่อง "หมวดหมู่ย่อย" ต้องถูกสร้างใหม่ทุกครั้งที่
+       เปลี่ยนหมวดหลัก ให้เหลือเฉพาะของหมวดนั้น */
+    var subCats = [];
+
     function el(id) { return document.getElementById(id); }
     function setHidden(node, on) { if (node) { node.hidden = !!on; } }
+
+    /* ตัวเลขจำนวนรายการมีสองที่: ป้ายในหัวของแต่ละฝั่ง กับตัวเลขบนแท็บของจอเล็ก
+       ต้องเขียนพร้อมกันเสมอ เพราะบนจอเล็กหัวของฝั่งที่ไม่ได้เลือกถูกซ่อนอยู่
+       ตัวเลขบนแท็บจึงเป็นทางเดียวที่จะรู้ว่าอีกฝั่งมีกี่รายการ */
+    function setCount(headId, tabId, value) {
+        var text = String(value);
+        if (el(headId)) { el(headId).textContent = text; }
+        if (el(tabId))  { el(tabId).textContent  = text; }
+    }
 
     function escapeHtml(text) {
         return String(text === null || text === undefined ? '' : text)
@@ -153,6 +167,83 @@
     }
 
 
+    /* ---------- ป้ายหมวดหมู่ของสินค้าแต่ละตัว ----------
+     * ของเดิมบรรทัดล่างมีแค่ชื่อหมวดย่อยเป็นตัวจาง ๆ ซึ่งตอบไม่ได้ว่า
+     * หมวดย่อยนั้นอยู่ใต้หมวดหลักไหน ทั้งที่ชื่อหมวดย่อยซ้ำกันข้ามหมวดได้
+     * ("รายการหมึก" มีอยู่ทั้งสองหมวดหลัก) พอเปิดตัวกรองหมวดหมู่ย่อยแล้ว
+     * คำถามนี้ยิ่งเกิดบ่อย เพราะช่องกรองแสดงชื่อหมวดแม่กำกับไว้ แต่ตัวรายการไม่มี
+     *
+     * แยกเป็นสองป้ายคนละสีแทนการต่อเป็นข้อความเดียว เพราะสองชั้นนี้ใช้คนละ
+     * ตัวกรอง การกวาดตาหาว่า "แถวนี้อยู่หมวดไหน" จึงต้องแยกออกจากกันได้ทันที
+     * โดยไม่ต้องอ่านตัวคั่น
+     */
+    function catTags(p) {
+        var out = '';
+
+        /* ใส่ title ไว้ทุกป้าย เพราะ CSS ตัดชื่อยาวด้วย … เมื่อ pane แคบ
+           ชื่อเต็มจึงต้องยังอ่านได้จากการชี้ค้าง ไม่ใช่หายไปเฉย ๆ */
+        if (p.category_name) {
+            out += '<span class="tf-tag is-cat" title="หมวดหมู่หลัก: '
+                 + escapeHtml(p.category_name) + '">'
+                 + escapeHtml(p.category_name) + '</span>';
+        }
+        if (p.sub_category_name) {
+            out += '<span class="tf-tag is-sub" title="หมวดหมู่ย่อย: '
+                 + escapeHtml(p.sub_category_name) + '">'
+                 + escapeHtml(p.sub_category_name) + '</span>';
+        }
+        return out;
+    }
+
+
+    /* ---------- เติมรายการในช่อง "หมวดหมู่ย่อย" ----------
+     * เรียกทุกครั้งที่หมวดหลักเปลี่ยน เพื่อตัดรายการให้เหลือเฉพาะหมวดย่อย
+     * ที่อยู่ใต้หมวดหลักนั้น ไม่งั้นผู้ใช้จะเลือกคู่ที่ไม่มีสินค้าตรงเงื่อนไขได้
+     * (เช่น หมวดหลัก "วัสดุสิ้นเปลือง" + หมวดย่อย "อุปกรณ์เครื่องเขียน"
+     *  ซึ่งอยู่ใต้หมวดหลักอีกอัน) แล้วเจอรายการว่างโดยไม่รู้ว่าทำอะไรผิด
+     *
+     * ค่าที่เลือกไว้เดิมจะถูกเก็บไว้ถ้ายังอยู่ในรายการชุดใหม่ เพราะการเปลี่ยน
+     * หมวดหลักไปเป็นหมวดแม่ของหมวดย่อยที่เลือกไว้อยู่แล้ว ไม่ควรล้างค่านั้นทิ้ง
+     */
+    function fillSub() {
+        var box = el('pdSubCategory');
+        if (!box) { return; }
+
+        var cat  = el('pdCategory') ? Number(el('pdCategory').value) || 0 : 0;
+        var keep = Number(box.value) || 0;
+        var stillThere = false;
+
+        box.innerHTML = '';
+
+        var head = document.createElement('option');
+        head.value       = '';
+        head.textContent = 'ทุกหมวดหมู่ย่อย';
+        box.appendChild(head);
+
+        for (var i = 0; i < subCats.length; i++) {
+            var s = subCats[i];
+            if (cat > 0 && Number(s.category_id) !== cat) { continue; }
+
+            var op = document.createElement('option');
+            op.value       = s.sub_category_id;
+            op.textContent = s.sub_category_name;
+
+            /* ยังไม่เลือกหมวดหลัก = เห็นหมวดย่อยครบทุกอัน ซึ่งมีชื่อซ้ำกันข้ามหมวดได้
+               ("รายการหมึก" มีอยู่ทั้งสองหมวดหลัก) ถ้าไม่บอกหมวดแม่ จะขึ้นสองบรรทัด
+               ที่เขียนเหมือนกันเป๊ะ เลือกไปแล้วไม่รู้ว่าได้อันไหน
+               พอเลือกหมวดหลักแล้วบรรทัดนั้นซ้ำกันทุกแถว จึงไม่ต้องใส่ */
+            if (cat <= 0 && s.category_name) { op.setAttribute('data-sub', s.category_name); }
+
+            box.appendChild(op);
+            if (Number(s.sub_category_id) === keep) { stillThere = true; }
+        }
+
+        box.value = stillThere ? String(keep) : '';
+
+        if (window.SelectSearch) { window.SelectSearch.refresh(box); }
+    }
+
+
     /* ---------- ฝั่งซ้าย : สินค้าทั้งหมด ---------- */
     function renderLeft() {
         var box = el('pdLeft');
@@ -160,6 +251,7 @@
 
         var q     = norm(el('pdSearch') ? el('pdSearch').value : '');
         var cat   = el('pdCategory') ? Number(el('pdCategory').value) || 0 : 0;
+        var sub   = el('pdSubCategory') ? Number(el('pdSubCategory').value) || 0 : 0;
         var state = el('pdState') ? el('pdState').value : '';
 
         var html = '';
@@ -170,8 +262,16 @@
             var on = !!picked[p.product_id];
 
             if (cat > 0 && p.category_id !== cat) { continue; }
-            if (q !== '' && norm(p.product_code + ' ' + p.product_name
-                                 + ' ' + p.sub_category_name).indexOf(q) === -1) { continue; }
+
+            /* เลือกหมวดย่อยได้โดยไม่ต้องเลือกหมวดหลักก่อน — หมวดย่อยหนึ่งอัน
+               อยู่ใต้หมวดหลักได้อันเดียวอยู่แล้ว เงื่อนไขจึงไม่ขัดกันเอง */
+            if (sub > 0 && p.sub_category_id !== sub) { continue; }
+
+            /* ค้นชื่อหมวดหลักได้ด้วย เพราะตอนนี้มันขึ้นเป็นป้ายอยู่บนแถวแล้ว
+               สิ่งที่มองเห็นบนจอแล้วพิมพ์ตามไม่เจอ อ่านเหมือนระบบค้นหาพัง */
+            if (q !== '' && norm(p.product_code + ' ' + p.product_name + ' '
+                                 + p.category_name + ' '
+                                 + p.sub_category_name).indexOf(q) === -1) { continue; }
 
             var others = otherOwners(p.product_id);
             var isCommon = (others.length === 0 && !on
@@ -192,7 +292,7 @@
                  +  '<span class="tf-item-main">'
                  +    '<span class="tf-code">' + escapeHtml(p.product_code) + '</span>'
                  +    '<span class="tf-name">' + escapeHtml(p.product_name) + '</span>'
-                 +    '<span class="tf-sub">' + escapeHtml(p.sub_category_name || '') + tag + '</span>'
+                 +    '<span class="tf-sub">' + catTags(p) + tag + '</span>'
                  +  '</span>'
                  +  '<span class="tf-mark" aria-hidden="true">' + (on ? '&#10003;' : '+') + '</span>'
                  +  '</button>';
@@ -208,7 +308,7 @@
 
         box.scrollTop = keep;
 
-        if (el('pdLeftCount')) { el('pdLeftCount').textContent = String(n); }
+        setCount('pdLeftCount', 'pdTabSrc', n);
 
         /* ไอคอนกุญแจในป้าย "ฝ่ายอื่นจองไว้" ต้องถูกแปลงเป็น svg ทุกครั้งที่วาดใหม่ */
         if (window.renderIcons) { window.renderIcons(); }
@@ -263,7 +363,7 @@
         if (list.length === 0) {
             box.innerHTML = '<div class="tf-empty">ยังไม่ได้เลือกสินค้า<br>'
                           + '<span class="tf-empty-hint">หน่วยงานนี้จะเห็นเฉพาะสินค้าที่เป็นของกลาง</span></div>';
-            if (el('pdCount')) { el('pdCount').textContent = '0'; }
+            setCount('pdCount', 'pdTabDst', 0);
             if (el('pdSearchRight')) { el('pdSearchRight').disabled = true; }
             return;
         }
@@ -297,7 +397,7 @@
                  +  '<span class="tf-item-main">'
                  +    '<span class="tf-code">' + escapeHtml(rows[j].product_code) + '</span>'
                  +    '<span class="tf-name">' + escapeHtml(rows[j].product_name) + '</span>'
-                 +    '<span class="tf-sub">' + escapeHtml(rows[j].sub_category_name || '')
+                 +    '<span class="tf-sub">' + catTags(rows[j])
                  +      shareTag(rows[j].product_id, true) + '</span>'
                  +  '</span>'
                  +  '<span class="tf-mark" aria-hidden="true">&#10005;</span>'
@@ -316,7 +416,7 @@
 
         /* ตัวเลขบนหัวคือจำนวนที่ผูกไว้ทั้งหมด ไม่ใช่จำนวนที่ผ่านคำค้น
            เพราะตัวเลขนี้คือ "สิ่งที่จะบันทึก" ซึ่งต้องไม่เปลี่ยนตามการค้นหา */
-        if (el('pdCount')) { el('pdCount').textContent = String(list.length); }
+        setCount('pdCount', 'pdTabDst', list.length);
     }
 
 
@@ -493,6 +593,7 @@
             owners    = res.map || {};
             deptNames  = res.deptNames  || {};
             deptLabels = res.deptLabels || {};
+            subCats    = res.subCategories || [];
 
             byId = {};
             for (var i = 0; i < products.length; i++) {
@@ -534,6 +635,10 @@
                 window.SelectSearch.refresh(cat);
             }
 
+            /* ยังไม่เลือกหมวดหลัก จึงได้หมวดย่อยครบทุกอัน
+               (fillSub เรียก SelectSearch.refresh ให้เองอยู่แล้ว) */
+            fillSub();
+
             sel.addEventListener('change', function () {
                 var next = Number(this.value) || 0;
 
@@ -557,7 +662,15 @@
             });
 
             el('pdSearch').addEventListener('input', renderLeft);
-            el('pdCategory').addEventListener('change', renderLeft);
+
+            /* เปลี่ยนหมวดหลัก = ต้องเติมรายการหมวดย่อยใหม่ก่อนวาดรายการสินค้า
+               ไม่งั้นจะกรองด้วยหมวดย่อยที่ไม่มีอยู่ในหมวดใหม่แล้ว */
+            el('pdCategory').addEventListener('change', function () {
+                fillSub();
+                renderLeft();
+            });
+
+            el('pdSubCategory').addEventListener('change', renderLeft);
             el('pdState').addEventListener('change', renderLeft);
             el('pdSearchRight').addEventListener('input', renderRight);
 
@@ -611,15 +724,24 @@
 
     var DEMO_PRODUCTS = [
         { product_id: -1, product_code: 'EX-PPR-001', product_name: 'กระดาษถ่ายเอกสาร A4 80 แกรม',
-          category_id: -1, category_name: 'ตัวอย่าง', sub_category_name: 'เครื่องเขียน', qty: 120, unit_name: 'รีม' },
+          category_id: -1, category_name: 'ตัวอย่าง', sub_category_id: -11, sub_category_name: 'เครื่องเขียน', qty: 120, unit_name: 'รีม' },
         { product_id: -2, product_code: 'EX-PPR-002', product_name: 'กระดาษโน้ตกาวในตัว',
-          category_id: -1, category_name: 'ตัวอย่าง', sub_category_name: 'เครื่องเขียน', qty: 60, unit_name: 'แพ็ค' },
+          category_id: -1, category_name: 'ตัวอย่าง', sub_category_id: -11, sub_category_name: 'เครื่องเขียน', qty: 60, unit_name: 'แพ็ค' },
         { product_id: -3, product_code: 'EX-CLN-001', product_name: 'น้ำยาถูพื้น',
-          category_id: -1, category_name: 'ตัวอย่าง', sub_category_name: 'ของใช้ทำความสะอาด', qty: 24, unit_name: 'แกลลอน' },
+          category_id: -1, category_name: 'ตัวอย่าง', sub_category_id: -12, sub_category_name: 'ของใช้ทำความสะอาด', qty: 24, unit_name: 'แกลลอน' },
         { product_id: -4, product_code: 'EX-CLN-002', product_name: 'ถุงขยะดำ 30x40',
-          category_id: -1, category_name: 'ตัวอย่าง', sub_category_name: 'ของใช้ทำความสะอาด', qty: 300, unit_name: 'แพ็ค' },
+          category_id: -1, category_name: 'ตัวอย่าง', sub_category_id: -12, sub_category_name: 'ของใช้ทำความสะอาด', qty: 300, unit_name: 'แพ็ค' },
         { product_id: -5, product_code: 'EX-MED-001', product_name: 'ผ้าพันแผลปลอดเชื้อ',
-          category_id: -1, category_name: 'ตัวอย่าง', sub_category_name: 'เวชภัณฑ์', qty: 45, unit_name: 'ม้วน' }
+          category_id: -1, category_name: 'ตัวอย่าง', sub_category_id: -13, sub_category_name: 'เวชภัณฑ์', qty: 45, unit_name: 'ม้วน' }
+    ];
+
+    /* หมวดหมู่ย่อยของชุดสาธิต — ต้องสลับเข้าไปแทนของจริงด้วย ไม่งั้นช่อง
+       "หมวดหมู่ย่อย" จะยังเป็นรายการของจริงซึ่งไม่ตรงกับสินค้าตัวอย่างบนจอสักอัน
+       คนที่ลองกดตามคู่มือจะเจอรายการว่างทันที */
+    var DEMO_SUBS = [
+        { sub_category_id: -11, category_id: -1, sub_category_name: 'เครื่องเขียน',        category_name: 'ตัวอย่าง' },
+        { sub_category_id: -12, category_id: -1, sub_category_name: 'ของใช้ทำความสะอาด', category_name: 'ตัวอย่าง' },
+        { sub_category_id: -13, category_id: -1, sub_category_name: 'เวชภัณฑ์',            category_name: 'ตัวอย่าง' }
     ];
 
     function demoSetup() {
@@ -629,14 +751,17 @@
             products: products, byId: byId, picked: picked,
             original: original, deptId: deptId,
             owners: owners, deptNames: deptNames, deptLabels: deptLabels,
+            subCats: subCats,
             bodyHidden:  el('pdBody')  ? el('pdBody').hidden  : true,
             emptyHidden: el('pdEmpty') ? el('pdEmpty').hidden : false,
             search:   el('pdSearch')   ? el('pdSearch').value   : '',
             category: el('pdCategory') ? el('pdCategory').value : '',
+            sub:      el('pdSubCategory') ? el('pdSubCategory').value : '',
             state:    el('pdState')    ? el('pdState').value    : ''
         };
 
         products = DEMO_PRODUCTS;
+        subCats  = DEMO_SUBS;
         byId = {};
         for (var i = 0; i < products.length; i++) { byId[products[i].product_id] = products[i]; }
 
@@ -659,6 +784,13 @@
         if (el('pdSearch'))   { el('pdSearch').value   = ''; }
         if (el('pdCategory')) { el('pdCategory').value = ''; }
         if (el('pdState'))    { el('pdState').value    = ''; }
+
+        /* ตั้งค่า .value ด้วยโค้ดไม่ทำให้หน้ากากของ select-search.js อัปเดตตาม
+           ต้องสั่ง refresh เอง ไม่งั้นปุ่มจะยังโชว์ชื่อหมวดหมู่ที่กรองค้างไว้ก่อนเปิดคู่มือ
+           ทั้งที่รายการบนจอไม่ได้ถูกกรองด้วยค่านั้นแล้ว
+           (fillSub จัดการช่องหมวดหมู่ย่อยให้เอง รวมถึงล้างค่าที่เลือกไว้) */
+        if (window.SelectSearch && el('pdCategory')) { window.SelectSearch.refresh(el('pdCategory')); }
+        fillSub();
 
         setHidden(el('pdEmpty'), true);
         setHidden(el('pdBody'),  false);
@@ -688,10 +820,21 @@
         products = b.products; byId = b.byId; picked = b.picked;
         original = b.original; deptId = b.deptId;
         owners = b.owners; deptNames = b.deptNames; deptLabels = b.deptLabels;
+        subCats = b.subCats;
 
         if (el('pdSearch'))   { el('pdSearch').value   = b.search; }
         if (el('pdCategory')) { el('pdCategory').value = b.category; }
         if (el('pdState'))    { el('pdState').value    = b.state; }
+
+        /* คืนช่องหมวดหมู่: สร้างรายการหมวดย่อยของจริงกลับมาก่อน แล้วค่อยใส่ค่าเดิม
+           ลำดับนี้สลับไม่ได้ ถ้าใส่ค่าก่อน รายการยังเป็นของสาธิตอยู่ ค่านั้นจะไม่มี
+           ตัวเลือกรองรับแล้วถูกล้างทิ้ง ตัวกรองที่ผู้ใช้ตั้งไว้ก่อนเปิดคู่มือจะหาย */
+        if (window.SelectSearch && el('pdCategory')) { window.SelectSearch.refresh(el('pdCategory')); }
+        fillSub();
+        if (el('pdSubCategory')) {
+            el('pdSubCategory').value = b.sub;
+            if (window.SelectSearch) { window.SelectSearch.refresh(el('pdSubCategory')); }
+        }
 
         setHidden(el('pdBody'),  b.bodyHidden);
         setHidden(el('pdEmpty'), b.emptyHidden);

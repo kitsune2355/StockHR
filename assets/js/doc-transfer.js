@@ -57,13 +57,39 @@
         var elRight  = el('tfRight');
         var elSearch = el('tfSearch');
         var elCat    = el('tfCategory');
+        var elSub    = el('tfSubCategory');
         var elStock  = el('tfInStock');
         var elCount  = el('tfCount');
         var elLeftN  = el('tfLeftCount');
 
+        /* ตัวเลขบนแท็บของจอเล็ก — ต้องเขียนคู่กับป้ายในหัวของแต่ละฝั่งเสมอ
+           เพราะบนจอเล็กหัวของฝั่งที่ไม่ได้เลือกถูกซ่อนอยู่ ตัวเลขบนแท็บจึงเป็น
+           ทางเดียวที่จะรู้ว่าแตะเลือกของไปกี่รายการแล้ว */
+        var elTabSrc = el('tfTabSrc');
+        var elTabDst = el('tfTabDst');
 
-        /* ---------- ตัวเลือกหมวดหมู่หลัก ---------- */
+        function setLeftCount(n)  {
+            if (elLeftN)  { elLeftN.textContent  = String(n); }
+            if (elTabSrc) { elTabSrc.textContent = String(n); }
+        }
+        function setPickCount(n) {
+            if (elCount)  { elCount.textContent  = String(n); }
+            if (elTabDst) { elTabDst.textContent = String(n); }
+        }
+
+
+        /* ---------- ตัวเลือกหมวดหมู่หลัก ----------
+         * สร้างใหม่ทั้งชุดทุกครั้ง ไม่ใช่ต่อท้ายของเดิม เพราะ setProducts()
+         * เรียกฟังก์ชันนี้ซ้ำได้เมื่อรายการสินค้าเปลี่ยนทั้งชุด
+         * (เปลี่ยนหน่วยงานในใบเบิก — สินค้าที่เบิกได้ของแต่ละหน่วยงานไม่เหมือนกัน)
+         *
+         * ของเดิมต่อท้ายอย่างเดียว รายการจึงค้างเป็นหมวดหมู่ของหน่วยงานก่อนหน้า
+         * และถ้าค่าที่เลือกไว้ไม่มีในชุดใหม่ รายการสินค้าจะว่างโดยไม่มีอะไรอธิบาย
+         */
         function fillCategories() {
+            var keep = Number(elCat.value) || 0;
+            var stillThere = false;
+
             var seen = {};
             var list = [];
             for (var i = 0; i < products.length; i++) {
@@ -75,13 +101,105 @@
             }
             list.sort(function (a, b) { return a.name > b.name ? 1 : -1; });
 
+            elCat.innerHTML = '';
+
+            var head = document.createElement('option');
+            head.value       = '';
+            head.textContent = 'ทุกหมวดหมู่';
+            elCat.appendChild(head);
+
             for (var j = 0; j < list.length; j++) {
                 var op = document.createElement('option');
                 op.value       = list[j].id;
                 op.textContent = list[j].name;
                 elCat.appendChild(op);
+                if (list[j].id === keep) { stillThere = true; }
             }
+
+            elCat.value = stillThere ? String(keep) : '';
+
             if (window.SelectSearch) { window.SelectSearch.refresh(elCat); }
+        }
+
+
+        /* ---------- ตัวเลือกหมวดหมู่ย่อย ----------
+         * สร้างใหม่ทุกครั้งที่หมวดหลักเปลี่ยน ให้เหลือเฉพาะหมวดย่อยที่อยู่ใต้
+         * หมวดหลักนั้น ไม่งั้นเลือกคู่ที่ไม่มีทางมีของได้ แล้วเจอรายการว่าง
+         * โดยไม่รู้ว่าทำอะไรผิด
+         *
+         * อ่านจาก products เหมือน fillCategories() ไม่ได้ไปดึงทะเบียนหมวดหมู่
+         * ทั้งชุด เพราะรายการสินค้าที่ส่งมาให้หน้านี้ถูกกรองตามสิทธิ์หน่วยงาน
+         * ของคนที่เปิดอยู่แล้ว หมวดย่อยที่หน่วยงานนี้เบิกอะไรไม่ได้เลย
+         * จึงไม่ควรโผล่มาให้เลือกแล้วเจอรายการว่าง
+         */
+        function fillSubCategories() {
+            if (!elSub) { return; }
+
+            var cat  = Number(elCat.value) || 0;
+            var keep = Number(elSub.value) || 0;
+            var stillThere = false;
+
+            var seen = {};
+            var list = [];
+            for (var i = 0; i < products.length; i++) {
+                var p = products[i];
+                if (!p.sub_category_id || p.sub_category_id <= 0) { continue; }
+                if (cat > 0 && p.category_id !== cat) { continue; }
+                if (seen[p.sub_category_id]) { continue; }
+
+                seen[p.sub_category_id] = true;
+                list.push({ id: p.sub_category_id, name: p.sub_category_name,
+                            cat: p.category_name });
+            }
+            list.sort(function (a, b) { return a.name > b.name ? 1 : -1; });
+
+            elSub.innerHTML = '';
+
+            var head = document.createElement('option');
+            head.value       = '';
+            head.textContent = 'ทุกหมวดหมู่ย่อย';
+            elSub.appendChild(head);
+
+            for (var j = 0; j < list.length; j++) {
+                var op = document.createElement('option');
+                op.value       = list[j].id;
+                op.textContent = list[j].name;
+
+                /* ยังไม่เลือกหมวดหลัก = เห็นหมวดย่อยครบทุกอัน ซึ่งชื่อซ้ำกันข้ามหมวดได้
+                   ("รายการหมึก" มีอยู่ทั้งสองหมวดหลัก) ถ้าไม่บอกหมวดแม่ จะขึ้นสองบรรทัด
+                   ที่เขียนเหมือนกันเป๊ะ เลือกไปแล้วไม่รู้ว่าได้อันไหน */
+                if (cat <= 0 && list[j].cat) { op.setAttribute('data-sub', list[j].cat); }
+
+                elSub.appendChild(op);
+                if (list[j].id === keep) { stillThere = true; }
+            }
+
+            elSub.value = stillThere ? String(keep) : '';
+
+            if (window.SelectSearch) { window.SelectSearch.refresh(elSub); }
+        }
+
+
+        /* ---------- ป้ายหมวดหมู่บนแถวสินค้า ----------
+         * ชื่อหมวดย่อยอย่างเดียวตอบไม่ได้ว่าอยู่ใต้หมวดหลักไหน
+         * ทั้งที่ชื่อหมวดย่อยซ้ำกันข้ามหมวดได้ ("รายการหมึก" มีอยู่ทั้งสองหมวดหลัก)
+         * แยกสองป้ายคนละสีเพราะสองชั้นนี้ใช้คนละตัวกรอง ต้องกวาดตาแยกออกได้ทันที
+         */
+        function catTags(p) {
+            var out = '';
+
+            /* title ไว้ให้ชื่อยาวที่ถูก CSS ตัดด้วย … ยังอ่านเต็มได้จากการชี้ค้าง */
+            if (p.category_name) {
+                out += '<span class="tf-tag is-cat" title="หมวดหมู่หลัก: '
+                     + escapeHtml(p.category_name) + '">'
+                     + escapeHtml(p.category_name) + '</span>';
+            }
+            if (p.sub_category_name) {
+                out += '<span class="tf-tag is-sub" title="หมวดหมู่ย่อย: '
+                     + escapeHtml(p.sub_category_name) + '">'
+                     + escapeHtml(p.sub_category_name) + '</span>';
+            }
+            return out;
         }
 
 
@@ -89,6 +207,7 @@
         function renderLeft() {
             var q    = elSearch.value.trim();
             var cat  = Number(elCat.value) || 0;
+            var sub  = elSub ? Number(elSub.value) || 0 : 0;
             var only = elStock.checked;
 
             var html = '';
@@ -98,9 +217,18 @@
                 var p = products[i];
 
                 if (cat > 0 && p.category_id !== cat) { continue; }
+
+                /* เลือกหมวดย่อยได้โดยไม่ต้องเลือกหมวดหลักก่อน
+                   หมวดย่อยหนึ่งอันอยู่ใต้หมวดหลักได้อันเดียว เงื่อนไขจึงไม่ขัดกันเอง */
+                if (sub > 0 && p.sub_category_id !== sub) { continue; }
+
                 if (only && p.qty <= 0) { continue; }
-                if (q !== '' && norm(p.product_code + ' ' + p.product_name
-                                     + ' ' + p.sub_category_name).indexOf(norm(q)) === -1) { continue; }
+
+                /* ค้นชื่อหมวดหลักได้ด้วย เพราะตอนนี้มันขึ้นเป็นป้ายอยู่บนแถวแล้ว
+                   สิ่งที่มองเห็นบนจอแล้วพิมพ์ตามไม่เจอ อ่านเหมือนระบบค้นหาพัง */
+                if (q !== '' && norm(p.product_code + ' ' + p.product_name + ' '
+                                     + p.category_name + ' '
+                                     + p.sub_category_name).indexOf(norm(q)) === -1) { continue; }
 
                 n++;
                 var picked = !!chosen[p.product_id];
@@ -114,7 +242,7 @@
                      +  '<span class="tf-item-main">'
                      +    '<span class="tf-code">' + escapeHtml(p.product_code) + '</span>'
                      +    '<span class="tf-name">' + escapeHtml(p.product_name) + '</span>'
-                     +    '<span class="tf-sub">' + escapeHtml(p.sub_category_name || '') + '</span>'
+                     +    '<span class="tf-sub">' + catTags(p) + '</span>'
                      +  '</span>'
                      +  '<span class="tf-item-side">'
                      +    '<span class="' + stockCls + '">' + fmt(p.qty) + '</span>'
@@ -134,7 +262,7 @@
                 : html;
 
             elLeft.scrollTop  = keepTop;
-            elLeftN.textContent = String(n);
+            setLeftCount(n);
         }
 
 
@@ -144,7 +272,7 @@
                 elRight.innerHTML = '<div class="tf-empty">'
                     + 'ยังไม่ได้เลือกสินค้า<br><span class="tf-empty-hint">'
                     + 'แตะรายการทางซ้ายเพื่อเพิ่มเข้ามา</span></div>';
-                elCount.textContent = '0';
+                setPickCount(0);
                 return;
             }
 
@@ -184,7 +312,7 @@
             elRight.innerHTML = html;
             elRight.scrollTop = keepTop;
 
-            elCount.textContent = String(order.length);
+            setPickCount(order.length);
         }
 
         function render() {
@@ -346,7 +474,15 @@
         });
 
         elSearch.addEventListener('input', renderLeft);
-        elCat.addEventListener('change', renderLeft);
+
+        /* เปลี่ยนหมวดหลัก = ต้องสร้างรายการหมวดย่อยใหม่ก่อนวาดรายการสินค้า
+           ไม่งั้นจะกรองด้วยหมวดย่อยที่ไม่มีอยู่ในหมวดใหม่แล้ว */
+        elCat.addEventListener('change', function () {
+            fillSubCategories();
+            renderLeft();
+        });
+
+        if (elSub) { elSub.addEventListener('change', renderLeft); }
         elStock.addEventListener('change', renderLeft);
 
         var clearBtn = el('tfClear');
@@ -360,6 +496,7 @@
         }
 
         fillCategories();
+        fillSubCategories();
         render();
 
 
@@ -395,6 +532,14 @@
                 products = list || [];
                 byId = {};
                 for (var i = 0; i < products.length; i++) { byId[products[i].product_id] = products[i]; }
+
+                /* ตัวเลือกในช่องกรองสร้างมาจาก products จึงต้องสร้างใหม่ด้วย
+                   ไม่งั้นจะยังเป็นหมวดหมู่ของชุดสินค้าก่อนหน้า และค่าที่เลือกค้างไว้
+                   อาจกรองรายการใหม่ทิ้งจนหมดโดยไม่มีอะไรบอกว่าทำไม
+                   (ทั้งสองฟังก์ชันเก็บค่าที่เลือกไว้ให้ถ้ายังใช้ได้กับชุดใหม่) */
+                fillCategories();
+                fillSubCategories();
+
                 render();
             },
 

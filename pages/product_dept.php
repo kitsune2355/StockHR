@@ -97,8 +97,27 @@ $input = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm t
        กลายเป็นข้อความกับช่องกรอกเปล่า ๆ วางซ้อนกันคนละแบบกับหน้าอื่นในระบบ -->
   <div id="pdBody" hidden class="tf-wrap min-h-0 flex-1">
 
+    <!-- ===== แท็บสลับสองฝั่ง — โผล่เฉพาะจอเล็ก (ดู .tf-tabs ใน app.css) =====
+         บนมือถือสองฝั่งต้องเรียงบนล่าง ฝั่งที่ติ๊กไว้จึงไปอยู่ใต้รายการ 335 ตัว
+         ซึ่งเลื่อนไม่ถึงกันจริง ๆ แท็บทำให้กดถึงได้ทันทีและเหลือกล่องที่เลื่อนได้ชั้นเดียว
+
+         ตัวเลขบนแท็บซ้ำกับป้ายในหัวของแต่ละฝั่งโดยตั้งใจ เพราะหัวฝั่งที่ไม่ได้เลือก
+         ถูกซ่อนอยู่ ตัวเลข "ติ๊กไว้กี่รายการ" จึงต้องอยู่บนแท็บด้วย ไม่งั้นต้องสลับไปดู -->
+    <div class="tf-tabs" role="tablist" aria-label="สลับฝั่งที่แสดง">
+      <button type="button" class="tf-tab is-active" data-pane="src"
+              role="tab" aria-selected="true" aria-controls="pdPaneSrc">
+        <span class="tf-tab-text">สินค้าทั้งหมด</span>
+        <span class="tf-tab-num" id="pdTabSrc">0</span>
+      </button>
+      <button type="button" class="tf-tab" data-pane="dst"
+              role="tab" aria-selected="false" aria-controls="pdPaneDst" tabindex="-1">
+        <span class="tf-tab-text">ที่ติ๊กไว้</span>
+        <span class="tf-tab-num is-on" id="pdTabDst">0</span>
+      </button>
+    </div>
+
     <!-- ---------- ฝั่งซ้าย : สินค้าทั้งหมด ---------- -->
-    <section class="tf-pane tf-pane-src" aria-labelledby="pdLeftHead">
+    <section id="pdPaneSrc" class="tf-pane tf-pane-src" aria-labelledby="pdLeftHead">
       <div class="tf-pane-head">
         <h3 id="pdLeftHead" class="tf-pane-title">
           สินค้าทั้งหมด
@@ -113,15 +132,32 @@ $input = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm t
             <i data-lucide="search" class="h-4 w-4"></i>
           </span>
           <input type="search" id="pdSearch" autocomplete="off"
-                 placeholder="ค้นรหัส ชื่อสินค้า หรือหมวดหมู่ย่อย"
+                 placeholder="ค้นรหัส ชื่อสินค้า หรือหมวดหมู่"
                  class="<?php echo $input; ?> pl-10">
         </div>
 
-        <div class="tf-filters-row">
+        <div class="tf-filters-row tf-filters-row3">
           <select id="pdCategory" class="<?php echo $input; ?>"
                   data-search data-search-placeholder="พิมพ์ชื่อหมวดหมู่"
                   aria-label="กรองตามหมวดหมู่หลัก">
             <option value="">ทุกหมวดหมู่</option>
+          </select>
+
+          <!-- หมวดหมู่ย่อยเป็นชั้นที่คนใช้จริงคิดถึงตอนไล่ติ๊ก เพราะรหัสสินค้า
+               ถูกสร้างจากรหัสหมวดย่อย ของที่อยู่ด้วยกันจึงมักถูกตั้งค่าพร้อมกัน
+
+               ตอนนี้มีสองหมวดหลักกับห้าหมวดย่อย เลือก "วัสดุสิ้นเปลือง" อย่างเดียว
+               ยังเหลือ 113 รายการ แต่เจาะถึง "รายการยารักษาโรค" เหลือ 15
+               ซึ่งเป็นขนาดที่ไล่ติ๊กจนจบได้ในรอบเดียว
+
+               รายการในช่องนี้ตัดให้เหลือเฉพาะหมวดย่อยของหมวดหลักที่เลือกไว้
+               (ดู fillSub() ใน product-dept.js) ถ้ายังไม่เลือกหมวดหลักจะเห็นครบ
+               ทุกอัน โดยมีชื่อหมวดหลักเป็นบรรทัดรอง เพราะชื่อหมวดย่อยซ้ำกันข้ามหมวดได้
+               อย่าง "รายการหมึก" ที่มีอยู่ทั้งสองหมวดหลัก -->
+          <select id="pdSubCategory" class="<?php echo $input; ?>"
+                  data-search data-search-placeholder="พิมพ์ชื่อหมวดหมู่ย่อย"
+                  aria-label="กรองตามหมวดหมู่ย่อย">
+            <option value="">ทุกหมวดหมู่ย่อย</option>
           </select>
 
           <!-- กรองตามสถานะการจอง — คำถามที่ผู้ดูแลระบบถามจริงตอนตั้งค่า
@@ -140,7 +176,7 @@ $input = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm t
     </section>
 
     <!-- ---------- ฝั่งขวา : ที่หน่วยงานนี้เบิกได้ ---------- -->
-    <section class="tf-pane tf-pane-dst" aria-labelledby="pdRightHead">
+    <section id="pdPaneDst" class="tf-pane tf-pane-dst" aria-labelledby="pdRightHead">
       <div class="tf-pane-head">
         <h3 id="pdRightHead" class="tf-pane-title">
           สินค้าที่หน่วยงานนี้เบิกได้
@@ -164,8 +200,14 @@ $input = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm t
         </div>
 
         <!-- แถวว่างความสูงเท่ากับ .tf-filters-row ฝั่งซ้าย เพื่อให้รายการทั้งสองฝั่ง
-             เริ่มที่ระดับเดียวกัน ฝั่งขวามีตัวกรองน้อยกว่าโดยธรรมชาติ -->
-        <div class="tf-filters-row" aria-hidden="true">
+             เริ่มที่ระดับเดียวกัน ฝั่งขวามีตัวกรองน้อยกว่าโดยธรรมชาติ
+
+             ใส่ตัวคั่นให้ครบเท่าจำนวนช่องกรองฝั่งซ้าย (3 ช่อง) และใช้คลาสกริดตัวเดียวกัน
+             ความสูงสองฝั่งจึงเท่ากันเองทุกขนาดจอ รวมถึงตอนที่ช่องกรองตกลงไปเป็นสองแถว
+             ถ้ากำหนดความสูงตายตัวไว้ที่เดียว พอฝั่งซ้ายตกแถวจะเหลื่อมกันทันที -->
+        <div class="tf-filters-row tf-filters-row3 pd-mirror" aria-hidden="true">
+          <span class="pd-spacer"></span>
+          <span class="pd-spacer"></span>
           <span class="pd-spacer"></span>
         </div>
       </div>
@@ -177,6 +219,9 @@ $input = 'h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm t
 
 <!-- ช่องเลือกหน่วยงานมี 62 รายการ ต้องพิมพ์ค้นได้ ไม่งั้นต้องเลื่อนหาทีละอัน -->
 <script src="<?php echo asset_url('assets/js/select-search.js', $ASSET_BASE); ?>"></script>
+
+<!-- แท็บสลับสองฝั่งบนจอเล็ก — ใช้ร่วมกับหน้าทำรายการเบิก -->
+<script src="<?php echo asset_url('assets/js/tf-tabs.js', $ASSET_BASE); ?>"></script>
 <script>
 window.PRODUCTDEPT = {
     endpoint:  'api/product_dept.php',
