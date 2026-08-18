@@ -162,9 +162,12 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
                aria-label="ช่องยิงบาร์โค้ดหรือ QR">
         <!-- ส่องด้วยกล้องของเครื่อง สำหรับคนที่ไม่มีเครื่องยิงอยู่ในมือ
              เช่นเปิดหน้านี้จากมือถือตอนยืนอยู่ที่ชั้นวาง
-             อ่านได้เฉพาะ QR ไม่ใช่บาร์โค้ด (ดูเหตุผลใน assets/js/qr-cam.js) -->
+
+             อ่านบาร์โค้ดแท่งได้เฉพาะเครื่องที่มีตัวถอดรหัสในตัว (Android เป็นหลัก)
+             เครื่องที่ต้องใช้ตัวสำรองอ่านได้เฉพาะ QR ข้อความในกล่องกล้อง
+             จะบอกเองตอนเปิด (ดูเหตุผลใน assets/js/qr-cam.js) -->
         <button type="button" id="btnScanCam" class="doc-scan-cam"
-                title="เปิดกล้องเพื่อส่อง QR">
+                title="เปิดกล้องเพื่อส่อง QR หรือบาร์โค้ด">
           <i data-lucide="camera" class="h-3.5 w-3.5" aria-hidden="true"></i>
         </button>
       </div>
@@ -195,12 +198,12 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
          ลอยทับทั้งหน้าต่าง เพราะตอนส่องต้องเห็นภาพให้ใหญ่ที่สุด
          ย้ายไปเป็นลูกของ body ตอนเริ่มทำงาน เพราะ #appMain ตั้ง overflow: clip ไว้ -->
     <div id="scanCam" hidden class="scan-cam">
-      <div class="scan-cam-box" role="dialog" aria-modal="true" aria-label="ส่อง QR ด้วยกล้อง">
+      <div class="scan-cam-box" role="dialog" aria-modal="true" aria-label="ส่อง QR หรือบาร์โค้ด ด้วยกล้อง">
 
         <div class="scan-cam-head">
           <span class="scan-cam-title">
             <i data-lucide="camera" class="h-4 w-4" aria-hidden="true"></i>
-            ส่อง QR ที่ฉลากสินค้า
+            ส่องรหัสที่ฉลากสินค้า
           </span>
           <button type="button" id="scanCamFlip" class="scan-cam-icon" title="สลับกล้องหน้า/หลัง">
             <i data-lucide="refresh-cw" class="h-4 w-4" aria-hidden="true"></i>
@@ -368,8 +371,9 @@ window.DOCFORM = {
 };
 
 /* ที่อยู่ของตัวถอดรหัสสำรอง qr-cam.js จะโหลดเองเมื่อจำเป็น
-   (เครื่องที่ไม่มี BarcodeDetector ในตัว เช่น Safari บน iPhone) */
-window.QR_CAM_LIB = '<?php echo asset_url('assets/js/jsqr.js', $ASSET_BASE); ?>';
+   (เครื่องที่ไม่มี BarcodeDetector ในตัว เช่น Safari บน iPhone)
+   ไม่ใส่เป็น <script> ตายตัว เพราะเครื่องที่มีตัวถอดในตัวไม่ต้องโหลด 337 KB นี้เลย */
+window.SCAN_CAM_LIB = '<?php echo asset_url('assets/js/zxing.js', $ASSET_BASE); ?>';
 </script>
 <script src="<?php echo asset_url('assets/js/select-search.js', $ASSET_BASE); ?>"></script>
 <?php if ($doc_type === 'request') { ?>

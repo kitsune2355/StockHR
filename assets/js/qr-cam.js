@@ -1,8 +1,26 @@
 /* ============================================================
- *  qr-cam.js — ส่อง QR ด้วยกล้องของเครื่อง (ใช้ร่วมกันทุกหน้า)
+ *  qr-cam.js — ส่อง QR / บาร์โค้ด ด้วยกล้องของเครื่อง (ใช้ร่วมกันทุกหน้า)
  *
  *  ตัวถอดรหัส: ใช้ BarcodeDetector ในตัวเบราว์เซอร์ก่อน (Android Chrome มี)
- *  ถ้าไม่มีค่อยโหลด jsQR 252 KB มาเป็นตัวสำรอง (กรณีหลักคือ iPhone)
+ *  ถ้าไม่มีค่อยโหลด ZXing 337 KB มาเป็นตัวสำรอง (กรณีหลักคือ iPhone)
+ *  ทั้งสองทางอ่านได้ทั้ง QR และบาร์โค้ดแท่ง รวม Code 128 ที่ระบบนี้ใช้
+ *  พิมพ์ฉลาก (ดู assets/js/barcode.js)
+ *
+ *  ---------------------------------------------------------------
+ *  ทำไมเปลี่ยนจาก jsQR มาเป็น ZXing
+ *  ---------------------------------------------------------------
+ *  jsQR อ่านได้เฉพาะ QR โดยธรรมชาติของไลบรารี ไม่มีทางอ่านบาร์โค้ดแท่งได้
+ *  ต่อให้ภาพชัดแค่ไหน เครื่องที่ต้องใช้ตัวสำรองจึงส่องฉลากสินค้าไม่ได้เลย
+ *  ทั้งที่ฉลากทุกใบมีบาร์โค้ด Code 128 อยู่
+ *
+ *  ZXing อ่านได้ทั้งสองแบบ ใหญ่กว่า 85 KB แต่เร็วกว่ามาก — วัดบนเฟรม
+ *  640x480 ที่ไม่มีรหัสอยู่ (กรณีที่เกิดบ่อยที่สุดตอนส่อง) jsQR ใช้ 206 ms
+ *  ส่วน ZXing ที่จำกัดรูปแบบไว้ใช้ 6.5 ms ต่อเฟรม
+ *
+ *  ทั้งสองตัวโหลดเมื่อจำเป็นเท่านั้น เครื่องที่มีตัวถอดในตัวไม่โหลดเลย
+ *
+ *  onReady บอกความสามารถจริงกลับไป ให้ผู้เรียกเขียนบนจอได้ตรง
+ *  ไม่ใช่ปล่อยให้ผู้ใช้เล็งค้างไว้แล้วสงสัยว่าทำไมไม่ติด
  *
  *  เบราว์เซอร์ไม่ยอมเปิดกล้องถ้าเว็บไม่ได้มาทาง https (localhost ยกเว้น)
  *  เลี่ยงด้วยโค้ดไม่ได้ check() จึงคืนเหตุผลเป็นข้อความไทยให้ผู้เรียกไปแสดง
@@ -11,7 +29,8 @@
  *      var c = QRCAM.check();  if (!c.ok) { แสดง c.why }
  *      QRCAM.start({ video: <video>, onCode: fn, onError: fn, onReady: fn });
  *      QRCAM.stop();
- *  ต้องตั้ง window.QR_CAM_LIB เป็นที่อยู่ของ assets/js/jsqr.js ก่อน
+ *  onReady ได้ { engine: 'ชื่อตัวถอดรหัส', barcode: true/false, formats: [] }
+ *  ต้องตั้ง window.SCAN_CAM_LIB เป็นที่อยู่ของ assets/js/zxing.js ก่อน
  * ============================================================ */
 (function () {
     'use strict';
@@ -26,11 +45,51 @@
     var canvas = null, ctx = null;
     var lastCode = '', missAt = 0;
 
+    /* ตัวสำรอง ZXing — สร้างครั้งเดียวตอนเตรียมตัวถอดรหัส
+       zxGray คือบัฟเฟอร์ความสว่างที่ใช้ซ้ำทุกเฟรม ไม่จองใหม่ */
+    var zxReader = null, zxHints = null, zxGray = null;
+
     /* กันนับซ้ำ: รหัสเดิมจะนับใหม่ได้ก็ต่อเมื่อหายออกจากภาพไปก่อน
        ตรงกับการกดไกเครื่องยิงหนึ่งครั้งต่อชิ้น เล็งค้างไว้นานแค่ไหนก็ได้แค่หนึ่ง
        (ใช้ "เว้น 2 วินาทีแล้วนับใหม่" ไม่ได้ เพราะเล็งค้างเฉย ๆ จำนวนจะขึ้นเอง)
        เผื่อครึ่งวินาทีให้มือสั่นหรือหลุดโฟกัสชั่วขณะ */
     var GONE_MS = 500;
+
+    /* ---------- รูปแบบรหัสที่จะให้กล้องอ่าน ----------
+     * qr_code   ป้าย QR ที่ระบบสร้างเอง
+     * code_128  บาร์โค้ดที่ระบบสร้างเอง — รหัสสินค้าทุกตัวเป็นแบบนี้
+     *           (assets/js/barcode.js วาด Code 128 ชุดอักขระ B)
+     * ที่เหลือ   บาร์โค้ดที่ติดมากับสินค้าจากผู้ขาย ใส่ไว้เพราะไม่มีต้นทุนเพิ่ม
+     *           ตัวถอดรหัสในตัวรองรับอยู่แล้ว ยิงติดก็เข้าเส้นทางเดิมที่หารหัส
+     *           ในทะเบียน ถ้าไม่มีในระบบก็ได้ข้อความว่าไม่รู้จักรหัสนี้ตามปกติ
+     *
+     * ต้องคัดเฉพาะรูปแบบที่เครื่องนั้นรองรับจริงก่อนสร้างตัวถอดรหัส
+     * ขอรูปแบบที่ไม่รองรับปนไป ตัวถอดจะพังทั้งชุด แล้วเสียการอ่าน QR
+     * ที่เคยใช้ได้ไปด้วย ซึ่งแย่กว่าเดิม
+     */
+    var WANT = ['qr_code', 'code_128', 'code_39', 'code_93', 'codabar',
+                'ean_13', 'ean_8', 'upc_a', 'upc_e', 'itf'];
+
+    /* รูปแบบที่ตัวถอดรหัสตัวปัจจุบันอ่านได้จริง */
+    var active = [];
+
+    function has(list, value) {
+        for (var i = 0; i < list.length; i++) {
+            if (list[i] === value) { return true; }
+        }
+        return false;
+    }
+
+    /* ความสามารถที่ได้จริง ส่งกลับให้ผู้เรียกไปเขียนบนจอ
+       barcode = อ่านบาร์โค้ดแท่งที่ระบบนี้พิมพ์ (Code 128) ได้หรือไม่
+       ซึ่งเป็นคำถามเดียวที่ผู้ใช้สนใจ ไม่ใช่รายชื่อรูปแบบทั้งหมด */
+    function info(engine) {
+        return {
+            engine:  engine,
+            barcode: has(active, 'code_128'),
+            formats: active
+        };
+    }
 
 
     function check() {
@@ -49,39 +108,144 @@
     }
 
 
+    /* ---------- ถามเครื่องว่าอ่านรูปแบบไหนได้บ้าง ----------
+     * getSupportedFormats() เป็น static แบบ Promise เพราะบางเครื่องต้องถาม
+     * ระบบปฏิบัติการก่อน จึงตอบทันทีไม่ได้
+     *
+     * รุ่นเก่าบางรุ่นมี BarcodeDetector แต่ไม่มีตัวบอกรายการ กรณีนั้นขอแค่ QR
+     * ซึ่งเป็นรูปแบบที่ทุกรุ่นรองรับแน่นอน ดีกว่าเดาแล้วเสียการอ่าน QR ไปทั้งชุด
+     */
+    function pickFormats(cb) {
+        var BD = window.BarcodeDetector;
+
+        if (typeof BD.getSupportedFormats !== 'function') { cb(['qr_code']); return; }
+
+        BD.getSupportedFormats().then(function (able) {
+            var use = [];
+            for (var i = 0; i < WANT.length; i++) {
+                if (has(able, WANT[i])) { use.push(WANT[i]); }
+            }
+            cb(use);
+        })['catch'](function () { cb(['qr_code']); });
+    }
+
+
     /* เตรียมตัวถอดรหัสให้เสร็จก่อนเปิดกล้อง จะได้ไม่เปิดกล้องค้างไว้
        แล้วมาพบทีหลังว่าถอดรหัสไม่ได้ */
     function prepare(done) {
+        detector = null;
+        active   = [];
+
         if (typeof window.BarcodeDetector !== 'undefined') {
-            try {
-                detector = new window.BarcodeDetector({ formats: ['qr_code'] });
-                done(true, 'ตัวถอดรหัสในตัวของเบราว์เซอร์');
-                return;
-            } catch (e) { detector = null; }
+            pickFormats(function (use) {
+                if (use.length > 0) {
+                    try {
+                        detector = new window.BarcodeDetector({ formats: use });
+                        active   = use;
+                        done(true, info('ตัวถอดรหัสในตัวของเบราว์เซอร์'));
+                        return;
+                    } catch (e) { detector = null; active = []; }
+                }
+                /* สร้างตัวถอดในตัวไม่สำเร็จ ตกไปใช้ตัวสำรองซึ่งอ่านได้เฉพาะ QR
+                   ดีกว่าไม่ได้อะไรเลย */
+                fallback(done);
+            });
+            return;
         }
 
-        if (window.jsQR) { done(true, 'ตัวถอดรหัสสำรอง'); return; }
+        fallback(done);
+    }
+
+
+    /* ---------- ตัวสำรอง ZXing ----------
+     * รูปแบบที่เปิดให้ตัวสำรองอ่าน จำกัดไว้แค่ที่ระบบนี้ใช้จริง
+     * ไม่ใช่เพราะอ่านแบบอื่นไม่ได้ แต่เพราะทุกรูปแบบที่เปิดคือตัวอ่านอีกตัว
+     * ที่ต้องวิ่งจนจบทุกเฟรมที่ไม่พบรหัส ซึ่งเป็นเฟรมส่วนใหญ่ตอนกำลังเล็ง
+     * (วัดจริงบนเฟรม 640x480 ที่ไม่มีรหัส: 4 รูปแบบ 6.5 ms · ทุกรูปแบบ 25.7 ms)
+     */
+    function zxFormats() {
+        var B = window.ZXing.BarcodeFormat;
+        return [B.QR_CODE, B.CODE_128, B.CODE_39, B.EAN_13];
+    }
+
+    function zxSetup() {
+        var Z = window.ZXing;
+
+        /* hints ต้องส่งเข้า decode() ทุกครั้ง ไม่ใช่ตั้งไว้ครั้งเดียวด้วย setHints()
+           เพราะ decode(image) ที่ไม่ได้ส่ง hints มาด้วย จะเรียก setHints(undefined)
+           ทับของเดิมทิ้ง แล้วกลับไปลองทุกรูปแบบ ช้าลงสี่เท่าโดยไม่มีอะไรฟ้อง */
+        zxHints = new Map();
+        zxHints.set(Z.DecodeHintType.POSSIBLE_FORMATS, zxFormats());
+
+        zxReader = new Z.MultiFormatReader();
+        active   = ['qr_code', 'code_128', 'code_39', 'ean_13'];
+    }
+
+    function fallback(done) {
+        if (window.ZXing) {
+            zxSetup();
+            done(true, info('ตัวถอดรหัสสำรอง'));
+            return;
+        }
 
         /* เบราว์เซอร์นี้ไม่มีตัวถอดในตัว (Chrome บน Windows เป็นแบบนั้น
            มีเฉพาะบน Android, ChromeOS และ macOS) ต้องโหลดตัวสำรองมาใช้ */
-        var url = window.QR_CAM_LIB;
+        var url = window.SCAN_CAM_LIB;
         if (!url) {
-            done(false, '', 'หน้านี้ไม่ได้บอกที่อยู่ของตัวถอดรหัสสำรอง');
+            done(false, null, 'หน้านี้ไม่ได้บอกที่อยู่ของตัวถอดรหัสสำรอง');
             return;
         }
 
         var s = document.createElement('script');
         s.src = url;
         s.onload  = function () {
-            if (window.jsQR) { done(true, 'ตัวถอดรหัสสำรอง'); }
-            else { done(false, '', 'ไฟล์ตัวถอดรหัสสำรองโหลดมาแล้วแต่ใช้ไม่ได้'); }
+            if (window.ZXing) {
+                zxSetup();
+                done(true, info('ตัวถอดรหัสสำรอง'));
+            } else {
+                done(false, null, 'ไฟล์ตัวถอดรหัสสำรองโหลดมาแล้วแต่ใช้ไม่ได้');
+            }
         };
         /* บอกไปเลยว่าไฟล์ไหนหาย ไม่งั้นคนแก้ต้องไปไล่เปิด console เอง
            เคสที่เจอจริง: อัปโหลดขึ้นเซิร์ฟเวอร์ไม่ครบ ไฟล์นี้เลยได้ 404 */
         s.onerror = function () {
-            done(false, '', 'โหลดตัวถอดรหัสสำรองไม่ได้ — ตรวจว่ามีไฟล์ ' + url + ' บนเซิร์ฟเวอร์หรือยัง');
+            done(false, null, 'โหลดตัวถอดรหัสสำรองไม่ได้ — ตรวจว่ามีไฟล์ ' + url + ' บนเซิร์ฟเวอร์หรือยัง');
         };
         document.body.appendChild(s);
+    }
+
+
+    /* ---------- อ่านหนึ่งเฟรมด้วยตัวสำรอง ----------
+     * ZXing รับภาพเป็นค่าความสว่างช่องเดียว (w x h) ไม่ใช่ RGBA จาก canvas
+     * ส่ง RGBA เข้าไปตรง ๆ จะไม่พังแต่หาไม่เจอสักครั้ง เพราะมันตีความว่า
+     * ภาพกว้างกว่าความจริงสี่เท่า
+     *
+     * สูตรถ่วงน้ำหนักเป็นตัวเดียวกับ ZXing ต้นฉบับ คิดด้วยจำนวนเต็มล้วน
+     * เพราะต้องวิ่ง 307,200 รอบต่อเฟรมบนภาพ 640x480
+     */
+    function zxRead(img) {
+        var Z = window.ZXing;
+        var n = img.width * img.height;
+
+        /* ใช้บัฟเฟอร์เดิมซ้ำ จองใหม่ทุกเฟรมคือให้ตัวเก็บขยะทำงานตลอดเวลา
+           แล้วภาพจะกระตุกเป็นจังหวะ */
+        if (!zxGray || zxGray.length !== n) { zxGray = new Uint8ClampedArray(n); }
+
+        var d = img.data;
+        for (var i = 0, p = 0; i < n; i++, p += 4) {
+            zxGray[i] = (306 * d[p] + 601 * d[p + 1] + 117 * d[p + 2] + 512) >> 10;
+        }
+
+        try {
+            var src = new Z.RGBLuminanceSource(zxGray, img.width, img.height);
+            var res = zxReader.decode(new Z.BinaryBitmap(new Z.HybridBinarizer(src)), zxHints);
+            return (res && res.getText) ? res.getText() : '';
+        } catch (e) {
+            /* ไม่พบรหัสในเฟรมนี้ = เรื่องปกติของเกือบทุกเฟรม ไม่ใช่ข้อผิดพลาด */
+            return '';
+        } finally {
+            zxReader.reset();
+        }
     }
 
 
@@ -91,7 +255,7 @@
         var c = check();
         if (!c.ok) { fail(c.why); return; }
 
-        prepare(function (ready, engine, why) {
+        prepare(function (ready, able, why) {
             if (!ready) { fail(why ? why : 'เตรียมตัวถอดรหัสไม่สำเร็จ'); return; }
 
             navigator.mediaDevices.getUserMedia({
@@ -112,7 +276,7 @@
                 var p = video.play();
                 if (p && p.then) { p.then(function () {}, function () {}); }
 
-                if (opts.onReady) { opts.onReady(engine); }
+                if (opts.onReady) { opts.onReady(able); }
                 loop();
             }).catch(function (err) {
                 var name = (err && err.name) || '';
@@ -158,7 +322,7 @@
 
 
     /* เรียกทุกเฟรม ไม่ว่าจะอ่านออกหรือไม่ — ตัวที่อ่านไม่ออกก็สำคัญ
-       เพราะเป็นสัญญาณว่า QR หลุดออกจากภาพไปแล้ว */
+       เพราะเป็นสัญญาณว่ารหัสหลุดออกจากภาพไปแล้ว */
     function seen(text) {
         var now = new Date().getTime();
 
@@ -177,7 +341,7 @@
 
 
     /* วนอ่านทีละเฟรม
-       ตัวถอดในตัวรับ video ตรง ๆ ได้ ส่วน jsQR ต้องวาดลง canvas ก่อน
+       ตัวถอดในตัวรับ video ตรง ๆ ได้ ส่วนตัวสำรองต้องวาดลง canvas ก่อน
        จึงย่อภาพเหลือกว้างไม่เกิน 640 ก่อนอ่าน เพราะกล้องมือถือส่งภาพ
        ระดับ 1080p ขึ้นไป ซึ่งใหญ่เกินจำเป็นและทำให้อ่านช้าจนภาพกระตุก */
     function loop() {
@@ -196,7 +360,7 @@
             return;
         }
 
-        if (window.jsQR) {
+        if (zxReader) {
             if (!canvas) { canvas = document.createElement('canvas'); ctx = canvas.getContext('2d'); }
 
             var vw = video.videoWidth, vh = video.videoHeight;
@@ -206,9 +370,7 @@
                 canvas.height = Math.round(vh * scale);
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-                var img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                var res = window.jsQR(img.data, canvas.width, canvas.height, { inversionAttempts: 'dontInvert' });
-                seen(res && res.data ? res.data : '');
+                seen(zxRead(ctx.getImageData(0, 0, canvas.width, canvas.height)));
             }
         }
 
@@ -229,6 +391,10 @@
         stop:    stop,
         flip:    flip,
         running: function () { return running; },
-        facing:  function () { return facing; }
+        facing:  function () { return facing; },
+
+        /* ความสามารถของรอบที่กำลังทำงานอยู่ ตอบได้หลัง start() เท่านั้น
+           เพราะต้องถามเครื่องก่อนว่ารองรับรูปแบบไหนบ้าง */
+        able:    function () { return info(detector ? 'ตัวถอดรหัสในตัวของเบราว์เซอร์' : 'ตัวถอดรหัสสำรอง'); }
     };
 })();
