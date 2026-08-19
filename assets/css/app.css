@@ -5622,3 +5622,223 @@ button.bc-side-toggle { display: none; }
 .dark .bc-type-btn:hover{ color: #cbd5e1; }
 .dark .bc-type-btn.is-on{ background: #1e293b; color: #5eead4; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
 
+
+
+/* ============================================================
+ *  การเคลื่อนไหวของทั้งระบบ (motion)
+ * ============================================================
+ *  ของเดิมมี keyframes กลางอยู่ที่ assets/js/tailwind.config.js แล้ว
+ *  แต่ถูกใช้แค่หน้า login หน้าเดียว หน้าที่อยู่ในกรอบ main.php
+ *  จึงโผล่มาแบบกระโดดทันที ส่วนนี้เติมการเคลื่อนไหวให้ครบทั้งระบบ
+ *
+ *  กติกาที่ยึดไว้ทั้งหมวด
+ *    1. ขยับเฉพาะ opacity กับ transform เท่านั้น
+ *       สองตัวนี้เบราว์เซอร์ส่งให้การ์ดจอทำ ไม่ต้องคำนวณ layout ใหม่ทุกเฟรม
+ *       ถ้าไปขยับ width/top/box-shadow เครื่องที่แรงน้อยจะกระตุกทันที
+ *    2. เข้าหน้าเล่นครั้งเดียวจบ ไม่มีอะไรวนไม่หยุด ยกเว้นโครงร่างตอนรอข้อมูล
+ *       ซึ่งต้องวนเพื่อบอกว่ายังทำงานอยู่
+ *    3. สั้นกว่า .4s เสมอ ของที่นานกว่านั้นกลายเป็นการรอ ไม่ใช่การตกแต่ง
+ *    4. ทุกตัวถูกปิดอัตโนมัติเมื่อผู้ใช้ตั้งค่าลดการเคลื่อนไหว
+ *       (กฎรวมอยู่ที่ prefers-reduced-motion ข้างบน ไม่ต้องเขียนซ้ำที่นี่)
+ * ============================================================ */
+
+/* ---------- เนื้อหาของหน้าตอนเปิดเข้ามา ----------
+   ใส่ที่ includes/layout_top.php ที่เดียว ทุกหน้าในระบบจึงได้เหมือนกันหมด
+
+   ระยะขยับแค่ 10px และจบใน .32s เพราะเป้าหมายคือทำให้รู้สึกว่า "หน้าโหลดเสร็จแล้ว"
+   ไม่ใช่ให้ดูการเคลื่อนไหว ถ้าไกลหรือนานกว่านี้จะกลายเป็นหน่วงเวลาผู้ใช้
+
+   ---------------------------------------------------------------
+   ทำไมใช้ backwards ไม่ใช่ both
+   ---------------------------------------------------------------
+   element ที่มี transform จะกลายเป็นจุดอ้างอิงของลูกที่เป็น position: fixed
+   (แถบตัวกรองกับฉากหลังของมันบนจอแคบ อยู่ในกล่องนี้ทั้งคู่)
+   ถ้าใช้ both ค่าจาก keyframe สุดท้ายจะถูกค้างไว้ตลอด ซึ่งแม้จะเขียนว่า none
+   เบราว์เซอร์ก็คำนวณออกมาเป็น matrix(1,0,0,1,0,0) ที่ไม่ใช่ none — วัดแล้วเป็นแบบนั้นจริง
+   แถบตัวกรองจะไปเกาะกล่องนี้แทนที่จะเกาะขอบจอ
+
+   backwards ค้างเฉพาะค่าเริ่มต้น "ก่อน" animation เริ่ม (ซึ่งจำเป็นสำหรับตัวที่รอคิว
+   ในชุด stagger ไม่งั้นจะเห็นแวบก่อนหาย) พอเล่นจบก็คืนค่ากลับเป็นสไตล์ปกติ
+   คือ transform: none ของจริง ไม่มีอะไรค้าง */
+@keyframes appEnter {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+}
+
+.page-enter { animation: appEnter .32s cubic-bezier(.22, 1, .36, 1) backwards; }
+
+
+/* ---------- ของที่เรียงเป็นชุด ให้ไล่โผล่ทีละชิ้น ----------
+   ใส่คลาส stagger ที่กล่องแม่ ลูกทุกตัวจะไล่กันเองโดยไม่ต้องแตะ markup ของลูก
+
+   ไล่ทีละ 40ms และหยุดไล่ที่ชิ้นที่ 12 ตั้งใจให้จบเร็ว
+   ชุดที่ยาวกว่านั้นถ้าไล่ต่อไปเรื่อย ๆ ชิ้นท้าย ๆ จะรอนานจนเหมือนหน้าค้าง
+   ที่เหลือจึงโผล่พร้อมกันที่ 480ms
+
+   ใช้ nth-child แทนการยัด --i ลงในแต่ละชิ้น เพราะ markup ของหน้าแรก
+   สร้างจาก PHP หลายจุด การไปเติมตัวเลขให้ครบทุกจุดพลาดง่ายกว่ามาก */
+.stagger > * { animation: appEnter .34s cubic-bezier(.22, 1, .36, 1) backwards; }
+
+.stagger > *:nth-child(1)  { animation-delay: .00s; }
+.stagger > *:nth-child(2)  { animation-delay: .04s; }
+.stagger > *:nth-child(3)  { animation-delay: .08s; }
+.stagger > *:nth-child(4)  { animation-delay: .12s; }
+.stagger > *:nth-child(5)  { animation-delay: .16s; }
+.stagger > *:nth-child(6)  { animation-delay: .20s; }
+.stagger > *:nth-child(7)  { animation-delay: .24s; }
+.stagger > *:nth-child(8)  { animation-delay: .28s; }
+.stagger > *:nth-child(9)  { animation-delay: .32s; }
+.stagger > *:nth-child(10) { animation-delay: .36s; }
+.stagger > *:nth-child(11) { animation-delay: .40s; }
+.stagger > *:nth-child(n+12) { animation-delay: .44s; }
+
+/* กล่องแม่ที่ไล่ลูกอยู่แล้ว ไม่ต้องเล่นซ้ำอีกชั้น ไม่งั้นจะเห็นสองจังหวะซ้อนกัน */
+.page-enter .stagger > * { animation-duration: .3s; }
+
+
+/* ---------- กดแล้วรู้สึกว่าติด ----------
+   จอสัมผัสไม่มี :hover ให้ตอบสนอง ถ้าไม่มีอะไรขยับตอนกด ผู้ใช้จะไม่แน่ใจว่ากดโดน
+   แล้วกดซ้ำ ซึ่งบนไทล์ที่เป็นลิงก์แปลว่าเปิดหน้าซ้ำสองรอบ
+
+   ใส่เฉพาะที่ที่กฎเดิมมี transform อยู่ในรายการ transition แล้วเท่านั้น
+   ที่อื่นการเติม transform เข้าไปต้องไปเขียนทับ transition เดิมทั้งบรรทัด
+   ซึ่งเสี่ยงลบ transition ของสีที่ใช้อยู่โดยไม่ตั้งใจ */
+.bn-tile.is-link:active { transform: scale(.985); }
+
+
+/* ---------- โครงร่างจาง ๆ ระหว่างรอข้อมูลตารางรอบแรก ----------
+   ของเดิมกล่องตารางเป็นพื้นที่ว่างเปล่าจนกว่าข้อมูลจะมาถึง
+   บนเน็ตช้าผู้ใช้จะแยกไม่ออกว่า "กำลังโหลด" หรือ "ไม่มีข้อมูล"
+
+   วาดด้วย CSS ล้วน ไม่มีรูปและไม่มีตัวอักษร จึงไม่ต้องแปลและไม่กินแบนด์วิดท์
+   ตัวที่ใส่เข้าไปอยู่ที่ paintSkeleton() ใน assets/js/grid-common.js */
+@keyframes appShimmer {
+    from { background-position: -140% 0; }
+    to   { background-position:  240% 0; }
+}
+
+.grid-skeleton { padding: .75rem 1rem; }
+
+.grid-skeleton-head,
+.grid-skeleton-row {
+    height: 2.25rem;
+    margin-bottom: .5rem;
+    border-radius: .5rem;
+
+    /* แถบสว่างวิ่งผ่านพื้นเทา — ขยับ background-position ซึ่งไม่ทำให้ layout ใหม่ */
+    background-color: #f1f5f9;
+    background-image: linear-gradient(100deg,
+                        transparent 20%,
+                        rgba(255, 255, 255, .85) 42%,
+                        transparent 64%);
+    background-size: 220% 100%;
+    background-repeat: no-repeat;
+    animation: appShimmer 1.5s ease-in-out infinite;
+}
+
+.grid-skeleton-head { height: 2.75rem; background-color: #e2e8f0; }
+
+/* ไล่ให้แต่ละแถวเหลื่อมกันนิดหน่อย จะได้ดูเป็นคลื่นไม่ใช่กะพริบพร้อมกันทั้งบล็อก */
+.grid-skeleton-row:nth-child(2) { animation-delay: .08s; }
+.grid-skeleton-row:nth-child(3) { animation-delay: .16s; }
+.grid-skeleton-row:nth-child(4) { animation-delay: .24s; }
+.grid-skeleton-row:nth-child(5) { animation-delay: .32s; }
+.grid-skeleton-row:nth-child(6) { animation-delay: .40s; }
+.grid-skeleton-row:nth-child(7) { animation-delay: .48s; }
+.grid-skeleton-row:nth-child(8) { animation-delay: .56s; }
+
+/* จางลงเรื่อย ๆ ท้ายชุด บอกเป็นนัยว่ายังมีต่ออีกข้างล่าง ไม่ใช่มีแค่นี้ */
+.grid-skeleton-row:nth-child(n+6) { opacity: .6; }
+.grid-skeleton-row:nth-child(n+8) { opacity: .35; }
+
+.dark .grid-skeleton-head,
+.dark .grid-skeleton-row {
+    background-color: #1e293b;
+    background-image: linear-gradient(100deg,
+                        transparent 20%,
+                        rgba(148, 163, 184, .22) 42%,
+                        transparent 64%);
+}
+.dark .grid-skeleton-head { background-color: #334155; }
+
+
+/* ============================================================
+ *  การเคลื่อนไหวของสิ่งที่ "เปิดขึ้นมา" ระหว่างใช้งาน
+ * ============================================================
+ *  ส่วนก่อนหน้าดูแลตอนเปิดหน้าเข้ามาอย่างเดียว ส่วนนี้ดูแลของที่โผล่มา
+ *  ตอนผู้ใช้กดอะไรสักอย่าง ซึ่งเป็นจังหวะที่เกิดบ่อยกว่ามาก
+ *
+ *  ของพวกนี้ซ่อนด้วย attribute hidden แล้วเอาออกตอนจะแสดง
+ *  พอ display กลับมาจาก none เบราว์เซอร์จะเริ่มเล่น animation ให้เองรอบหนึ่ง
+ *  จึงไม่ต้องแตะ JavaScript ของหน้าไหนเลย
+ *
+ *  ทำเฉพาะขาเปิด ไม่ทำขาปิด เพราะ CSS ล้วนหน่วง display: none ไม่ได้
+ *  ต้องไปพึ่ง JS ทุกที่ที่ปิด และการปิดที่ตอบสนองทันทีก็รู้สึกฉับไวกว่าอยู่แล้ว
+ *
+ *  ไม่ใส่ fill-mode ให้ชุดนี้ เพราะไม่มีตัวไหนมีดีเลย์ต้องรอคิว
+ *  ปล่อยให้ transform คืนเป็น none หลังเล่นจบ จะได้ไม่ไปเป็นจุดอ้างอิง
+ *  ของลูกที่เป็น position: fixed (เหตุผลเดียวกับ .page-enter ข้างบน)
+ * ============================================================ */
+
+@keyframes appVeilIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* ผุดขึ้นจากขอบล่าง — ท่ามาตรฐานของแผ่นข้อมูลบนมือถือ
+   ทิศทางตรงกับที่แผ่นวางอยู่จริง คนจึงรู้ทันทีว่าปัดลงเพื่อปิดได้ */
+@keyframes appSheetUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* โตขึ้นจากกลางจอ — ใช้บนจอกว้างที่กล่องลอยอยู่กลาง ไม่ได้ติดขอบล่าง */
+@keyframes appPopIn {
+    from { opacity: 0; transform: scale(.96); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* หย่อนลงมาจากด้านบน — ใช้กับแถบแจ้งเตือนที่แทรกเข้ามาเหนือเนื้อหา */
+@keyframes appDropIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: none; }
+}
+
+
+/* ---------- ฉากหลังของกล่องที่เปิดทับทั้งจอ ----------
+   จางเร็วกว่าตัวกล่องเล็กน้อย ให้ฉากหลังมาถึงก่อนแล้วกล่องตามมา
+   ถ้าขึ้นพร้อมกันเป๊ะจะดูเหมือนภาพกระตุกทีเดียวมากกว่าการเปิด */
+.doc-overlay,
+.scan-cam,
+.fp-backdrop,
+.bc-backdrop { animation: appVeilIn .16s ease-out; }
+
+
+/* ---------- แผ่นรายละเอียดเอกสาร ----------
+   เปิดทุกครั้งที่กดดูรายละเอียดจากตาราง จึงเป็นกล่องที่ถูกเปิดบ่อยที่สุดในระบบ
+   จอแคบแผ่นติดขอบล่าง (ดู .doc-overlay align-items: flex-end) จึงผุดขึ้นจากล่าง
+   จอกว้างแผ่นลอยกลางจอ การผุดจากล่างจะดูเหมือนหล่นผิดที่ เลยเปลี่ยนเป็นโตจากกลาง */
+.doc-sheet    { animation: appSheetUp .26s cubic-bezier(.22, 1, .36, 1); }
+.scan-cam-box { animation: appSheetUp .26s cubic-bezier(.22, 1, .36, 1); }
+
+@media (min-width: 640px) {
+    .doc-sheet    { animation: appPopIn .22s cubic-bezier(.22, 1, .36, 1); }
+    .scan-cam-box { animation: appPopIn .22s cubic-bezier(.22, 1, .36, 1); }
+}
+
+
+/* ---------- แถบเตือนว่ายังมีของที่ไม่ได้บันทึก ----------
+   โผล่มาแทรกอยู่ระหว่างแถบเครื่องมือกับตาราง แล้วดันตารางลง
+   ถ้าโผล่มาเฉย ๆ จะเหมือนหน้ากระตุก ให้หย่อนลงมาแทนเพื่อบอกว่ามีของเพิ่มเข้ามา
+
+   เป็นแถบที่ต้องเห็น เพราะบอกว่ายังมีงานค้างที่จะหายถ้าปิดหน้าไปตอนนี้ */
+#pendingBar { animation: appDropIn .24s cubic-bezier(.22, 1, .36, 1); }
+
+
+/* ---------- ข้อความตอนไม่มีข้อมูลในตาราง : จงใจไม่ใส่ ----------
+   เคยลองใส่ appVeilIn ให้ .tabulator-placeholder แล้วถอดออก
+   เพราะ Tabulator สร้าง element นี้ใหม่ทุกครั้งที่กรองข้อมูล
+   วัดแล้วพิมพ์ 4 ตัวอักษรในช่องค้นหา = animation เริ่มเล่นใหม่ 4 รอบ
+   ผลคือข้อความกะพริบตามจังหวะพิมพ์ ซึ่งกวนกว่าการโผล่มาเฉย ๆ
+
+   บันทึกไว้กันคนถัดไปเห็นว่ายังไม่มีแล้วเผลอเติมกลับเข้ามา */

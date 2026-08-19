@@ -356,11 +356,11 @@ window.APP_CTX = <?php echo app_json($layout_ctx); ?>;
   <!-- โหมดเต็มจอ: กรอบนี้สูงคงที่และไม่เลื่อน หน้าเป็นคนตัดสินใจว่าจะให้ส่วนไหนเลื่อน
        ลูกที่ต้องการเลื่อนต้องมี flex-1 min-h-0 overflow-auto เอง
        (min-h-0 จำเป็น ไม่งั้น flex item จะไม่ยอมหดต่ำกว่าความสูงเนื้อหา แล้วล้นกรอบ) -->
-  <div class="mx-auto flex w-full max-w-8xl flex-1 flex-col overflow-hidden px-4 py-5 lg:px-8">
+  <div class="page-enter mx-auto flex w-full max-w-8xl flex-1 flex-col overflow-hidden px-4 py-5 lg:px-8">
 <?php else: ?>
   <!-- โหมดปกติ: เนื้อหาเลื่อนทั้งก้อนในกรอบนี้ หน้าต่างเบราว์เซอร์ยังไม่เลื่อน -->
   <div id="pageScroll" class="nav-scroll flex-1 overflow-y-auto">
-    <div class="mx-auto w-full max-w-8xl px-4 py-6 lg:px-8">
+    <div class="page-enter mx-auto w-full max-w-8xl px-4 py-6 lg:px-8">
 <?php endif; ?>
 
     <?php if (!empty($sess_need_agency_popup)): ?>

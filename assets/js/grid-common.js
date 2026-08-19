@@ -920,10 +920,55 @@
         }).observe(document.body, { childList: true });
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', watchPopups);
-    } else {
+    /* ============================================================
+     *  โครงร่างจาง ๆ ระหว่างรอข้อมูลตารางรอบแรก
+     * ============================================================
+     *  กล่องตารางเป็นพื้นที่ว่างเปล่าตั้งแต่หน้าโหลดเสร็จจนกว่าข้อมูลจะมาถึง
+     *  ซึ่งบนเน็ตช้ากินเวลาหลายวินาที ระหว่างนั้นผู้ใช้แยกไม่ออกว่า
+     *  "กำลังโหลดอยู่" หรือ "ไม่มีข้อมูลเลย" แล้วมักกดรีเฟรชซ้ำ
+     *
+     *  ไม่ต้องมีโค้ดเก็บกวาด เพราะ Tabulator ล้างของเดิมในกล่องทิ้งตอนสร้างตาราง
+     *  (ตรวจกับ v6.3.1 ที่โปรเจกต์ใช้อยู่แล้ว) โครงร่างจึงหายไปเองพอดีตอนตารางโผล่
+     *
+     *  หน้าตาอยู่ที่ .grid-skeleton ใน assets/css/app.css วาดด้วย CSS ล้วน
+     *  ไม่มีรูปและไม่มีตัวอักษร จึงไม่ต้องแปลและไม่มีอะไรให้โหลดเพิ่ม
+     * ============================================================ */
+    var SKELETON_ROWS = 8;
+
+    /* กันค้าง: ถ้าตารางสร้างไม่สำเร็จ (สคริปต์พัง / API ล่ม) โครงร่างจะวิ่งอยู่ตลอด
+       ซึ่งแปลว่า "ยังทำงานอยู่" ทั้งที่ไม่มีอะไรทำแล้ว แย่กว่ากล่องว่าง ๆ
+       ครบเวลาแล้วยังอยู่ที่เดิมก็เอาออก ปล่อยให้เห็นตามจริงว่าไม่มีอะไร */
+    var SKELETON_GIVE_UP_MS = 20000;
+
+    function paintSkeleton() {
+        var box = document.getElementById('grid');
+        if (!box || box.children.length > 0) { return; }
+
+        var html = '<div class="grid-skeleton" aria-hidden="true">'
+                 +   '<div class="grid-skeleton-head"></div>';
+
+        for (var i = 0; i < SKELETON_ROWS; i++) {
+            html += '<div class="grid-skeleton-row"></div>';
+        }
+
+        box.innerHTML = html + '</div>';
+
+        window.setTimeout(function () {
+            var left = box.querySelector('.grid-skeleton');
+            if (left) { box.removeChild(left); }
+        }, SKELETON_GIVE_UP_MS);
+    }
+
+
+    function onReady() {
         watchPopups();
+        paintSkeleton();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', onReady);
+    } else {
+        onReady();
     }
 
 
