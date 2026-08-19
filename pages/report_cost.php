@@ -143,21 +143,6 @@ $input    = 'input-control h-11 rounded-xl border border-slate-200 bg-white px-4
         <table class="rc-table" id="tblDetail"></table>
       </div>
     </section>
-
-    <footer class="rc-foot">
-      <div class="rc-sign">
-        <span class="rc-sign-line"></span>
-        <span class="rc-sign-cap">ผู้จัดทำ</span>
-      </div>
-      <div class="rc-sign">
-        <span class="rc-sign-line"></span>
-        <span class="rc-sign-cap">ผู้ตรวจสอบ</span>
-      </div>
-      <div class="rc-sign">
-        <span class="rc-sign-line"></span>
-        <span class="rc-sign-cap">ผู้อนุมัติ</span>
-      </div>
-    </footer>
   </div>
 </div>
 
