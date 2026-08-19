@@ -73,6 +73,33 @@
         return String(Math.round(n * 100) / 100);
     }
 
+    /* วันที่แบบไทยไว้อ่านบนหน้าจอเท่านั้น ค่าที่ส่งกลับ backend ยังเป็น Y-m-d เหมือนเดิม
+       ถ้า thai-date.js ไม่ถูกโหลด ก็แสดงค่าดิบไปก่อน ดีกว่าปล่อยให้ว่าง */
+    function dateShort(value) {
+        return window.ThaiDate ? window.ThaiDate.short(value, '') : (value || '');
+    }
+
+    function dateLong(value) {
+        return window.ThaiDate ? window.ThaiDate.long(value, '') : (value || '');
+    }
+
+    /* ---------- ป้ายชื่อใบเบิกในช่องเลือก ----------
+     * ชื่อหน่วยงานซ้ำกันข้ามบริษัทได้ เช่น จัดซื้อ มีอยู่ทุกบริษัท
+     * ถ้าไม่บอกชื่อบริษัทกำกับ คนจ่ายของจะเลือกผิดใบโดยไม่รู้ตัว
+     * และวันที่ขอช่วยแยกใบของหน่วยงานเดียวกันที่ขอมาคนละรอบ
+     *
+     * ข้อความนี้เป็นตัวที่ช่องค้นหาใช้จับคู่ด้วย พิมพ์ชื่อบริษัทแล้วจึงหาเจอ
+     */
+    function requestLabel(r) {
+        var who = (r.company_name ? r.company_name + ' · ' : '')
+                + (r.department_name || 'ไม่ระบุหน่วยงาน');
+        var when = dateShort(r.doc_date);
+
+        return r.doc_no + ' — ' + who
+             + (when ? ' · ' + when : '')
+             + ' (ค้างจ่าย ' + fmt(r.pending_qty) + ')';
+    }
+
 
     /* ============================================================
      *  โหลดข้อมูลตั้งต้น
@@ -238,8 +265,7 @@
                 var r  = DATA.requests[j];
                 var o2 = document.createElement('option');
                 o2.value       = r.doc_id;
-                o2.textContent = r.doc_no + ' — ' + (r.department_name || 'ไม่ระบุหน่วยงาน')
-                               + ' (ค้างจ่าย ' + fmt(r.pending_qty) + ')';
+                o2.textContent = requestLabel(r);
                 rs.appendChild(o2);
             }
 
@@ -272,8 +298,9 @@
 
         el('reqInfoText').textContent =
             'ผู้ขอเบิก ' + (picked.requester_name || picked.requester) +
+            ' · บริษัท ' + (picked.company_name || 'ไม่ระบุ') +
             ' · หน่วยงาน ' + (picked.department_name || 'ไม่ระบุ') +
-            ' · วันที่ขอ ' + picked.doc_date;
+            ' · วันที่ขอ ' + (dateLong(picked.doc_date) || 'ไม่ระบุ');
 
         if (has('receiverName') && el('receiverName').value === '') {
             el('receiverName').value = picked.requester_name || picked.requester || '';
@@ -1055,8 +1082,7 @@
                     var r  = DATA.requests[j];
                     var op = document.createElement('option');
                     op.value       = r.doc_id;
-                    op.textContent = r.doc_no + ' — ' + (r.department_name || 'ไม่ระบุหน่วยงาน')
-                                   + ' (ค้างจ่าย ' + fmt(r.pending_qty) + ')';
+                    op.textContent = requestLabel(r);
                     el('refDocId').appendChild(op);
                 }
                 setHidden(el('noRequest'), DATA.requests.length > 0);
@@ -1193,7 +1219,9 @@
                 doc_date:        (CFG.today || ''),
                 requester:       '__demo__',
                 requester_name:  'ชื่อผู้ขอเบิกตัวอย่าง',
+                company_name:    'บริษัทตัวอย่าง',
                 department_name: 'หน่วยงานตัวอย่าง',
+                pending_qty:     17,
                 items: [
                     { product_id: -101, qty: 10, qty_issued: 5, qty_pending: 5 },
                     { product_id: -102, qty: 12, qty_issued: 0, qty_pending: 12 }
@@ -1203,7 +1231,7 @@
             if (has('refDocId')) {
                 var op = document.createElement('option');
                 op.value       = '-9001';
-                op.textContent = 'ตัวอย่าง-RQ-0000 — หน่วยงานตัวอย่าง';
+                op.textContent = requestLabel(DATA.requests[0]);
                 el('refDocId').appendChild(op);
                 el('refDocId').value = '-9001';
                 if (window.SelectSearch) { window.SelectSearch.refresh(el('refDocId')); }

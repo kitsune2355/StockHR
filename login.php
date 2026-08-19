@@ -187,7 +187,7 @@ unset($_SESSION['login_error']);
       </p>
 
       <p class="animate-fade-in mt-auto pt-6 text-xs text-slate-400 [animation-delay:560ms]">
-        &copy; <?php echo date('Y') + 543; ?> Happyland Group. สงวนลิขสิทธิ์
+        &copy; <?php echo thai_date_format(date('Y-m-d'), 'Y'); ?> Happyland Group. สงวนลิขสิทธิ์
       </p>
     </section>
 

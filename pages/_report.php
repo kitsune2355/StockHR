@@ -51,7 +51,7 @@ include dirname(__FILE__) . '/_filter_head.php';
       <?php if ($mode === 'movement') { ?>
       <span id="rangeText"></span>
       <?php } else { ?>
-      ข้อมูล ณ <?php echo date('d/m/Y H:i'); ?>
+      ข้อมูล ณ <?php echo thai_now(); ?>
       <?php } ?>
     </span>
 

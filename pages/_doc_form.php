@@ -89,7 +89,7 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
         <div class="sm:col-span-2" id="refBox">
           <label for="refDocId" class="<?php echo $label; ?>">ใบเบิกที่จะจ่ายของ</label>
           <select id="refDocId" class="<?php echo $input; ?>"
-                  data-search data-search-placeholder="พิมพ์เลขที่ใบเบิกหรือชื่อหน่วยงาน">
+                  data-search data-search-placeholder="พิมพ์เลขที่ใบเบิก ชื่อบริษัท หรือหน่วยงาน">
             <option value="">— เลือกใบเบิก —</option>
           </select>
         </div>

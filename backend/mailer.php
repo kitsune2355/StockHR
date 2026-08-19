@@ -29,6 +29,7 @@
 
 require_once dirname(__FILE__) . '/db.php';
 require_once dirname(__FILE__) . '/setting.php';
+require_once dirname(__FILE__) . '/thai_date.php';
 
 
 /* ---------- พฤติกรรมการส่ง ----------
@@ -549,7 +550,7 @@ function mail_send_test($to_email, $actor)
         '<p>ถ้าคุณอ่านข้อความนี้อยู่ แปลว่าการตั้งค่า SMTP ของระบบสต็อกธุรการถูกต้องแล้ว '
       . 'ระบบจะเริ่มส่งอีเมลแจ้งเตือนใบเบิกให้ผู้อนุมัติและผู้ขอเบิกได้ทันทีที่เปิดสวิตช์</p>'
       . '<p style="color:#64748b;font-size:13px">ส่งโดย: ' . htmlspecialchars($actor, ENT_QUOTES, 'UTF-8')
-      . ' &middot; เวลา: ' . date('j/n/Y H:i:s') . '</p>',
+      . ' &middot; เวลา: ' . thai_now() . '</p>',
         '', ''
     );
 

@@ -70,7 +70,7 @@ $input    = 'input-control h-11 rounded-xl border border-slate-200 bg-white px-4
       <h1 class="rc-title">รายงานค่าใช้จ่ายวัสดุสิ้นเปลือง</h1>
       <p class="rc-sub">
         ประจำเดือน <b id="rcMonthText"></b>
-        <span class="rc-dot">·</span> ออกรายงานเมื่อ <?php echo date('d/m/Y H:i'); ?>
+        <span class="rc-dot">·</span> ออกรายงานเมื่อ <?php echo thai_now(); ?>
         <span class="rc-dot">·</span> โดย <?php echo htmlspecialchars($sess_full_name !== '' ? $sess_full_name : $sess_username, ENT_QUOTES, 'UTF-8'); ?>
       </p>
       <p class="rc-method">

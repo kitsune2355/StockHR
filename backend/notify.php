@@ -15,6 +15,7 @@
  * ============================================================ */
 
 require_once dirname(__FILE__) . '/db.php';
+require_once dirname(__FILE__) . '/thai_date.php';
 
 
 /* ---------- ประเภทแจ้งเตือน + หน้าตาที่ใช้แสดง ----------
@@ -282,7 +283,8 @@ function notify_time_ago($datetime)
     if ($diff < 86400) { return floor($diff / 3600) . ' ชั่วโมงที่แล้ว'; }
     if ($diff < 604800){ return floor($diff / 86400) . ' วันที่แล้ว'; }
 
-    return date('j/n/Y', $ts);
+    /* เกิน 7 วันแล้วก็กลับไปใช้รูปแบบวันที่กลางของระบบ ไม่ประกอบเอง */
+    return thai_date(date('Y-m-d', $ts));
 }
 
 

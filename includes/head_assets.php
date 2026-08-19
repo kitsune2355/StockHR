@@ -47,6 +47,11 @@ if (!function_exists('app_json')) {
         return str_replace('<', '\u003C', json_encode($value));
     }
 }
+
+/* รูปแบบวันที่ของทั้งระบบ — ต้อง include ที่นี่ด้วย เพราะหน้าที่ไม่ได้ผ่าน main.php
+   (เช่น login.php) ก็ต้องได้ค่าชุดเดียวกันไปให้ฝั่ง JavaScript
+   ไฟล์นี้มีแต่ฟังก์ชัน ไม่แตะฐานข้อมูลและไม่พ่นอะไรออกมา จึง include ซ้ำได้ปลอดภัย */
+require_once dirname(dirname(__FILE__)) . '/backend/thai_date.php';
 ?>
 <!-- ตั้งค่าโหมดสี + สถานะเมนูย่อ ก่อนวาดหน้า
      ต้องอยู่บนสุดและเป็นสคริปต์แบบ inline เพื่อไม่ให้เห็นจอกะพริบขาวก่อนเปลี่ยนเป็นโหมดมืด
@@ -88,7 +93,14 @@ if (!function_exists('app_json')) {
 <!-- วันที่แบบไทยสำหรับแสดงผล (ThaiDate.short / .long / .dateTime / .month)
      โหลดทุกหน้าเพราะเล็กมากและมีวันที่ให้แสดงแทบทุกหน้า
      ใช้แสดงผลเท่านั้น ค่าที่ส่งขึ้น API และที่เก็บในฐานข้อมูลยังเป็น YYYY-MM-DD
-     คู่แฝดฝั่งเซิร์ฟเวอร์อยู่ที่ backend/thai_date.php ต้องให้ผลตรงกันเสมอ -->
+
+     รูปแบบวันที่ทั้งหมดมาจาก thai_date_config() ใน backend/thai_date.php ที่เดียว
+     พ่นลงหน้าเป็น window.THAI_DATE_CONFIG ให้ thai-date.js อ่านไปใช้
+     ฝั่งหน้าจอจึงไม่ได้เก็บชื่อเดือนหรือรูปแบบไว้ซ้ำอีกชุด
+     แก้ที่ไฟล์ PHP ที่เดียว ทั้งสองฝั่งเปลี่ยนตามพร้อมกัน -->
+<script>
+window.THAI_DATE_CONFIG = <?php echo app_json(thai_date_config()); ?>;
+</script>
 <script src="<?php echo asset_url('assets/js/thai-date.js', $ASSET_BASE); ?>"></script>
 
 <!-- กล่องข้อความกลางของระบบ (SweetAlert2, MIT)

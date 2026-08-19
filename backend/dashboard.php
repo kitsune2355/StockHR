@@ -19,6 +19,7 @@ require_once dirname(__FILE__) . '/document.php';
 require_once dirname(__FILE__) . '/request.php';
 require_once dirname(__FILE__) . '/issue.php';
 require_once dirname(__FILE__) . '/user.php';
+require_once dirname(__FILE__) . '/thai_date.php';
 
 
 /* คนกลุ่มนี้ดูภาพรวมของทั้งคลังได้ */
@@ -444,10 +445,6 @@ function dashboard_series($from, $to, $unit = 'day')
         mysqli_stmt_close($stmt);
     }
 
-    $thai_day   = array('อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส');
-    $thai_month = array('', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-                            'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.');
-
     $points    = array();
     $today     = date('Y-m-d');
     $truncated = false;
@@ -457,22 +454,26 @@ function dashboard_series($from, $to, $unit = 'day')
 
         if (count($points) >= 400) { $truncated = true; break; }
 
+        /* ป้ายแกนนอนใช้รูปแบบจาก thai_date_config() เหมือนที่อื่นในระบบ
+           ไม่ได้ประกอบชื่อเดือนกับปี พ.ศ. เองตรงนี้ */
+        $stamp = date('Y-m-d', $cursor);
+
         if ($unit === 'day') {
             $key   = date('Y-m-d', $cursor);
-            $label = (int)date('j', $cursor) . ' ' . $thai_month[(int)date('n', $cursor)];
-            $short = $thai_day[(int)date('w', $cursor)];
+            $label = thai_date_format($stamp, 'axis_day');
+            $short = thai_date_format($stamp, 'axis_day_short');
             $next  = strtotime('+1 day', $cursor);
 
         } elseif ($unit === 'month') {
             $key   = date('Y-m', $cursor);
-            $label = $thai_month[(int)date('n', $cursor)] . ' ' . (substr((string)((int)date('Y', $cursor) + 543), -2));
-            $short = $thai_month[(int)date('n', $cursor)];
+            $label = thai_date_format($stamp, 'axis_month');
+            $short = thai_date_format($stamp, 'axis_month_short');
             /* เดินจากวันที่ 1 เสมอ ไม่งั้นวันที่ 31 บวกหนึ่งเดือนจะข้ามเดือนที่มี 30 วัน */
             $next  = strtotime('+1 month', strtotime(date('Y-m-01', $cursor)));
 
         } else {
             $key   = date('Y', $cursor);
-            $label = (string)((int)date('Y', $cursor) + 543);
+            $label = thai_date_format($stamp, 'axis_year');
             $short = $label;
             $next  = strtotime('+1 year', strtotime(date('Y-01-01', $cursor)));
         }
@@ -523,8 +524,6 @@ function dashboard_week_series($days = 7)
         mysqli_stmt_close($stmt);
     }
 
-    $thai_day = array('อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส');
-
     $out = array();
     $max = 0;
     for ($i = $days - 1; $i >= 0; $i--) {
@@ -537,7 +536,7 @@ function dashboard_week_series($days = 7)
 
         $out[] = array(
             'date'  => $key,
-            'label' => $thai_day[(int)date('w', $ts)],
+            'label' => thai_date_format($key, 'axis_day_short'),
             'day'   => (int)date('j', $ts),
             'in'    => $row['in'],
             'out'   => $row['out'],

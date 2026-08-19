@@ -124,7 +124,7 @@ if (!$is_staff) {
       <span class="bn-dot">·</span>
       <?php echo db_esc(app_role_label($sess_role)); ?>
       <span class="bn-dot">·</span>
-      <?php echo date('d/m/Y'); ?>
+      <?php echo thai_date(date('Y-m-d')); ?>
     </p>
 
     <p class="bn-hero-num num"><?php echo number_format($todo); ?></p>
@@ -506,7 +506,7 @@ if (!$is_staff) {
     <ul class="bn-move-list">
       <?php foreach ($moves as $m) { $in = ($m['qty_in'] > 0); ?>
       <li class="bn-move">
-        <span class="bn-move-time"><?php echo db_esc(substr($m['move_date'], 11, 5)); ?></span>
+        <span class="bn-move-time"><?php echo db_esc(thai_date_format($m['move_date'], 'time', '')); ?></span>
         <span class="bn-move-mark<?php echo $in ? ' is-in' : ' is-out'; ?>">
           <i data-lucide="<?php echo $in ? 'arrow-down-left' : 'arrow-up-right'; ?>" class="h-3 w-3" aria-hidden="true"></i>
         </span>

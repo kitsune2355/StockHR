@@ -46,10 +46,14 @@
         return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
     }
 
-    /* ชื่อเดือนแบบไทยใช้ตัวกลางที่ assets/js/thai-date.js
+    /* วันที่แบบไทยใช้ตัวกลางที่ assets/js/thai-date.js
        เดิมไฟล์นี้มีตารางชื่อเดือนของตัวเอง ซึ่งเป็นชุดที่สามในระบบ */
     function thaiMonth(ym) {
         return window.ThaiDate ? window.ThaiDate.month(ym) : String(ym);
+    }
+
+    function dateTime(v) {
+        return window.ThaiDate ? window.ThaiDate.dateTime(v, '') : String(v || '');
     }
 
 
@@ -257,7 +261,7 @@
             var r = rows[i];
 
             html += '<tr' + (r.is_cancel ? ' class="is-cancel"' : '') + '>'
-                  + '<td>' + esc(String(r.move_date).substring(0, 16)) + '</td>'
+                  + '<td>' + esc(dateTime(r.move_date)) + '</td>'
                   + '<td>' + (r.doc_id > 0
                       ? '<a href="main.php?page=issue_history&doc=' + r.doc_id + '" class="rc-doc-link">'
                         + esc(r.doc_no) + '</a>'

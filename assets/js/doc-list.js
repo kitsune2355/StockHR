@@ -809,7 +809,7 @@
         }
 
         var html = '<p class="ack-lead">เลือกผู้อนุมัติที่จะส่งลิงก์ให้ '
-                 + 'ลิงก์ใช้ได้ ' + days + ' วัน กดได้ครั้งเดียว '
+                 + 'ลิงก์ใช้ได้ ' + days + ' วัน กดได้ครั้งเดียว <br/>'
                  + 'และผู้ที่ถือลิงก์จะตัดสินใบนี้<b>ในนามของคนนั้น</b></p>';
 
         for (var i = 0; i < links.length; i++) {
@@ -823,6 +823,10 @@
             title: 'ลิงก์อนุมัติใบ ' + doc.doc_no,
             html: html,
             confirmButtonText: 'ปิด',
+            confirmButtonColor: '#4a5568',
+            buttonsStyling: false,
+            heightAuto: false,
+            customClass: { popup: 'app-swal', confirmButton: 'app-swal-confirm' },
             width: 640
         });
     }
