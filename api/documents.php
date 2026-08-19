@@ -337,6 +337,7 @@ if ($action === 'export_lines') {
                 'doc_no'          => $doc['doc_no'],
                 'doc_date'        => $doc['doc_date'],
                 'status_label'    => $doc['status_label'],
+                'company_name'    => $doc['company_name'],
                 'department_name' => $doc['department_name'],
                 'requester_name'  => ($doc['requester_name'] !== '') ? $doc['requester_name'] : $doc['requester'],
                 'ref_doc_no'      => $doc['ref_doc_no'],

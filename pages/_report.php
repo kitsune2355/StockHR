@@ -56,12 +56,6 @@ include dirname(__FILE__) . '/_filter_head.php';
     </span>
 
     <div class="fp-bar-actions">
-      <button type="button" id="fpToggle" class="<?php echo $btn_soft; ?> btn-compact fp-toggle">
-        <i data-lucide="sliders-horizontal" class="h-4 w-4" aria-hidden="true"></i>
-        <span class="btn-label">ตัวกรอง</span>
-        <span id="fpCount" class="fp-count num" hidden>0</span>
-      </button>
-
       <button type="button" id="btnReload" class="<?php echo $btn_soft; ?> btn-compact" title="โหลดข้อมูลใหม่">
         <i data-lucide="refresh-cw" class="h-4 w-4" aria-hidden="true"></i>
         <span class="btn-label">รีเฟรช</span>
@@ -71,6 +65,12 @@ include dirname(__FILE__) . '/_filter_head.php';
         <i data-lucide="file-spreadsheet" class="btn-icon h-4 w-4" aria-hidden="true"></i>
         <i data-lucide="loader-circle" class="btn-spinner h-4 w-4 animate-spin" aria-hidden="true" hidden></i>
         <span class="btn-label">ส่งออก Excel</span>
+      </button>
+
+      <button type="button" id="fpToggle" class="<?php echo $btn_soft; ?> btn-compact fp-toggle">
+        <i data-lucide="sliders-horizontal" class="h-4 w-4" aria-hidden="true"></i>
+        <span class="btn-label">ตัวกรอง</span>
+        <span id="fpCount" class="fp-count num" hidden>0</span>
       </button>
     </div>
   </div>

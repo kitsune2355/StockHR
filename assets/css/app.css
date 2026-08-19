@@ -3570,6 +3570,40 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
 
 .ack-input { width: 100% !important; margin: .35rem 0 1rem !important; }
 
+/* ---------- แถวลิงก์พร้อมปุ่มคัดลอก (กล่องลิงก์อนุมัติ / ลิงก์เซ็นรับของ) ---------- */
+.ack-link-who { margin-bottom: 2px; }
+
+.ack-link-row { display: flex; align-items: center; gap: .5rem; margin: .35rem 0 1rem; }
+.ack-link-row .ack-input { flex: 1 1 auto; min-width: 0; margin: 0 !important; }
+
+.ack-copy {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.6rem;
+    height: 2.6rem;
+    border: 1px solid #e2e8f0;
+    border-radius: .5rem;
+    background: #ffffff;
+    color: #475569;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+}
+.ack-copy:hover { background: #f1f5f9; color: #0f172a; }
+.ack-copy:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(2, 148, 136, .25); }
+
+/* ไอคอนสองตัวซ้อนกันในปุ่มเดียว สลับด้วยคลาสตอนคัดลอกสำเร็จ
+   ไม่สั่ง lucide วาดไอคอนใหม่กลางคัน เพราะจะเห็นปุ่มว่างไปหนึ่งเฟรม */
+.ack-copy .ack-copy-done { display: none; }
+.ack-copy.is-done { background: #ecfdf5; border-color: #6ee7b7; color: #047857; }
+.ack-copy.is-done .ack-copy-idle { display: none; }
+.ack-copy.is-done .ack-copy-done { display: inline-block; }
+
+.dark .ack-copy         { background: #1e293b; border-color: #334155; color: #cbd5e1; }
+.dark .ack-copy:hover   { background: #334155; color: #f1f5f9; }
+.dark .ack-copy.is-done { background: rgba(16, 185, 129, .15); border-color: #10b981; color: #6ee7b7; }
+
 .ack-sign-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .35rem; }
 .ack-clear {
     font-size: 12px; font-weight: 600; color: #dc2626;

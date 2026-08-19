@@ -292,9 +292,10 @@ function doc_find($doc_id)
                 h.`approved_by`, h.`approved_at`, h.`approve_note`,
                 h.`received_by`, h.`received_at`, h.`receiver_name`,
                 h.`cancel_note`, h.`created_at`, h.`created_by`,
-                dp.`department_name`, ru.`full_name`, r.`doc_no`
+                dp.`department_name`, cp.`company_name`, ru.`full_name`, r.`doc_no`
          FROM `tb_doc_header` h
          LEFT JOIN `tb_department` dp ON dp.`department_id` = h.`department_id`
+         LEFT JOIN `tb_company`    cp ON cp.`company_id`    = dp.`company_id`
          LEFT JOIN `tb_user`       ru ON ru.`username`      = h.`requester`
          LEFT JOIN `tb_doc_header` r  ON r.`doc_id`         = h.`ref_doc_id`
          WHERE h.`doc_id` = ? LIMIT 1");
@@ -308,7 +309,7 @@ function doc_find($doc_id)
         $approved_by, $approved_at, $approve_note,
         $received_by, $received_at, $receiver_name,
         $cancel_note, $created_at, $created_by,
-        $department_name, $requester_name, $ref_doc_no);
+        $department_name, $company_name, $requester_name, $ref_doc_no);
     $found = mysqli_stmt_fetch($stmt);
     mysqli_stmt_close($stmt);
 
@@ -324,6 +325,9 @@ function doc_find($doc_id)
         'status_label'    => doc_status_label($status),
         'department_id'   => (int)$department_id,
         'department_name' => ($department_name === null) ? '' : $department_name,
+        /* ชื่อบริษัทของหน่วยงาน — เหตุผลเดียวกับใน doc_list()
+           ชื่อหน่วยงานซ้ำกันข้ามบริษัทได้ ต้องมีบริษัทกำกับถึงจะรู้ว่าใบนี้ของที่ไหน */
+        'company_name'    => ($company_name === null) ? '' : $company_name,
         'requester'       => ($req === null) ? '' : $req,
         'requester_name'  => ($requester_name === null) ? '' : $requester_name,
         'ref_doc_id'      => (int)$ref_doc_id,

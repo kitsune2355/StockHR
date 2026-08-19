@@ -229,7 +229,7 @@
          * ใบที่เซ็นไปแล้วไม่มีปุ่มนี้ ส่งลิงก์ให้ใครก็ทำอะไรไม่ได้แล้ว
          */
         if (doc.doc_type === 'issue' && doc.status === 'issued' && isManager()) {
-            out.push({ key: 'copylink', icon: 'link',          tone: 'ghost', label: 'คัดลอกลิงก์เซ็นรับของ' });
+            out.push({ key: 'copylink', icon: 'link',          tone: 'ghost', label: 'ลิงก์เซ็นรับของ' });
             out.push({ key: 'openlink', icon: 'external-link', tone: 'ghost', label: 'เปิดหน้าเซ็นรับของ' });
         }
 
@@ -237,11 +237,11 @@
          * มีเฉพาะใบเบิกที่ยังรออนุมัติ และเฉพาะผู้ดูแลระบบ ด้วยเหตุผลเดียวกับ
          * ลิงก์เซ็นรับ: เปิดได้โดยไม่ต้องล็อกอิน ใครถือก็ตัดสินแทนได้
          *
-         * ต่างกันตรงที่ลิงก์อนุมัติออกให้เป็นรายคน ปุ่มนี้จึงเปิดรายชื่อ
-         * ผู้อนุมัติให้เลือกก่อน ไม่ได้คัดลอกทันทีเหมือนฝั่งเซ็นรับ
+         * ต่างกันตรงที่ลิงก์อนุมัติออกให้เป็นรายคน กล่องจึงมีหลายลิงก์ให้เลือกส่ง
+         * ส่วนลิงก์เซ็นรับมีอันเดียวต่อใบ แต่ใช้กล่องหน้าตาเดียวกัน
          */
         if (doc.doc_type === 'request' && doc.status === 'waiting' && isManager()) {
-            out.push({ key: 'approvelink', icon: 'link', tone: 'ghost', label: 'คัดลอกลิงก์อนุมัติ' });
+            out.push({ key: 'approvelink', icon: 'link', tone: 'ghost', label: 'ลิงก์อนุมัติ' });
         }
 
         /* ที่เหลือใช้เงื่อนไขชุดเดียวกับกล่องรายละเอียด จะได้ไม่มีปุ่มที่โผล่
@@ -365,6 +365,7 @@
         ];
 
         if (TYPE !== 'receive') {
+            cols.push({ key: 'company_name',    label: 'บริษัท' });
             cols.push({ key: 'department_name', label: 'หน่วยงาน' });
             cols.push({ key: 'requester_name',  label: 'ผู้ขอเบิก' });
         }
@@ -440,6 +441,20 @@
         ];
 
         if (TYPE !== 'receive') {
+            /* ---------- บริษัท ----------
+             * ชื่อหน่วยงานซ้ำกันข้ามบริษัทได้ เช่น จัดซื้อ มีอยู่ทุกบริษัท
+             * ถ้ามีแต่คอลัมน์หน่วยงาน คนที่ดูรายการรวมจะแยกไม่ออกว่าใบไหนของที่ไหน
+             * วางไว้ก่อนหน่วยงานเพราะอ่านจากกว้างไปแคบตามลำดับที่คนคิด
+             */
+            cols.push(G.col(G.filterOwn('ทั้งหมด'), {
+                title: 'บริษัท', field: 'company_name', minWidth: 150, responsive: 3,
+                download: true, clipboard: true,
+                formatter: function (cell) {
+                    var v = cell.getValue();
+                    return v ? escapeHtml(v) : '<span class="grid-empty">—</span>';
+                }
+            }));
+
             cols.push(G.col(G.filterOwn('ทั้งหมด'), {
                 title: 'หน่วยงาน', field: 'department_name', minWidth: 150, responsive: 3,
                 download: true, clipboard: true,
@@ -583,6 +598,7 @@
 
         var meta = '';
         meta += line('วันที่เอกสาร', d(doc.doc_date));
+        meta += line('บริษัท',       doc.company_name);
         meta += line('หน่วยงาน',     doc.department_name);
         meta += line('ผู้ขอเบิก',    doc.requester_name || doc.requester);
         meta += line('อ้างใบเบิก',   doc.ref_doc_no);
@@ -778,7 +794,17 @@
                 window.open(res.url, '_blank', 'noopener');
                 return;
             }
-            copyText(res.url, doc, res.days);
+
+            /* เปิดกล่องให้เห็นลิงก์ก่อน ไม่คัดลอกเงียบ ๆ ทันที
+               แบบเดียวกับลิงก์อนุมัติในหน้ารายการใบเบิก เพราะเป็นลิงก์ที่
+               เซ็นรับแทนได้ คนส่งควรได้เห็นสิ่งที่กำลังจะส่งออกไปก่อนเสมอ */
+            showLinkDialog({
+                title: 'ลิงก์เซ็นรับของใบ ' + doc.doc_no,
+                lead:  'ส่งลิงก์นี้ให้ผู้เบิก เปิดได้โดยไม่ต้องล็อกอิน '
+                     + 'ลิงก์ใช้ได้ ' + res.days + ' วัน <br/>'
+                     + 'และผู้ที่ถือลิงก์จะ<b>เซ็นรับของแทนได้</b> กรุณาส่งให้ผู้เบิกเท่านั้น',
+                links: [{ full_name: '', url: res.url }]
+            });
 
         }, bad);
     }
@@ -801,83 +827,154 @@
     }
 
     function showApproveLinks(doc, links, days) {
+        showLinkDialog({
+            title: 'ลิงก์อนุมัติใบ ' + doc.doc_no,
+            lead:  'เลือกผู้อนุมัติที่จะส่งลิงก์ให้ '
+                 + 'ลิงก์ใช้ได้ ' + days + ' วัน กดได้ครั้งเดียว <br/>'
+                 + 'และผู้ที่ถือลิงก์จะตัดสินใบนี้<b>ในนามของคนนั้น</b>',
+            links: links
+        });
+    }
+
+
+    /* ============================================================
+     *  กล่องแสดงลิงก์ — ใช้ร่วมกันทั้งลิงก์อนุมัติและลิงก์เซ็นรับของ
+     * ============================================================
+     *  ทั้งสองอย่างเป็นลิงก์ที่ "ทำแทนคนอื่นได้" เหมือนกัน หน้าตาและวิธีใช้
+     *  จึงควรเป็นแบบเดียวกัน ผู้ดูแลจะได้ไม่ต้องจำว่าหน้าไหนกดแล้วเกิดอะไร
+     *
+     *  ช่องข้อความยังลากคลุมเองได้เหมือนเดิม ปุ่มคัดลอกเป็นทางลัด ไม่ใช่ทางเดียว
+     *  เพราะระบบรันบน http ในวงแลน ซึ่งบางเบราว์เซอร์คัดลอกอัตโนมัติไม่ได้
+     * ============================================================ */
+    function showLinkDialog(opts) {
+        var links = opts.links || [];
+        if (links.length === 0) { return; }
+
         if (!window.Swal) {
-            /* ไม่มีกล่องให้เลือก ก็ยังต้องใช้งานได้ — เอาคนแรกไปเลย
-               แล้วบอกชื่อไว้ในกล่อง prompt ให้ตรวจก่อนส่ง */
-            window.prompt('ลิงก์อนุมัติของ ' + links[0].full_name, links[0].url);
+            /* ไม่มีกล่องก็ยังต้องใช้งานได้ — เอาอันแรกใส่ prompt ให้คัดลอกเอง
+               บอกชื่อเจ้าของลิงก์ไว้ด้วย จะได้ตรวจก่อนส่ง */
+            window.prompt(links[0].full_name
+                          ? (opts.title + ' — ' + links[0].full_name) : opts.title,
+                          links[0].url);
             return;
         }
 
-        var html = '<p class="ack-lead">เลือกผู้อนุมัติที่จะส่งลิงก์ให้ '
-                 + 'ลิงก์ใช้ได้ ' + days + ' วัน กดได้ครั้งเดียว <br/>'
-                 + 'และผู้ที่ถือลิงก์จะตัดสินใบนี้<b>ในนามของคนนั้น</b></p>';
-
+        var html = '<p class="ack-lead">' + opts.lead + '</p>';
         for (var i = 0; i < links.length; i++) {
-            html += '<p class="ack-lead" style="margin-bottom:2px"><b>'
-                 +  escapeHtml(links[i].full_name) + '</b></p>'
-                 +  '<input type="text" class="swal2-input ack-input" readonly value="'
-                 +  escapeHtml(links[i].url) + '" onclick="this.select()">';
+            html += linkRowHtml(links[i].full_name, links[i].url);
         }
 
         window.Swal.fire({
-            title: 'ลิงก์อนุมัติใบ ' + doc.doc_no,
+            title: opts.title,
             html: html,
             confirmButtonText: 'ปิด',
             confirmButtonColor: '#4a5568',
             buttonsStyling: false,
             heightAuto: false,
             customClass: { popup: 'app-swal', confirmButton: 'app-swal-confirm' },
-            width: 640
+            width: 640,
+            didOpen: bindCopyButtons
         });
     }
 
 
-    /* คัดลอกลิงก์ลงคลิปบอร์ด
+    /* หนึ่งลิงก์ = ชื่อเจ้าของ (ถ้ามี) + ช่องข้อความ + ปุ่มคัดลอก
+       ไอคอนใส่ไว้สองตัวซ้อนกันแล้วสลับด้วย CSS ตอนคัดลอกสำเร็จ
+       ไม่สั่ง lucide วาดใหม่กลางคัน เพราะจะเห็นไอคอนกระพริบหายไปหนึ่งเฟรม */
+    function linkRowHtml(name, url) {
+        var safe = escapeHtml(url);
+
+        return (name ? '<p class="ack-lead ack-link-who"><b>' + escapeHtml(name) + '</b></p>' : '')
+             + '<div class="ack-link-row">'
+             +   '<input type="text" class="swal2-input ack-input" readonly'
+             +          ' value="' + safe + '" onclick="this.select()">'
+             +   '<button type="button" class="ack-copy" data-url="' + safe + '"'
+             +          ' title="คัดลอกลิงก์" aria-label="คัดลอกลิงก์">'
+             +     '<i data-lucide="copy"  class="ack-copy-idle h-4 w-4" aria-hidden="true"></i>'
+             +     '<i data-lucide="check" class="ack-copy-done h-4 w-4" aria-hidden="true"></i>'
+             +   '</button>'
+             + '</div>';
+    }
+
+
+    function bindCopyButtons() {
+        var popup = window.Swal.getPopup();
+        if (!popup) { return; }
+
+        /* กล่องนี้เพิ่งถูกสร้างหลัง DOM พร้อมไปแล้ว ไอคอนในนั้นจึงยังเป็น <i> อยู่ */
+        if (typeof window.renderIcons === 'function') { window.renderIcons(popup); }
+
+        var btns = popup.querySelectorAll('.ack-copy');
+        for (var i = 0; i < btns.length; i++) {
+            btns[i].onclick = function () { copyFromButton(this); };
+        }
+    }
+
+
+    function copyFromButton(btn) {
+        var input = btn.parentNode.querySelector('.ack-input');
+
+        copyToClipboard(btn.getAttribute('data-url'), function (copied) {
+            /* คัดลอกไม่ได้ก็เลือกข้อความในช่องให้เลย ผู้ใช้กด Ctrl+C ต่อได้ทันที
+               ดีกว่าขึ้นกล่องบอกว่าล้มเหลวแล้วปล่อยให้ไปหาทางเอง */
+            if (!copied) {
+                if (input) { input.focus(); input.select(); }
+                return;
+            }
+
+            btn.className = 'ack-copy is-done';
+            btn.setAttribute('title', 'คัดลอกแล้ว');
+
+            window.setTimeout(function () {
+                btn.className = 'ack-copy';
+                btn.setAttribute('title', 'คัดลอกลิงก์');
+            }, 1600);
+        }, input);
+    }
+
+
+    /* ---------- คัดลอกข้อความลงคลิปบอร์ด ----------
      * navigator.clipboard ใช้ได้เฉพาะบนหน้าที่เป็น https หรือ localhost
      * ระบบนี้รันบน http ในวงแลน จึงต้องมีทางสำรองที่ใช้ execCommand เสมอ
-     * ถ้ายังไม่ได้อีก ค่อยเปิดกล่องให้ผู้ใช้ลากคัดลอกเอง — ดีกว่าบอกว่าคัดลอกไม่ได้
+     * เรียก done(true/false) เสมอ ผู้เรียกจะได้ตัดสินใจเองว่าจะบอกผู้ใช้อย่างไร
+     *
+     * $node คือช่องข้อความที่มีอยู่แล้วบนจอ ถ้าส่งมาจะคัดลอกจากช่องนั้นตรง ๆ
+     * เพราะกล่อง SweetAlert ดักโฟกัสไว้ การยัด textarea ซ่อนเข้าไปใน body
+     * แล้วสั่ง select อาจโดนดึงโฟกัสกลับจนคัดลอกไม่ติด
      */
-    function copyText(text, doc, days) {
-        var done = function () {
-            ok('คัดลอกลิงก์เซ็นรับของ ' + doc.doc_no + ' แล้ว — ลิงก์ใช้ได้ ' + days + ' วัน');
-        };
-
+    function copyToClipboard(text, done, node) {
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(done, function () { showLink(text, doc, days); });
+            navigator.clipboard.writeText(text).then(
+                function () { done(true); },
+                function () { done(execCopy(text, node)); }
+            );
             return;
         }
+        done(execCopy(text, node));
+    }
 
-        var ta = document.createElement('textarea');
-        ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.position = 'fixed';
-        ta.style.left = '-9999px';
-        document.body.appendChild(ta);
-        ta.select();
+    function execCopy(text, node) {
+        var target = node;
+        var temp   = false;
+
+        if (!target) {
+            target = document.createElement('textarea');
+            target.value = text;
+            target.setAttribute('readonly', '');
+            target.style.position = 'fixed';
+            target.style.left = '-9999px';
+            document.body.appendChild(target);
+            temp = true;
+        }
+
+        target.focus();
+        target.select();
 
         var okCopy = false;
         try { okCopy = document.execCommand('copy'); } catch (err) { okCopy = false; }
-        document.body.removeChild(ta);
 
-        if (okCopy) { done(); } else { showLink(text, doc, days); }
-    }
-
-    function showLink(text, doc, days) {
-        if (!window.Swal) { window.prompt('คัดลอกลิงก์นี้', text); return; }
-
-        window.Swal.fire({
-            title: 'ลิงก์เซ็นรับของ ' + doc.doc_no,
-            html: '<p class="ack-lead">คัดลอกอัตโนมัติไม่ได้บนเบราว์เซอร์นี้ '
-                + 'กรุณาลากคลุมแล้วคัดลอกเอง</p>'
-                + '<input type="text" class="swal2-input ack-input" readonly value="'
-                + escapeHtml(text) + '" onclick="this.select()">'
-                + '<p class="ack-lead">ลิงก์ใช้ได้ ' + days + ' วัน '
-                + 'และเซ็นรับแทนได้ กรุณาส่งให้ผู้เบิกเท่านั้น</p>',
-            confirmButtonText: 'ปิด',
-            buttonsStyling: false,
-            heightAuto: false,
-            customClass: { popup: 'app-swal', confirmButton: 'app-swal-confirm' }
-        });
+        if (temp) { document.body.removeChild(target); }
+        return okCopy;
     }
 
 
@@ -1166,6 +1263,7 @@
             doc_no:          'ตัวอย่าง-0000',
             doc_date:        today,
             department_id:   0,
+            company_name:    'บริษัทตัวอย่าง',
             department_name: 'หน่วยงานตัวอย่าง',
             requester:       '__demo__',
             requester_name:  'ชื่อผู้ขอเบิกตัวอย่าง',
