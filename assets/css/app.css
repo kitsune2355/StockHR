@@ -98,6 +98,42 @@ body.no-bg-image #appMain::before {
     display: none;
 }
 
+
+/* ============================================================
+ *  ขนาดตัวอักษรที่ผู้ใช้เลือกเองได้
+ * ============================================================
+ *  ตั้ง font-size ที่ <html> จุดเดียว แล้วทั้งระบบขยับตาม เพราะขนาดตัวอักษร
+ *  ทุกที่ในระบบเป็นหน่วย rem ซึ่งคิดจากค่านี้เสมอ
+ *    - utility ของ Tailwind (text-sm / text-xs ...) เป็น rem มาแต่แรก
+ *    - ไฟล์นี้เคยเขียนเป็น px อยู่ 163 จุด แปลงเป็น rem หมดแล้ว
+ *      (12px = .75rem พอดีทุกตัว ที่ 100% จึงหน้าตาเหมือนเดิมเป๊ะ)
+ *    - tabulator.min.css ไม่ได้ตั้ง font-size เป็น px เลย ตารางจึงรับค่าตามไปด้วย
+ *
+ *  ค่าจริงถูกเขียนเป็น inline style ที่ <html> ตั้งแต่ก่อนวาดหน้า
+ *  (ดู includes/head_assets.php) ไม่ได้อยู่ในไฟล์นี้ เพราะผู้ใช้ปรับได้ละเอียด
+ *  ทีละ 1% ตั้งแต่ 75% ถึง 150% จะเขียนเป็นกฎตายตัวไว้ล่วงหน้าไม่ได้
+ *  หน้าที่ให้ตั้งค่าคือ pages/font_size.php
+ *
+ *  ---------------------------------------------------------------
+ *  ทำไมระยะห่างขยับตามไปด้วย
+ *  ---------------------------------------------------------------
+ *  ตั้งใจให้เป็นแบบนั้น utility ระยะห่างของ Tailwind (p-4 / gap-2 / h-11)
+ *  เป็น rem เหมือนกัน ตัวอักษรใหญ่ขึ้นแล้วกล่องขยายตาม สัดส่วนจึงคงเดิม
+ *  ถ้าขยายแต่ตัวอักษรอย่างเดียว ตัวหนังสือจะไปชนขอบปุ่มและล้นออกนอกช่อง
+ * ============================================================ */
+html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั้งไว้ในเบราว์เซอร์ ปกติ 16px */
+
+/* ---------- เอกสารที่สั่งพิมพ์ใช้ขนาดมาตรฐานเสมอ ----------
+   ขนาดที่ผู้ใช้เลือกมีไว้ให้อ่านสบายตาบนจอ ไม่ได้คิดเผื่อกระดาษ
+   ถ้าปล่อยให้ติดไปด้วย คนที่ตั้งไว้ 150% จะพิมพ์ใบเบิกออกมาแล้วตารางล้นหน้า
+   ต้องมานั่งย่อเอาเองทุกครั้ง และเอกสารของแต่ละคนจะหน้าตาไม่เหมือนกัน
+
+   ต้องมี !important เพราะค่าที่ผู้ใช้เลือกเป็น inline style ที่ <html>
+   ซึ่งชนะกฎปกติทุกข้อ */
+@media print {
+    html { font-size: 100% !important; }
+}
+
 /* ---------- ช่องกรอกข้อมูล ---------- */
 
 /* input ที่ line-height สูงจะทำให้ตัวอักษรไม่อยู่กึ่งกลางช่อง จึงล็อกไว้ */
@@ -194,7 +230,7 @@ body.no-bg-image #appMain::before {
     .table-cards td::before {
         content: attr(data-label);
         flex: none;
-        font-size: 12px;
+        font-size: 0.75rem;
         font-weight: 500;
         color: #94a3b8;
     }
@@ -206,7 +242,7 @@ body.no-bg-image #appMain::before {
     .table-cards td.cell-main {
         display: block;
         padding: 0 0 .5rem;
-        font-size: 15px;
+        font-size: 0.9375rem;
         line-height: 1.5;
     }
     .table-cards td.cell-main::before {
@@ -259,7 +295,7 @@ body.no-bg-image #appMain::before {
     border-radius: .5rem;
     background: #0f172a;
     color: #fff;
-    font-size: 12px;
+    font-size: 0.75rem;
     line-height: 1.4;
     white-space: nowrap;
     box-shadow: 0 8px 20px -6px rgba(15, 23, 42, .45);
@@ -348,7 +384,7 @@ body.no-bg-image #appMain::before {
     background: transparent;
     border: 0;
     font-family: inherit;
-    font-size: 14px;
+    font-size: 0.875rem;
 }
 
 /* library ตั้งพื้นหลังขาวทึบไว้ที่ 3 ชั้นนี้ ต้องล้างให้โปร่งทั้งหมด
@@ -377,7 +413,7 @@ body.no-bg-image #appMain::before {
 }
 .tabulator .tabulator-header .tabulator-col-content {
     padding: 10px 16px;
-    font-size: 12px;
+    font-size: 0.75rem;
     letter-spacing: .02em;
 }
 
@@ -469,7 +505,7 @@ body.no-bg-image #appMain::before {
     background: #fff;
     color: #334155;
     font-family: inherit;
-    font-size: 12px;
+    font-size: 0.75rem;
     font-weight: 400;
 }
 .tabulator .tabulator-header .tabulator-header-filter input::placeholder {
@@ -522,7 +558,7 @@ body.no-bg-image #appMain::before {
 .tabulator .tabulator-row .tabulator-cell.tabulator-editing input,
 .tabulator .tabulator-row .tabulator-cell.tabulator-editing select {
     font-family: inherit;
-    font-size: 14px;
+    font-size: 0.875rem;
     color: inherit;
     background: transparent;
     border: 0;
@@ -533,7 +569,7 @@ body.no-bg-image #appMain::before {
 .tabulator .tabulator-placeholder .tabulator-placeholder-contents {
     background: transparent;
     color: #94a3b8;
-    font-size: 14px;
+    font-size: 0.875rem;
     font-weight: 400;
 }
 
@@ -570,7 +606,7 @@ body.no-bg-image #appMain::before {
 }
 .tabulator .tabulator-row .tabulator-responsive-collapse td:first-child {
     color: #94a3b8;
-    font-size: 12px;
+    font-size: 0.75rem;
     padding-right: 1rem;
 }
 
@@ -612,11 +648,11 @@ body.no-bg-image #appMain::before {
 .grid-pill   {
     display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
     padding: .125rem .625rem; border-radius: 999px;
-    background: #effbf9; color: #055f59; font-size: 12px; font-weight: 500;
+    background: #effbf9; color: #055f59; font-size: 0.75rem; font-weight: 500;
 }
 .grid-tag {
     display: inline-block; padding: .0625rem .375rem; border-radius: .375rem;
-    font-size: 10px; font-weight: 600;
+    font-size: 0.625rem; font-weight: 600;
 }
 /* สิทธิ์สูงสุด ใช้สีต่างจากสิทธิ์อื่นให้เห็นชัดว่าเป็นบัญชีพิเศษ */
 .grid-pill-top { background: #ede9fe; color: #5b21b6; }
@@ -626,7 +662,7 @@ body.no-bg-image #appMain::before {
 .grid-tag-self { background: #e0e7ff; color: #3730a3; }
 .grid-tag-pwd  { background: #fef3c7; color: #92400e; }
 
-.grid-user { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 13px; }
+.grid-user { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 0.8125rem; }
 
 /* ---------- สวิตช์เปิด/ปิดใช้งานในตาราง ---------- */
 .grid-switch-wrap {
@@ -657,7 +693,7 @@ body.no-bg-image #appMain::before {
 }
 .grid-switch.is-on .grid-switch-knob { transform: translateX(16px); }
 
-.grid-switch-text { font-size: 12px; color: #64748b; }
+.grid-switch-text { font-size: 0.75rem; color: #64748b; }
 .grid-switch.is-on + .grid-switch-text { color: #047857; font-weight: 500; }
 
 .dark .grid-switch                  { background: #334155; }
@@ -739,7 +775,7 @@ body.no-bg-image #appMain::before {
     padding: .25rem .5rem;
     border-radius: .5rem;
     color: #0f766e;
-    font-size: 12px;
+    font-size: 0.75rem;
     font-weight: 500;
     text-decoration: underline;
     text-underline-offset: 3px;
@@ -777,7 +813,7 @@ body.no-bg-image #appMain::before {
 /* ---------- ปุ่มเอาแถวใหม่ออก ---------- */
 .grid-remove {
     width: 26px; height: 26px; border-radius: .5rem;
-    color: #94a3b8; font-size: 13px; line-height: 1;
+    color: #94a3b8; font-size: 0.8125rem; line-height: 1;
     transition: background .15s, color .15s;
 }
 .grid-remove:hover { background: #fee2e2; color: #dc2626; }
@@ -786,7 +822,7 @@ body.no-bg-image #appMain::before {
 /* ปุ่มย้อนคืนแถวที่กดลบไว้ — เขียวเพราะเป็นการยกเลิกสิ่งที่อันตราย ไม่ใช่ทำสิ่งที่อันตราย */
 .grid-undo {
     width: 26px; height: 26px; border-radius: .5rem;
-    color: #64748b; font-size: 15px; line-height: 1;
+    color: #64748b; font-size: 0.9375rem; line-height: 1;
     transition: background .15s, color .15s;
 }
 .grid-undo:hover { background: #d1fae5; color: #047857; }
@@ -940,7 +976,7 @@ body.no-bg-image #appMain::before {
     background: #fff;
     padding: .25rem;
     box-shadow: 0 12px 28px -8px rgba(15, 23, 42, .25);
-    font-size: 14px;
+    font-size: 0.875rem;
 }
 .tabulator-edit-list .tabulator-edit-list-item {
     border-radius: .5rem;
@@ -1068,7 +1104,7 @@ body.no-bg-image #appMain::before {
     gap: .25rem 1rem;
     border-top: 1px solid #e2e8f0;
     padding: .625rem 1rem;
-    font-size: 12px;
+    font-size: 0.75rem;
     color: #94a3b8;
 }
 .grid-hints > span {
@@ -1080,7 +1116,7 @@ body.no-bg-image #appMain::before {
 
 /* จอแคบเหลือพื้นที่น้อย เอาเฉพาะคำใบ้ 2 ข้อแรกพอ ที่เหลือกินที่จนดันตารางเล็กลง */
 @media (max-width: 640px) {
-    .grid-hints { gap: .25rem .75rem; padding: .5rem .75rem; font-size: 11px; }
+    .grid-hints { gap: .25rem .75rem; padding: .5rem .75rem; font-size: 0.6875rem; }
     .grid-hints > span:nth-child(n + 3) { display: none; }
 }
 
@@ -1096,7 +1132,7 @@ body.no-bg-image #appMain::before {
     border-top: 1px solid #e2e8f0;
     background: transparent;
     color: #64748b;
-    font-size: 13px;
+    font-size: 0.8125rem;
     padding: .625rem 1rem;
 }
 .tabulator .tabulator-footer .tabulator-footer-contents {
@@ -1137,7 +1173,7 @@ body.no-bg-image #appMain::before {
     border-radius: .5rem;
     background: #fff;
     color: #475569;
-    font-size: 13px;
+    font-size: 0.8125rem;
     font-weight: 500;
     transition: background .15s, border-color .15s, color .15s;
 }
@@ -1170,7 +1206,7 @@ body.no-bg-image #appMain::before {
     padding: 0 .5rem;
     color: #475569;
     background: #fff;
-    font-size: 13px;
+    font-size: 0.8125rem;
 }
 .tabulator .tabulator-footer .tabulator-page-counter { margin: 0; }
 
@@ -1519,12 +1555,12 @@ body.no-bg-image #appMain::before {
 .doc-out { color: #b91c1c; font-variant-numeric: tabular-nums; }
 
 .doc-no { font-weight: 600; }
-.doc-pname { color: #64748b; font-size: 12px; }
+.doc-pname { color: #64748b; font-size: 0.75rem; }
 
 /* ---------- ป้ายสถานะเอกสาร ---------- */
 .doc-pill {
     display: inline-block; padding: .125rem .625rem; border-radius: 999px;
-    font-size: 12px; font-weight: 500; white-space: nowrap;
+    font-size: 0.75rem; font-weight: 500; white-space: nowrap;
     background: #f1f5f9; color: #475569;
 }
 .doc-pill.is-wait { background: #fef3c7; color: #92400e; }
@@ -1583,7 +1619,7 @@ body.no-bg-image #appMain::before {
 .doc-meta { display: grid; gap: .375rem 1rem; margin-bottom: 1rem; }
 @media (min-width: 640px) { .doc-meta { grid-template-columns: 1fr 1fr; } }
 
-.doc-meta-row { display: flex; gap: .5rem; font-size: 13px; line-height: 1.5; }
+.doc-meta-row { display: flex; gap: .5rem; font-size: 0.8125rem; line-height: 1.5; }
 .doc-meta-row dt { flex: none; width: 8.5rem; color: #64748b; }
 .doc-meta-row dd { min-width: 0; color: #0f172a; word-break: break-word; }
 
@@ -1592,7 +1628,7 @@ body.no-bg-image #appMain::before {
     overflow-x: auto;
     border: 1px solid #e2e8f0; border-radius: .75rem;
 }
-.doc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.doc-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
 .doc-table th, .doc-table td { padding: .5rem .625rem; text-align: left; white-space: nowrap; }
 .doc-table thead th {
     position: sticky; top: 0;
@@ -1603,14 +1639,14 @@ body.no-bg-image #appMain::before {
 .doc-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .doc-table .num.is-pending { color: #b45309; font-weight: 600; }
 
-.doc-sum { margin-top: .75rem; text-align: right; font-size: 13px; color: #475569; }
-.doc-sum b { font-size: 15px; color: #0f172a; }
+.doc-sum { margin-top: .75rem; text-align: right; font-size: 0.8125rem; color: #475569; }
+.doc-sum b { font-size: 0.9375rem; color: #0f172a; }
 
 /* ---------- ปุ่มทำงานท้ายกล่อง ---------- */
 .doc-act {
     display: inline-flex; align-items: center; gap: .5rem;
     padding: .5rem 1rem; border-radius: .75rem;
-    font-size: 14px; font-weight: 600;
+    font-size: 0.875rem; font-weight: 600;
     transition: background .15s, border-color .15s;
 }
 .doc-act.is-ok  { background: #029488; color: #fff; }
@@ -1627,8 +1663,8 @@ body.no-bg-image #appMain::before {
     background: #f8fafc; border: 1px solid #e2e8f0;
     min-width: 8rem;
 }
-.rep-tile-label { font-size: 11px; color: #64748b; }
-.rep-tile-value { font-size: 18px; font-weight: 700; color: #0f172a; line-height: 1.2; }
+.rep-tile-label { font-size: 0.6875rem; color: #64748b; }
+.rep-tile-value { font-size: 1.125rem; font-weight: 700; color: #0f172a; line-height: 1.2; }
 
 .rep-tile.is-in  { background: #f0fdfa; border-color: #99f6e4; }
 .rep-tile.is-in  .rep-tile-value { color: #0f766e; }
@@ -1731,7 +1767,7 @@ body.no-bg-image #appMain::before {
 .ss-search {
     width: 100%; height: 2.25rem; padding: 0 .75rem;
     border: 1px solid #e2e8f0; border-radius: .5rem;
-    font-size: 14px; color: #0f172a; background: #fff;
+    font-size: 0.875rem; color: #0f172a; background: #fff;
 }
 .ss-search:focus { outline: none; border-color: #029488; box-shadow: 0 0 0 3px rgba(2, 148, 136, .18); }
 
@@ -1739,7 +1775,7 @@ body.no-bg-image #appMain::before {
 
 .ss-item {
     padding: .5rem .625rem; border-radius: .5rem;
-    font-size: 14px; color: #334155; cursor: pointer;
+    font-size: 0.875rem; color: #334155; cursor: pointer;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ss-item:hover, .ss-item.is-active { background: #f1f5f9; }
@@ -1750,7 +1786,7 @@ body.no-bg-image #appMain::before {
 .ss-empty {
     display: none;
     padding: 1rem .75rem; text-align: center;
-    font-size: 13px; color: #94a3b8;
+    font-size: 0.8125rem; color: #94a3b8;
 }
 
 /* บนจอเล็กกางเป็นแผ่นจากด้านล่าง รายการยาว ๆ ถ้ากางลอยจะโดนคีย์บอร์ดบัง */
@@ -1812,16 +1848,16 @@ body.no-bg-image #appMain::before {
 }
 .tf-pane-title {
     display: flex; align-items: center; gap: .5rem;
-    font-size: 13px; font-weight: 600; color: #334155;
+    font-size: 0.8125rem; font-weight: 600; color: #334155;
 }
 .tf-badge {
     padding: .0625rem .5rem; border-radius: 999px;
-    background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 500;
+    background: #f1f5f9; color: #64748b; font-size: 0.6875rem; font-weight: 500;
 }
 .tf-badge.is-on { background: #effbf9; color: #055f59; }
 
 .tf-clear {
-    margin-left: auto; font-size: 12px; color: #94a3b8;
+    margin-left: auto; font-size: 0.75rem; color: #94a3b8;
     padding: .25rem .5rem; border-radius: .5rem;
 }
 .tf-clear:hover { background: #fef2f2; color: #b91c1c; }
@@ -1862,7 +1898,7 @@ body.no-bg-image #appMain::before {
     display: inline-flex; align-items: center; gap: .5rem;
     padding: 0 .75rem; height: 2.75rem;
     border: 1px solid #e2e8f0; border-radius: .75rem;
-    font-size: 13px; color: #475569; cursor: pointer; white-space: nowrap;
+    font-size: 0.8125rem; color: #475569; cursor: pointer; white-space: nowrap;
 }
 
 /* ช่องติ๊กถูกยัดให้พอดีคอลัมน์ auto มาตลอด พอตกลงมาเป็นแถวเต็มความกว้าง
@@ -1888,10 +1924,10 @@ body.no-bg-image #appMain::before {
 .tf-code {
     display: block;
     font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-    font-size: 12px; color: #0f766e; font-weight: 600;
+    font-size: 0.75rem; color: #0f766e; font-weight: 600;
 }
 .tf-name {
-    display: block; font-size: 13px; color: #1e293b; line-height: 1.35;
+    display: block; font-size: 0.8125rem; color: #1e293b; line-height: 1.35;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 /* บรรทัดล่างของแถวสินค้า — มีได้ตั้งแต่ป้ายเดียวถึงสามป้าย
@@ -1899,8 +1935,8 @@ body.no-bg-image #appMain::before {
    ทำเป็น flex เพื่อให้ระยะห่างเท่ากันทุกคู่ด้วย gap ที่เดียว
    และตกบรรทัดเองได้เมื่อ pane แคบ แทนที่จะดันแถวจนล้น */
 .tf-sub  { display: flex; align-items: center; flex-wrap: wrap; gap: .25rem;
-           min-width: 0; font-size: 11px; color: #94a3b8; }
-.tf-unit { display: block; font-size: 11px; color: #94a3b8; }
+           min-width: 0; font-size: 0.6875rem; color: #94a3b8; }
+.tf-unit { display: block; font-size: 0.6875rem; color: #94a3b8; }
 
 /* ---------- ป้ายหมวดหมู่บนแถวสินค้า ----------
    ของเดิมบรรทัดล่างมีแค่ชื่อหมวดย่อยเป็นตัวจาง ๆ ซึ่งตอบไม่ได้ว่าหมวดย่อยนั้น
@@ -1918,7 +1954,7 @@ body.no-bg-image #appMain::before {
     align-items: center;
     padding: .05rem .35rem;
     border-radius: .3rem;
-    font-size: 10px;
+    font-size: 0.625rem;
     font-weight: 600;
     line-height: 1.5;
     vertical-align: middle;
@@ -1946,7 +1982,7 @@ body.no-bg-image #appMain::before {
     .tf-tag { padding: 0 .3rem; max-width: 9rem; }
 }
 
-.tf-stock { display: block; font-size: 13px; font-weight: 600; color: #0f766e; font-variant-numeric: tabular-nums; }
+.tf-stock { display: block; font-size: 0.8125rem; font-weight: 600; color: #0f766e; font-variant-numeric: tabular-nums; }
 .tf-stock.is-low { color: #b45309; }
 .tf-stock.is-out { color: #dc2626; }
 
@@ -1954,12 +1990,12 @@ body.no-bg-image #appMain::before {
     flex: none;
     display: inline-flex; align-items: center; justify-content: center;
     width: 1.5rem; height: 1.5rem; border-radius: 999px;
-    background: #f1f5f9; color: #64748b; font-size: 13px; font-weight: 700;
+    background: #f1f5f9; color: #64748b; font-size: 0.8125rem; font-weight: 700;
 }
 .tf-item.is-picked .tf-mark { background: #029488; color: #fff; }
 
-.tf-empty { padding: 2rem 1rem; text-align: center; font-size: 13px; color: #94a3b8; }
-.tf-empty-hint { font-size: 12px; color: #cbd5e1; }
+.tf-empty { padding: 2rem 1rem; text-align: center; font-size: 0.8125rem; color: #94a3b8; }
+.tf-empty-hint { font-size: 0.75rem; color: #cbd5e1; }
 
 /* ---------- การ์ดฝั่งขวา ---------- */
 .tf-pick {
@@ -1973,7 +2009,7 @@ body.no-bg-image #appMain::before {
 
 .tf-remove {
     flex: none; width: 1.5rem; height: 1.5rem; border-radius: .5rem;
-    color: #94a3b8; font-size: 12px; line-height: 1;
+    color: #94a3b8; font-size: 0.75rem; line-height: 1;
 }
 .tf-remove:hover { background: #fef2f2; color: #b91c1c; }
 
@@ -1982,19 +2018,19 @@ body.no-bg-image #appMain::before {
 .tf-step { display: inline-flex; align-items: center; border: 1px solid #e2e8f0; border-radius: .625rem; overflow: hidden; }
 .tf-step button {
     width: 2rem; height: 2.25rem; background: #f8fafc; color: #475569;
-    font-size: 15px; font-weight: 600; line-height: 1;
+    font-size: 0.9375rem; font-weight: 600; line-height: 1;
 }
 .tf-step button:hover { background: #e2e8f0; }
 .tf-qty {
     width: 3.5rem; height: 2.25rem; border: 0; text-align: center;
-    font-size: 14px; font-weight: 600; color: #0f172a; background: #fff;
+    font-size: 0.875rem; font-weight: 600; color: #0f172a; background: #fff;
     -moz-appearance: textfield;
 }
 .tf-qty::-webkit-outer-spin-button, .tf-qty::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .tf-qty:focus { outline: none; background: #f0fdfa; }
 
-.tf-avail { margin-left: auto; font-size: 11px; color: #94a3b8; }
-.tf-warn  { margin-top: .375rem; font-size: 11px; color: #b45309; }
+.tf-avail { margin-left: auto; font-size: 0.6875rem; color: #94a3b8; }
+.tf-warn  { margin-top: .375rem; font-size: 0.6875rem; color: #b45309; }
 
 /* ---------- โหมดมืด ---------- */
 .dark .tf-pane      { background: #0f172a; border-color: #1e293b; }
@@ -2069,7 +2105,7 @@ body.no-bg-image #appMain::before {
         min-height: 2.5rem;
         padding: .25rem .5rem;
         border-radius: .625rem;
-        font-size: 13px;
+        font-size: 0.8125rem;
         color: #64748b;
         transition: background .15s ease, color .15s ease;
     }
@@ -2097,7 +2133,7 @@ body.no-bg-image #appMain::before {
         border-radius: 999px;
         background: #e2e8f0;
         color: #475569;
-        font-size: 11px;
+        font-size: 0.6875rem;
         font-weight: 600;
         font-variant-numeric: tabular-nums;
     }
@@ -2234,9 +2270,9 @@ input[type="date"].input-control { min-height: 2.75rem; }
 }
 .fp-title {
     display: flex; align-items: center; gap: .5rem;
-    font-size: 14px; font-weight: 600; color: #334155;
+    font-size: 0.875rem; font-weight: 600; color: #334155;
 }
-.fp-hint { display: block; margin-top: .125rem; font-size: 11px; color: #94a3b8; }
+.fp-hint { display: block; margin-top: .125rem; font-size: 0.6875rem; color: #94a3b8; }
 
 .fp-close {
     margin-left: auto; flex: none;
@@ -2252,13 +2288,13 @@ input[type="date"].input-control { min-height: 2.75rem; }
 /* ช่วงวันที่วางเป็น 3 แถวเล็ก ๆ ไม่ใช่ 2 ช่องเรียงกัน
    เพราะช่อง date ในแถบกว้าง 18rem ถ้าแบ่งครึ่งจะแคบจนอ่านปีไม่ออก */
 .fp-range { display: grid; gap: .375rem; }
-.fp-range-sep { font-size: 11px; color: #94a3b8; text-align: center; }
+.fp-range-sep { font-size: 0.6875rem; color: #94a3b8; text-align: center; }
 
 .fp-check {
     display: flex; align-items: center; gap: .625rem;
     padding: .625rem .75rem; border-radius: .75rem;
     border: 1px solid #e2e8f0; cursor: pointer;
-    font-size: 13px; color: #475569;
+    font-size: 0.8125rem; color: #475569;
 }
 .fp-check:hover { background: #f8fafc; }
 
@@ -2267,7 +2303,7 @@ input[type="date"].input-control { min-height: 2.75rem; }
     display: flex; align-items: center; justify-content: center; gap: .5rem;
     width: 100%; height: 2.5rem; border-radius: .75rem;
     border: 1px solid #e2e8f0; background: #fff;
-    font-size: 13px; font-weight: 500; color: #475569;
+    font-size: 0.8125rem; font-weight: 500; color: #475569;
 }
 .fp-clear:hover:not(:disabled) { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
 .fp-clear:disabled { opacity: .45; cursor: not-allowed; }
@@ -2278,7 +2314,7 @@ input[type="date"].input-control { min-height: 2.75rem; }
     flex: none; padding: .75rem 1rem;
     border-bottom: 1px solid #e2e8f0;
 }
-.fp-bar-info { font-size: 13px; color: #64748b; min-width: 0; }
+.fp-bar-info { font-size: 0.8125rem; color: #64748b; min-width: 0; }
 .fp-bar-info b { color: #0f172a; }
 .fp-bar-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-left: auto; }
 
@@ -2293,7 +2329,7 @@ button.fp-toggle { display: none; }
     display: inline-flex; align-items: center; justify-content: center;
     min-width: 1.125rem; height: 1.125rem; padding: 0 .25rem;
     border-radius: 999px; background: #029488; color: #fff;
-    font-size: 10px; font-weight: 700; line-height: 1;
+    font-size: 0.625rem; font-weight: 700; line-height: 1;
 }
 
 .fp-backdrop {
@@ -2391,14 +2427,14 @@ button.fp-toggle { display: none; }
 
 /* ---------- หัวไทล์ ---------- */
 .bn-tile-head { display: flex; align-items: center; gap: .75rem; margin-bottom: .875rem; }
-.bn-tile-head h3 { font-size: 13px; font-weight: 600; color: #334155; }
+.bn-tile-head h3 { font-size: 0.8125rem; font-weight: 600; color: #334155; }
 .bn-more {
-    margin-left: auto; font-size: 12px; font-weight: 500; color: #0f766e;
+    margin-left: auto; font-size: 0.75rem; font-weight: 500; color: #0f766e;
     padding: .125rem .375rem; border-radius: .375rem;
 }
 .bn-more:hover { background: #f0fdfa; }
 
-.bn-blank { padding: 1rem 0; font-size: 12px; color: #94a3b8; }
+.bn-blank { padding: 1rem 0; font-size: 0.75rem; color: #94a3b8; }
 
 
 /* ============================================================
@@ -2436,14 +2472,14 @@ button.fp-toggle { display: none; }
 }
 
 .bn-eyebrow {
-    font-size: 12px; color: rgba(255,255,255,.65);
+    font-size: 0.75rem; color: rgba(255,255,255,.65);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .bn-eyebrow .bn-dot { color: rgba(255,255,255,.35); }
 
-.bn-hero-num { margin-top: .75rem; font-size: 52px; font-weight: 700; line-height: 1; }
-.bn-hero-cap { margin-top: .125rem; font-size: 14px; color: rgba(255,255,255,.8); }
-.bn-hero-note { margin-top: .5rem; font-size: 12px; color: rgba(255,255,255,.55); }
+.bn-hero-num { margin-top: .75rem; font-size: 3.25rem; font-weight: 700; line-height: 1; }
+.bn-hero-cap { margin-top: .125rem; font-size: 0.875rem; color: rgba(255,255,255,.8); }
+.bn-hero-note { margin-top: .5rem; font-size: 0.75rem; color: rgba(255,255,255,.55); }
 
 /* จุดสีชนิดงาน ใช้ทั้งในสรุปและในคิว จะได้โยงกันด้วยสายตา */
 .bn-bullet {
@@ -2454,7 +2490,7 @@ button.fp-toggle { display: none; }
 .bn-bullet.is-sky   { background: #7dd3fc; }
 
 .bn-breakdown { display: flex; flex-wrap: wrap; gap: .375rem 1.25rem; margin-top: 1rem; }
-.bn-breakdown li { display: flex; align-items: center; gap: .5rem; font-size: 12px; }
+.bn-breakdown li { display: flex; align-items: center; gap: .5rem; font-size: 0.75rem; }
 .bn-bd-name { color: rgba(255,255,255,.7); }
 .bn-bd-num  { font-weight: 700; }
 
@@ -2467,7 +2503,7 @@ button.fp-toggle { display: none; }
     display: flex; align-items: center; gap: .625rem;
     padding: .4375rem .5rem; margin: 0 -.5rem;
     border-radius: .5rem;
-    font-size: 12px; color: rgba(255,255,255,.9);
+    font-size: 0.75rem; color: rgba(255,255,255,.9);
     transition: background .15s;
 }
 .bn-q:hover { background: rgba(255,255,255,.1); }
@@ -2489,9 +2525,9 @@ button.fp-toggle { display: none; }
    ============================================================ */
 .bn-stat { justify-content: flex-end; min-height: 8.5rem; }
 .bn-stat-icon { color: #94a3b8; margin-bottom: auto; }
-.bn-stat-num  { font-size: 30px; font-weight: 700; color: #0f172a; line-height: 1.1; margin-top: .75rem; }
-.bn-stat-cap  { font-size: 12px; color: #64748b; }
-.bn-stat-note { margin-top: .25rem; font-size: 11px; color: #94a3b8; }
+.bn-stat-num  { font-size: 1.875rem; font-weight: 700; color: #0f172a; line-height: 1.1; margin-top: .75rem; }
+.bn-stat-cap  { font-size: 0.75rem; color: #64748b; }
+.bn-stat-note { margin-top: .25rem; font-size: 0.6875rem; color: #94a3b8; }
 
 .bn-stat.is-warn .bn-stat-icon { color: #f59e0b; }
 .bn-stat.is-warn .bn-stat-num  { color: #b45309; }
@@ -2504,7 +2540,7 @@ button.fp-toggle { display: none; }
 .bn-chart { grid-column: span 1; }
 @media (min-width: 640px)  { .bn-chart { grid-column: span 2; } }
 
-.bn-legend { margin-left: auto; display: flex; gap: .75rem; font-size: 11px; color: #94a3b8; }
+.bn-legend { margin-left: auto; display: flex; gap: .75rem; font-size: 0.6875rem; color: #94a3b8; }
 .bn-legend span { display: inline-flex; align-items: center; gap: .3125rem; }
 .bn-key { width: .5rem; height: .5rem; border-radius: .125rem; display: inline-block; }
 .bn-key.is-in  { background: #0d9488; }
@@ -2545,7 +2581,7 @@ button.fp-toggle { display: none; }
     border-radius: .5rem;
     background: transparent;
     font-family: inherit;
-    font-size: 11.5px;
+    font-size: 0.71875rem;
     font-weight: 500;
     color: #64748b;
     cursor: pointer;
@@ -2572,7 +2608,7 @@ button.fp-toggle { display: none; }
     border-radius: .5rem;
     background: #fff;
     font-family: inherit;
-    font-size: 11.5px;
+    font-size: 0.71875rem;
     color: #475569;
 }
 .bn-cf-date:focus {
@@ -2580,7 +2616,7 @@ button.fp-toggle { display: none; }
     border-color: #029488;
     box-shadow: 0 0 0 3px rgba(2, 148, 136, .14);
 }
-.bn-cf-sep  { font-size: 11px; color: #94a3b8; }
+.bn-cf-sep  { font-size: 0.6875rem; color: #94a3b8; }
 .bn-cf-warn { color: #b45309; }
 
 .dark .bn-cf-quick, .dark .bn-cf-unit { border-color: #334155; background: #0f172a; }
@@ -2600,9 +2636,9 @@ button.fp-toggle { display: none; }
     display: flex; flex-wrap: wrap; align-items: center; gap: .25rem;
     margin-top: .875rem; padding-top: .75rem;
     border-top: 1px solid #f1f5f9;
-    font-size: 12px; color: #64748b;
+    font-size: 0.75rem; color: #64748b;
 }
-.bn-chart-today { margin-left: auto; font-size: 11px; color: #94a3b8; }
+.bn-chart-today { margin-left: auto; font-size: 0.6875rem; color: #94a3b8; }
 
 
 /* ============================================================
@@ -2613,16 +2649,16 @@ button.fp-toggle { display: none; }
 
 .bn-code {
     font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-    font-size: 11px; font-weight: 600; color: #0f766e;
+    font-size: 0.6875rem; font-weight: 600; color: #0f766e;
 }
 
 .bn-low + .bn-low { margin-top: .75rem; }
 .bn-low-top { display: flex; align-items: baseline; gap: .5rem; }
 .bn-low-name {
-    min-width: 0; flex: 1 1 auto; font-size: 12px; color: #475569;
+    min-width: 0; flex: 1 1 auto; font-size: 0.75rem; color: #475569;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.bn-low-qty { flex: none; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.bn-low-qty { flex: none; font-size: 0.75rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .bn-low-qty.is-low { color: #b45309; }
 .bn-low-qty.is-out { color: #dc2626; }
 .bn-low-min { font-weight: 400; color: #cbd5e1; }
@@ -2645,7 +2681,7 @@ button.fp-toggle { display: none; }
     display: flex; align-items: center; gap: .5rem;
     padding: .5rem .625rem; border-radius: .625rem;
     border: 1px solid #e2e8f0;
-    font-size: 12px; color: #475569;
+    font-size: 0.75rem; color: #475569;
     transition: background .15s, border-color .15s, color .15s;
 }
 .bn-link:hover { background: #f0fdfa; border-color: #99f6e4; color: #0f766e; }
@@ -2664,7 +2700,7 @@ button.fp-toggle { display: none; }
 .bn-move { display: flex; align-items: center; gap: .625rem; padding: .4375rem 0; }
 .bn-move + .bn-move { border-top: 1px solid #f8fafc; }
 
-.bn-move-time { flex: none; width: 2.5rem; font-size: 11px; color: #94a3b8; font-variant-numeric: tabular-nums; }
+.bn-move-time { flex: none; width: 2.5rem; font-size: 0.6875rem; color: #94a3b8; font-variant-numeric: tabular-nums; }
 .bn-move-mark {
     flex: none; display: flex; align-items: center; justify-content: center;
     width: 1.5rem; height: 1.5rem; border-radius: 999px;
@@ -2674,12 +2710,12 @@ button.fp-toggle { display: none; }
 
 .bn-move-body { min-width: 0; flex: 1 1 auto; }
 .bn-move-name {
-    display: block; font-size: 12px; color: #1e293b;
+    display: block; font-size: 0.75rem; color: #1e293b;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .bn-move-name .bn-code { margin-right: .375rem; }
-.bn-move-sub { display: block; font-size: 11px; color: #94a3b8; }
-.bn-move-qty { flex: none; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.bn-move-sub { display: block; font-size: 0.6875rem; color: #94a3b8; }
+.bn-move-qty { flex: none; font-size: 0.8125rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 
 /* จอแคบ ตัดเวลาทิ้งก่อน เหลือที่ให้ชื่อสินค้า */
 @media (max-width: 419px) { .bn-move-time { display: none; } }
@@ -2768,8 +2804,8 @@ button.fp-toggle { display: none; }
     margin-top: auto; padding-top: 1.25rem;
     border-top: 1px solid rgba(255,255,255,.14);
 }
-.bn-fact-num { display: block; font-size: 20px; font-weight: 700; line-height: 1.1; }
-.bn-fact-cap { display: block; margin-top: .125rem; font-size: 11px; color: rgba(255,255,255,.6); }
+.bn-fact-num { display: block; font-size: 1.25rem; font-weight: 700; line-height: 1.1; }
+.bn-fact-cap { display: block; margin-top: .125rem; font-size: 0.6875rem; color: rgba(255,255,255,.6); }
 
 /* คิวงานต่อจากสรุปด้านบนเลย ไม่ดันลงล่างแล้ว
    เพราะตอนนี้มีแถบตัวเลขเป็นตัวยึดขอบล่างอยู่ ถ้าดันทั้งคู่
@@ -2795,13 +2831,13 @@ button.fp-toggle { display: none; }
     margin-bottom: 1.25rem; padding: .875rem 1rem;
     border: 1px solid #e2e8f0; border-radius: 1rem; background: #fff;
 }
-.rc-bar-label { font-size: 13px; font-weight: 500; color: #475569; }
-.rc-bar-hint  { font-size: 12px; color: #94a3b8; }
+.rc-bar-label { font-size: 0.8125rem; font-weight: 500; color: #475569; }
+.rc-bar-hint  { font-size: 0.75rem; color: #94a3b8; }
 .rc-bar-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-left: auto; }
 
 .rc-loading {
     display: flex; align-items: center; justify-content: center; gap: .75rem;
-    padding: 3rem 1rem; font-size: 14px; color: #64748b;
+    padding: 3rem 1rem; font-size: 0.875rem; color: #64748b;
 }
 
 /* ---------- หัวรายงาน ---------- */
@@ -2809,10 +2845,10 @@ button.fp-toggle { display: none; }
     padding-bottom: 1rem; margin-bottom: 1.25rem;
     border-bottom: 2px solid #0f766e;
 }
-.rc-title  { font-size: 20px; font-weight: 700; color: #0f172a; }
-.rc-sub    { margin-top: .25rem; font-size: 13px; color: #64748b; }
+.rc-title  { font-size: 1.25rem; font-weight: 700; color: #0f172a; }
+.rc-sub    { margin-top: .25rem; font-size: 0.8125rem; color: #64748b; }
 .rc-dot    { margin: 0 .375rem; color: #cbd5e1; }
-.rc-method { margin-top: .5rem; font-size: 11px; color: #94a3b8; }
+.rc-method { margin-top: .5rem; font-size: 0.6875rem; color: #94a3b8; }
 
 /* ---------- ยอดสรุป ---------- */
 .rc-totals { display: grid; gap: .75rem; margin-bottom: 1.5rem; }
@@ -2824,39 +2860,39 @@ button.fp-toggle { display: none; }
 }
 .rc-total.is-main { border-color: #0f766e; background: #f0fdfa; }
 
-.rc-total-cap { display: block; font-size: 12px; color: #64748b; }
+.rc-total-cap { display: block; font-size: 0.75rem; color: #64748b; }
 .rc-total-num {
     display: block; margin-top: .25rem;
-    font-size: 24px; font-weight: 700; color: #0f172a;
+    font-size: 1.5rem; font-weight: 700; color: #0f172a;
     text-align: left; line-height: 1.15;
 }
-.rc-total.is-main .rc-total-num { color: #0f766e; font-size: 28px; }
-.rc-total-sub { display: block; margin-top: .125rem; font-size: 11px; color: #94a3b8; }
+.rc-total.is-main .rc-total-num { color: #0f766e; font-size: 1.75rem; }
+.rc-total-sub { display: block; margin-top: .125rem; font-size: 0.6875rem; color: #94a3b8; }
 
 /* ---------- ส่วนของรายงาน ---------- */
 .rc-sec { margin-bottom: 1.75rem; }
 .rc-sec-title {
     display: flex; align-items: center; gap: .5rem;
     margin-bottom: .625rem;
-    font-size: 15px; font-weight: 600; color: #1e293b;
+    font-size: 0.9375rem; font-weight: 600; color: #1e293b;
 }
 .rc-no {
     display: inline-flex; align-items: center; justify-content: center;
     width: 1.5rem; height: 1.5rem; border-radius: .5rem;
-    background: #0f766e; color: #fff; font-size: 12px; font-weight: 700;
+    background: #0f766e; color: #fff; font-size: 0.75rem; font-weight: 700;
 }
-.rc-note { margin: -.25rem 0 .5rem; font-size: 11px; color: #94a3b8; }
+.rc-note { margin: -.25rem 0 .5rem; font-size: 0.6875rem; color: #94a3b8; }
 
 .rc-table-wrap {
     overflow-x: auto;
     border: 1px solid #e2e8f0; border-radius: .75rem; background: #fff;
 }
-.rc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rc-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
 .rc-table th, .rc-table td { padding: .5rem .75rem; text-align: left; }
 .rc-table th { white-space: nowrap; }
 
 .rc-table thead th {
-    background: #f8fafc; color: #475569; font-weight: 600; font-size: 12px;
+    background: #f8fafc; color: #475569; font-weight: 600; font-size: 0.75rem;
     border-bottom: 1px solid #e2e8f0;
 }
 .rc-table tbody tr + tr td { border-top: 1px solid #f1f5f9; }
@@ -2874,9 +2910,9 @@ button.fp-toggle { display: none; }
 
 .rc-code {
     font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-    font-size: 12px; color: #0f766e;
+    font-size: 0.75rem; color: #0f766e;
 }
-.rc-empty { padding: 1.5rem 1rem; text-align: center; color: #94a3b8; font-size: 13px; }
+.rc-empty { padding: 1.5rem 1rem; text-align: center; color: #94a3b8; font-size: 0.8125rem; }
 
 /* ---------- ที่เซ็นท้ายรายงาน ---------- */
 .rc-foot {
@@ -2886,7 +2922,7 @@ button.fp-toggle { display: none; }
 
 .rc-sign { text-align: center; }
 .rc-sign-line { display: block; height: 1px; margin-bottom: .5rem; background: #cbd5e1; }
-.rc-sign-cap  { font-size: 12px; color: #64748b; }
+.rc-sign-cap  { font-size: 0.75rem; color: #64748b; }
 
 
 /* ---------- โหมดมืด ---------- */
@@ -2969,7 +3005,7 @@ button.fp-toggle { display: none; }
 }
 /* หน่วยนับที่ต่อท้ายจำนวนในใบเบิก (ตัดคอลัมน์ "หน่วย" ออกแล้ว
    แต่ยังต้องรู้ว่า 5 นั้นคือ 5 อะไร จึงย้ายมาต่อท้ายตัวเลขแทน) */
-.doc-unit { font-weight: 400; font-size: 11px; color: #94a3b8; }
+.doc-unit { font-weight: 400; font-size: 0.6875rem; color: #94a3b8; }
 .dark .doc-unit { color: #64748b; }
 /* ---------- ไทล์เงินของเดือนนี้ (หน้าภาพรวม) ---------- */
 .bn-money { grid-column: span 1; }
@@ -2981,10 +3017,10 @@ button.fp-toggle { display: none; }
     padding-bottom: .875rem; border-bottom: 1px solid #f1f5f9;
 }
 .bn-money-cell { min-width: 0; }
-.bn-money-cap  { display: block; font-size: 11px; color: #94a3b8; }
+.bn-money-cap  { display: block; font-size: 0.6875rem; color: #94a3b8; }
 .bn-money-num  {
     display: block; margin-top: .125rem;
-    font-size: 17px; font-weight: 700; color: #0f172a;
+    font-size: 1.0625rem; font-weight: 700; color: #0f172a;
     text-align: left; line-height: 1.2;
     overflow: hidden; text-overflow: ellipsis;
 }
@@ -2994,15 +3030,15 @@ button.fp-toggle { display: none; }
 .bn-money-cell.is-in  .bn-money-num { color: #0f766e; }
 
 .bn-money-top { margin-top: .875rem; }
-.bn-money-top-cap { font-size: 11px; color: #94a3b8; margin-bottom: .5rem; }
+.bn-money-top-cap { font-size: 0.6875rem; color: #94a3b8; margin-bottom: .5rem; }
 
 .bn-dept + .bn-dept { margin-top: .625rem; }
 .bn-dept-head { display: flex; align-items: baseline; gap: .5rem; }
 .bn-dept-name {
-    min-width: 0; flex: 1 1 auto; font-size: 12px; color: #475569;
+    min-width: 0; flex: 1 1 auto; font-size: 0.75rem; color: #475569;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.bn-dept-num  { flex: none; font-size: 12px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; }
+.bn-dept-num  { flex: none; font-size: 0.75rem; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; }
 .bn-dept-bar  {
     display: block; height: 4px; margin-top: .3125rem;
     border-radius: 999px; background: #f1f5f9; overflow: hidden;
@@ -3384,7 +3420,7 @@ button.fp-toggle { display: none; }
     gap: .2rem;
     padding: .2rem .45rem;
     border-radius: .4rem;
-    font-size: 11px;
+    font-size: 0.6875rem;
     font-weight: 600;
     color: #0f766e;
     background: #f0fdfa;
@@ -3461,10 +3497,10 @@ tr.rc-drill:hover td       { background: #f0fdfa; }
 tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
 .dark tr.rc-drill:hover td { background: rgba(20, 184, 166, .1); }
 
-.rc-drill-empty { padding: 2.5rem 1rem; text-align: center; font-size: 14px; color: #94a3b8; }
+.rc-drill-empty { padding: 2.5rem 1rem; text-align: center; font-size: 0.875rem; color: #94a3b8; }
 .rc-drill-empty.is-bad { color: #dc2626; }
 
-.rc-drill-note { margin-top: .75rem; font-size: 12px; color: #64748b; }
+.rc-drill-note { margin-top: .75rem; font-size: 0.75rem; color: #64748b; }
 .rc-drill-note.is-bad { color: #b45309; font-weight: 600; }
 
 /* แถวที่มาจากการยกเลิกใบจ่าย — จางลงและมีเส้นคาด เพื่อให้เห็นทันทีว่า
@@ -3562,13 +3598,13 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
 .st-group-title { flex: 1; min-width: 0; font-size: .875rem; font-weight: 700; color: #0f172a; }
 .dark .st-group-title { color: #f1f5f9; }
 
-.st-group-key   { font-family: Consolas, monospace; font-size: 11px; color: #94a3b8; }
+.st-group-key   { font-family: Consolas, monospace; font-size: 0.6875rem; color: #94a3b8; }
 .st-group-count {
     flex: none;
     padding: .1rem .5rem;
     border-radius: 999px;
     background: #e2e8f0;
-    font-size: 11px;
+    font-size: 0.6875rem;
     font-weight: 600;
     color: #475569;
 }
@@ -3587,7 +3623,7 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
 .st-group.has-dirty .st-group-head { background: #fffbeb; }
 .st-group.has-dirty .st-group-title::after {
     content: ' • ยังไม่บันทึก';
-    font-size: 11px;
+    font-size: 0.6875rem;
     font-weight: 600;
     color: #b45309;
 }
@@ -3670,7 +3706,7 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
 
 .ack-sign-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .35rem; }
 .ack-clear {
-    font-size: 12px; font-weight: 600; color: #dc2626;
+    font-size: 0.75rem; font-weight: 600; color: #dc2626;
     padding: .15rem .5rem; border-radius: .4rem;
 }
 .ack-clear:hover { background: #fef2f2; }
@@ -3698,7 +3734,7 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     position: absolute;
     left: 50%; top: 50%;
     transform: translate(-50%, -50%);
-    font-size: 13px;
+    font-size: 0.8125rem;
     color: #cbd5e1;
     pointer-events: none;
 }
@@ -3749,7 +3785,7 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     border: 1px dashed #cbd5e1;
     background: #f8fafc;
     color: #94a3b8;
-    font-size: 11px;
+    font-size: 0.6875rem;
     font-weight: 600;
 }
 .logo-tile.is-empty:hover {
@@ -4018,7 +4054,7 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     border-radius: .3rem;
     background: #fef3c7;
     color: #92400e;
-    font-size: 10px;
+    font-size: 0.625rem;
     font-weight: 600;
     vertical-align: middle;
 }
@@ -4057,7 +4093,7 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     align-items: center;
     gap: .4rem;
     margin: 0;
-    font-size: 12px;
+    font-size: 0.75rem;
     line-height: 1.5;
     color: #64748b;
 }
@@ -4086,11 +4122,11 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     padding: .2rem .6rem;
     border-radius: 999px;
     background: #f1f5f9;
-    font-size: 12px;
+    font-size: 0.75rem;
     color: #475569;
     white-space: nowrap;
 }
-.pd-chip-num { font-size: 14px; font-weight: 700; color: #0f172a; text-align: left; }
+.pd-chip-num { font-size: 0.875rem; font-weight: 700; color: #0f172a; text-align: left; }
 .dark .pd-chip { background: #1e293b; color: #94a3b8; }
 .dark .pd-chip-num { color: #f1f5f9; }
 
@@ -4302,7 +4338,7 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     color: #0f172a;
 }
 .pg-count {
-    font-size: 11px;
+    font-size: 0.6875rem;
     line-height: 1.3;
     color: #94a3b8;
 }
@@ -4497,7 +4533,7 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 12px;
+    font-size: 0.75rem;
     color: #94a3b8;
 }
 .ss-item.is-selected .ss-item-sub { color: #0d8177; }
@@ -4509,7 +4545,7 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
    ถ้าโชว์แค่ชื่อหน่วยงาน คนที่เพิ่งเลือกไปจะแยกไม่ออกว่าได้อันไหน */
 .ss-label-sub {
     margin-left: .4rem;
-    font-size: 12px;
+    font-size: 0.75rem;
     color: #94a3b8;
 }
 .dark .ss-label-sub { color: #64748b; }
@@ -4575,8 +4611,8 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     background: #f8fafc;
 }
 .nt-desk-text  { display: flex; flex-direction: column; min-width: 0; max-width: 20rem; }
-.nt-desk-title { font-size: 13px; font-weight: 600; color: #334155; line-height: 1.3; }
-.nt-desk-hint  { font-size: 11px; color: #94a3b8; line-height: 1.45; }
+.nt-desk-title { font-size: 0.8125rem; font-weight: 600; color: #334155; line-height: 1.3; }
+.nt-desk-hint  { font-size: 0.6875rem; color: #94a3b8; line-height: 1.45; }
 
 .nt-desk-test {
     flex: none;
@@ -4585,7 +4621,7 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     border-radius: .5rem;
     background: #effbf9;
     font-family: inherit;
-    font-size: 12px;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #02776f;
     cursor: pointer;
@@ -4614,7 +4650,7 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     border: 1px dashed #fbbf24;
     border-radius: .75rem;
     background: #fffbeb;
-    font-size: 12.5px;
+    font-size: 0.78125rem;
     line-height: 1.5;
     color: #92400e;
 }
@@ -4827,15 +4863,15 @@ button.bc-side-toggle { display: none; }
 
 .bc-item-code {
     font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-    font-size: 12.5px;
+    font-size: 0.78125rem;
     color: #0f766e;
 }
 .bc-item-name {
-    font-size: 13px; color: #334155;
+    font-size: 0.8125rem; color: #334155;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.bc-item-unit { font-size: 11px; color: #94a3b8; }
-.bc-none { padding: 2rem; text-align: center; font-size: 13px; color: #94a3b8; }
+.bc-item-unit { font-size: 0.6875rem; color: #94a3b8; }
+.bc-none { padding: 2rem; text-align: center; font-size: 0.8125rem; color: #94a3b8; }
 
 .bc-check {
     width: 1rem; height: 1rem; accent-color: #029488; cursor: pointer;
@@ -4843,7 +4879,7 @@ button.bc-side-toggle { display: none; }
 
 .bc-toggle {
     display: flex; align-items: center; gap: .625rem;
-    font-size: 13px; color: #475569; cursor: pointer;
+    font-size: 0.8125rem; color: #475569; cursor: pointer;
 }
 .bc-toggle input { width: 1rem; height: 1rem; accent-color: #029488; cursor: pointer; }
 
@@ -5030,7 +5066,7 @@ button.bc-side-toggle { display: none; }
     width: 15rem; height: 100%;
     border: 0; background: transparent; outline: none;
     font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-    font-size: 13px; letter-spacing: .5px; color: #0f172a;
+    font-size: 0.8125rem; letter-spacing: .5px; color: #0f172a;
 }
 .doc-scan-input::placeholder {
     font-family: 'Prompt', sans-serif; letter-spacing: 0; color: #94a3b8;
@@ -5073,7 +5109,7 @@ button.bc-side-toggle { display: none; }
 .scan-cam-title {
     display: flex; align-items: center; gap: .5rem;
     margin-right: auto;
-    font-size: 14px; font-weight: 600; color: #334155;
+    font-size: 0.875rem; font-weight: 600; color: #334155;
 }
 .scan-cam-icon {
     display: flex; align-items: center; justify-content: center;
@@ -5115,7 +5151,7 @@ button.bc-side-toggle { display: none; }
 .scan-cam-msg {
     flex: none; padding: .75rem 1rem;
     border-top: 1px solid #f1f5f9;
-    font-size: 13px; color: #475569;
+    font-size: 0.8125rem; color: #475569;
     text-align: center;
 }
 .scan-cam-msg.is-ok  { background: #effbf9; color: #0f766e; font-weight: 600; }
@@ -5137,7 +5173,7 @@ button.bc-side-toggle { display: none; }
     margin: 0 1rem .25rem;
     padding: .5rem .875rem;
     border-radius: .75rem;
-    font-size: 13px; font-weight: 500;
+    font-size: 0.8125rem; font-weight: 500;
 }
 .doc-scan-msg.is-ok  { background: #ecfdf5; color: #065f46; }
 .doc-scan-msg.is-bad { background: #fef2f2; color: #991b1b; }
@@ -5194,11 +5230,11 @@ button.bc-side-toggle { display: none; }
 }
 .nt-head-title {
     margin: 0;
-    font-size: 15px; font-weight: 600; color: #1e293b; line-height: 1.3;
+    font-size: 0.9375rem; font-weight: 600; color: #1e293b; line-height: 1.3;
 }
 .nt-head-sub {
     margin: .125rem 0 0;
-    font-size: 12.5px; color: #64748b;
+    font-size: 0.78125rem; color: #64748b;
 }
 .nt-head-sub b  { color: #334155; font-weight: 600; }
 .nt-head-unread { color: #0f766e !important; }
@@ -5210,7 +5246,7 @@ button.bc-side-toggle { display: none; }
     padding: .5rem .875rem;
     border: 1px solid #e2e8f0; border-radius: .75rem;
     background: #fff;
-    font-family: inherit; font-size: 13px; font-weight: 500; color: #475569;
+    font-family: inherit; font-size: 0.8125rem; font-weight: 500; color: #475569;
     cursor: pointer;
     transition: background .15s, border-color .15s, color .15s;
 }
@@ -5248,8 +5284,8 @@ button.bc-side-toggle { display: none; }
 }
 .nt-desk:empty { display: none; }
 .nt-desk-text  { display: flex; flex-direction: column; min-width: 0; }
-.nt-desk-title { font-size: 13px; font-weight: 600; color: #334155; line-height: 1.3; }
-.nt-desk-hint  { font-size: 11.5px; color: #94a3b8; line-height: 1.5; }
+.nt-desk-title { font-size: 0.8125rem; font-weight: 600; color: #334155; line-height: 1.3; }
+.nt-desk-hint  { font-size: 0.71875rem; color: #94a3b8; line-height: 1.5; }
 
 /* ---------- หัวกลุ่มวันที่ ----------
    ค้างไว้บนสุดขณะเลื่อน เลื่อนไปกลางกลุ่มแล้วต้องยังรู้ว่าอ่านของวันไหนอยู่
@@ -5267,7 +5303,7 @@ button.bc-side-toggle { display: none; }
     padding: .25rem .75rem;
     border-radius: 999px;
     background: #e2e8f0;
-    font-size: 11.5px; font-weight: 600; color: #475569;
+    font-size: 0.71875rem; font-weight: 600; color: #475569;
 }
 
 /* ---------- การ์ดหนึ่งรายการ ---------- */
@@ -5307,7 +5343,7 @@ button.bc-side-toggle { display: none; }
 .nt-card-top  { display: flex; align-items: flex-start; gap: .5rem; }
 .nt-card-title {
     flex: 1 1 auto; min-width: 0;
-    font-size: 13.5px; font-weight: 600; color: #1e293b; line-height: 1.45;
+    font-size: 0.84375rem; font-weight: 600; color: #1e293b; line-height: 1.45;
 }
 .nt-dot {
     flex: none; width: .5rem; height: .5rem; margin-top: .3125rem;
@@ -5315,12 +5351,12 @@ button.bc-side-toggle { display: none; }
 }
 .nt-card-msg {
     display: block; margin-top: .1875rem;
-    font-size: 12.5px; color: #64748b; line-height: 1.6;
+    font-size: 0.78125rem; color: #64748b; line-height: 1.6;
 }
 .nt-card-time {
     display: flex; align-items: center; gap: .3125rem;
     margin-top: .4375rem;
-    font-size: 11px; color: #94a3b8;
+    font-size: 0.6875rem; color: #94a3b8;
 }
 
 /* ลูกศรจาง ๆ ชัดขึ้นตอนชี้เมาส์ — บอกว่ากดแล้วไปต่อได้ โดยไม่แย่งสายตาจากเนื้อหา */
@@ -5346,16 +5382,16 @@ button.bc-side-toggle { display: none; }
     border-radius: 1.25rem;
     background: #f1f5f9; color: #94a3b8;
 }
-.nt-empty-title { margin: .875rem 0 0; font-size: 14px; font-weight: 600; color: #475569; }
-.nt-empty-hint  { margin: .375rem 0 0; max-width: 22rem; font-size: 12px; color: #94a3b8; line-height: 1.6; }
+.nt-empty-title { margin: .875rem 0 0; font-size: 0.875rem; font-weight: 600; color: #475569; }
+.nt-empty-hint  { margin: .375rem 0 0; max-width: 22rem; font-size: 0.75rem; color: #94a3b8; line-height: 1.6; }
 
-.nt-state { padding: 4rem 1rem; text-align: center; font-size: 13px; color: #94a3b8; }
+.nt-state { padding: 4rem 1rem; text-align: center; font-size: 0.8125rem; color: #94a3b8; }
 .nt-state.is-bad { color: #dc2626; }
 
 .nt-foot {
     display: flex; align-items: center; justify-content: center; gap: .375rem;
     padding: .875rem 1rem .25rem;
-    font-size: 11.5px; color: #94a3b8;
+    font-size: 0.71875rem; color: #94a3b8;
 }
 .nt-foot:empty { display: none; }
 .nt-foot-end { color: #cbd5e1; }
@@ -5420,7 +5456,7 @@ button.bc-side-toggle { display: none; }
 @media (min-width: 1280px) { .bn-health { grid-column: span 4; } }
 
 .bn-health-pct {
-    font-size: 13px; font-weight: 700; color: #b45309;
+    font-size: 0.8125rem; font-weight: 700; color: #b45309;
 }
 
 /* แถบความคืบหน้า — บอกภาพรวมก่อนที่ตาจะไปอ่านรายการข้างล่าง */
@@ -5439,7 +5475,7 @@ button.bc-side-toggle { display: none; }
 
 .bn-health-lead {
     margin: 0 0 .75rem;
-    font-size: 12.5px; line-height: 1.65; color: #64748b;
+    font-size: 0.78125rem; line-height: 1.65; color: #64748b;
 }
 .bn-health-lead b { color: #334155; }
 
@@ -5463,7 +5499,7 @@ button.bc-side-toggle { display: none; }
 
 .bn-health-txt {
     flex: 1 1 auto; min-width: 0;
-    font-size: 12.5px; color: #334155; line-height: 1.5;
+    font-size: 0.78125rem; color: #334155; line-height: 1.5;
 }
 .bn-health-txt b { font-weight: 700; }
 
@@ -5471,7 +5507,7 @@ button.bc-side-toggle { display: none; }
    ตัวเลขเปล่า ๆ ไม่ทำให้ใครลุกไปกรอก แต่ผลที่ตามมาทำให้ลุก */
 .bn-health-why {
     display: block; margin-top: .125rem;
-    font-size: 11.5px; color: #94a3b8; line-height: 1.55;
+    font-size: 0.71875rem; color: #94a3b8; line-height: 1.55;
 }
 
 .bn-health-go {
@@ -5480,7 +5516,7 @@ button.bc-side-toggle { display: none; }
     border-radius: .5rem;
     background: #fff;
     border: 1px solid #e2e8f0;
-    font-size: 11.5px; font-weight: 600; color: #0f766e;
+    font-size: 0.71875rem; font-weight: 600; color: #0f766e;
     white-space: nowrap;
     transition: background .15s, border-color .15s;
 }
@@ -5492,7 +5528,7 @@ button.bc-side-toggle { display: none; }
     margin: .75rem 0 0;
     padding-top: .625rem;
     border-top: 1px dashed #e2e8f0;
-    font-size: 11.5px; color: #94a3b8; line-height: 1.55;
+    font-size: 0.71875rem; color: #94a3b8; line-height: 1.55;
 }
 .bn-money-caveat b { color: #64748b; }
 .bn-money-caveat svg { flex: none; margin-top: .125rem; }
@@ -5581,7 +5617,7 @@ button.bc-side-toggle { display: none; }
 .bn-tasks .bn-q-company {
     display: block; margin-top: .0625rem;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    font-size: 11px; color: #94a3b8;
+    font-size: 0.6875rem; color: #94a3b8;
 }
 .bn-tasks .bn-q-go { align-self: center; color: #cbd5e1; }
 .bn-tasks .bn-q:hover .bn-q-go { color: #0f766e; }
@@ -5607,7 +5643,7 @@ button.bc-side-toggle { display: none; }
     display: flex; align-items: center; justify-content: center; gap: .375rem;
     padding: .5rem .5rem;
     border-radius: .625rem;
-    font-family: inherit; font-size: 12.5px; font-weight: 600; color: #64748b;
+    font-family: inherit; font-size: 0.78125rem; font-weight: 600; color: #64748b;
     cursor: pointer;
     transition: background .15s, color .15s, box-shadow .15s;
 }
@@ -5842,3 +5878,170 @@ button.bc-side-toggle { display: none; }
    ผลคือข้อความกะพริบตามจังหวะพิมพ์ ซึ่งกวนกว่าการโผล่มาเฉย ๆ
 
    บันทึกไว้กันคนถัดไปเห็นว่ายังไม่มีแล้วเผลอเติมกลับเข้ามา */
+
+
+/* ---------- ป้ายบอกขนาดที่ใช้อยู่ บนปุ่มขนาดตัวอักษรในเมนู ----------
+   บอกด้วยคำว่า "ปกติ / ใหญ่ / ใหญ่มาก / เล็ก" ไม่ใช่ไอคอน
+   เพราะขนาดตัวอักษรมีสี่ขั้น ไอคอนตัวเดียวสื่อไม่ได้ว่าตอนนี้อยู่ขั้นไหน
+
+   ตรึงขนาดเป็น px ทั้งที่ทั้งระบบใช้ rem โดยตั้งใจ
+   ป้ายนี้บอกค่าที่ตัวมันเองเป็นคนตั้ง ถ้าโตตามไปด้วยจะอ่านยากตอนเลือกขนาดใหญ่
+   และดันชื่อเมนูจนตกบรรทัด */
+.font-mark {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    color: #64748b;
+    white-space: nowrap;
+}
+.dark .font-mark { color: #94a3b8; }
+
+
+/* ============================================================
+ *  หน้าตั้งขนาดตัวอักษร (pages/font_size.php)
+ * ============================================================
+ *  หน้านี้โตตามค่าที่กำลังเลือกอยู่ด้วยเหมือนหน้าอื่นทุกหน้า ตั้งใจให้เป็นแบบนั้น
+ *  เพราะคำโปรยบนหน้าสัญญาไว้ว่า "ปรับข้อความ ปุ่ม และตารางของทุกหน้า"
+ *  ถ้าหน้านี้ไม่ขยับตาม ผู้ใช้จะไม่ได้เห็นของจริงจนกว่าจะกดบันทึกแล้วออกไปหน้าอื่น
+ *  วัดที่ 150% แล้วยังไม่ล้นกรอบและยังกดได้ทุกปุ่ม
+ *
+ *  ยกเว้นป้ายเล็ก ๆ ที่เป็นข้อมูลกำกับ (ชื่อระดับ ตัวเลขเปอร์เซ็นต์ ป้ายใต้แถบเลื่อน)
+ *  ตรึงเป็น px ไว้ เพราะเป็นตัวช่วยอ่านค่า ไม่ใช่เนื้อหา ถ้าโตตามไปด้วย
+ *  จะไปแย่งสายตาจากตัวอย่างข้อความซึ่งเป็นสิ่งที่ควรถูกเปรียบเทียบจริง ๆ
+ * ============================================================ */
+
+/* ---------- ระดับสำเร็จรูป ---------- */
+.fs-levels {
+    display: grid;
+    gap: .625rem;
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+}
+
+.fs-level {
+    display: block;
+    text-align: left;
+    padding: .75rem .875rem;
+    border: 1px solid #e2e8f0;
+    border-radius: .75rem;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color .15s, background-color .15s, box-shadow .15s;
+}
+.fs-level:hover { border-color: #94a3b8; }
+.fs-level:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(2, 148, 136, .25); }
+
+.fs-level.is-on {
+    border-color: #029488;
+    background: #effbf9;
+    box-shadow: inset 0 0 0 1px #029488;
+}
+
+/* ตัวอย่างในปุ่มตั้งขนาดด้วย % ของตัวเอง (ดู inline style ใน php)
+   จึงต้องไม่ไปกำหนด font-size ทับตรงนี้ กำหนดได้แค่ความหนากับสี */
+.fs-level-sample {
+    display: block;
+    font-weight: 600;
+    color: #0f172a;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.fs-level-title { display: block; margin-top: .375rem; font-size: 13px; font-weight: 600; color: #334155; }
+.fs-level-value { display: block; font-size: 11px; color: #94a3b8; }
+
+.fs-level.is-on .fs-level-title { color: #055f59; }
+.fs-level.is-on .fs-level-value { color: #029488; }
+
+.dark .fs-level               { border-color: #334155; background: #0f172a; }
+.dark .fs-level:hover         { border-color: #64748b; }
+.dark .fs-level.is-on         { border-color: #33c1b8; background: rgba(2, 148, 136, .12); box-shadow: inset 0 0 0 1px #33c1b8; }
+.dark .fs-level-sample        { color: #e2e8f0; }
+.dark .fs-level-title         { color: #cbd5e1; }
+.dark .fs-level.is-on .fs-level-title { color: #71dbd2; }
+.dark .fs-level.is-on .fs-level-value { color: #33c1b8; }
+
+
+/* ---------- ปรับละเอียด ---------- */
+.fs-fine { display: flex; align-items: center; gap: .75rem; }
+
+.fs-step {
+    flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 2.25rem; height: 2.25rem;
+    border: 1px solid #e2e8f0; border-radius: .625rem;
+    background: #fff; color: #475569;
+    cursor: pointer;
+    transition: background-color .15s, border-color .15s, color .15s;
+}
+.fs-step:hover { background: #f1f5f9; color: #0f172a; }
+.fs-step:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(2, 148, 136, .25); }
+.dark .fs-step       { border-color: #334155; background: #1e293b; color: #cbd5e1; }
+.dark .fs-step:hover { background: #334155; color: #f1f5f9; }
+
+.fs-slider-wrap { flex: 1 1 auto; min-width: 0; }
+
+/* ตั้งหน้าตาแถบเลื่อนเองทั้งหมด เพราะค่าเริ่มต้นของแต่ละเบราว์เซอร์
+   สูงไม่เท่ากันจนแถวนี้เตี้ยบ้างสูงบ้างสลับกันไปในแต่ละเครื่อง */
+.fs-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    cursor: pointer;
+}
+.fs-slider:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(2, 148, 136, .25); }
+.dark .fs-slider { background: #334155; }
+
+.fs-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px; height: 18px;
+    border: 0; border-radius: 999px;
+    background: #029488;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .3);
+    cursor: pointer;
+}
+.fs-slider::-moz-range-thumb {
+    width: 18px; height: 18px;
+    border: 0; border-radius: 999px;
+    background: #029488;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .3);
+    cursor: pointer;
+}
+
+.fs-ticks {
+    display: flex; justify-content: space-between;
+    margin-top: .25rem;
+    font-size: 11px; color: #94a3b8;
+}
+
+
+/* ---------- กล่องตัวอย่าง ----------
+   ส่วนเดียวในหน้านี้ที่ใช้ rem เพราะต้องโตตามค่าที่กำลังเลือกอยู่จริง */
+.fs-preview {
+    border: 1px solid #e2e8f0;
+    border-radius: .75rem;
+    padding: 1rem;
+    background: #f8fafc;
+}
+/* ตารางจริงได้สีตัวอักษรมาจาก .doc-sheet ที่ครอบมันอยู่ กล่องนี้ไม่มีตัวครอบนั้น
+   จึงต้องบอกสีเอง ไม่งั้นในโหมดมืดจะไปรับสีจาก body ซึ่งอาจเข้มจนอ่านไม่ออก */
+.dark .fs-preview { border-color: #334155; background: #0b1220; color: #e2e8f0; }
+
+.fs-preview-title { font-size: 1.0625rem; font-weight: 700; color: #0f172a; }
+.fs-preview-sub   { margin-top: .125rem; font-size: .8125rem; color: #64748b; }
+.dark .fs-preview-title { color: #f1f5f9; }
+.dark .fs-preview-sub   { color: #94a3b8; }
+
+/* ตารางกับปุ่มในกล่องตัวอย่างใช้คลาสจริงของระบบทั้งหมด (doc-table-wrap /
+   doc-table / doc-pill / doc-stock) จึงไม่มีสไตล์ของตัวเองให้ดูแลซ้ำที่นี่
+   เหลือแค่ระยะห่างของแถวปุ่ม */
+.fs-preview-btns { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+
+/* ปุ่มตัวอย่างเป็น span ไม่ใช่ button จึงต้องบอกเองว่ากดไม่ได้
+   ไม่งั้นเมาส์จะขึ้นเป็นมือชี้เหมือนปุ่มจริงแล้วชวนให้กด */
+.fs-preview-btns > * { cursor: default; }
