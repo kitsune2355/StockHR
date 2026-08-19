@@ -32,6 +32,9 @@
 
 require_once dirname(__FILE__) . '/db.php';
 
+/* รูปสินค้า — product_list() แนบไปให้ด้วย หน้าทะเบียนสินค้าใช้แสดงในตาราง */
+require_once dirname(__FILE__) . '/product_image.php';
+
 define('PRODUCT_NAME_MAX',     300);
 define('PRODUCT_OLD_CODE_MAX', 30);
 define('UNIT_NAME_MAX',        50);
@@ -247,10 +250,30 @@ function product_list($options = array())
             'category_id'       => (int)$cat_id,
             'sub_category_name' => $sub_name,
             'category_name'     => $cat_name,
-            'unit_name'         => $unit_name
+            'unit_name'         => $unit_name,
+            'images'            => array()      /* เติมทีเดียวทั้งชุดข้างล่าง */
         );
     }
     mysqli_stmt_close($stmt);
+
+    /* ---------- แนบรูปสินค้า ----------
+     * ยิง query เพิ่มครั้งเดียวสำหรับสินค้าทั้งชุด ไม่ใช่ทีละแถว
+     * หน้าทะเบียนสินค้าโหลดสินค้าทั้งหมดมาแสดง ถ้าถามทีละตัวจะกลายเป็น
+     * หลายร้อย query ต่อการเปิดหน้าหนึ่งครั้ง (เหตุผลเดียวกับใน stock_list)
+     *
+     * ไม่ทำเป็น JOIN เพราะสินค้าหนึ่งตัวมีได้ 3 รูป แถวสินค้าจะกลายเป็นสามแถว
+     * แล้วทุกที่ที่นับจำนวนสินค้าจะได้เลขผิดทันที
+     */
+    if (count($rows) > 0) {
+        $ids = array();
+        for ($i = 0; $i < count($rows); $i++) { $ids[] = $rows[$i]['product_id']; }
+
+        $images = product_image_map($ids);
+        for ($i = 0; $i < count($rows); $i++) {
+            $pid = $rows[$i]['product_id'];
+            if (isset($images[$pid])) { $rows[$i]['images'] = $images[$pid]; }
+        }
+    }
 
     return $rows;
 }

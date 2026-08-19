@@ -208,6 +208,10 @@
     if (TAB === "product") {
       row.product_code = src.product_code;
       row._category = categoryOf(row);
+
+      /* รูปสินค้าถูกบันทึกทันทีตอนอัปโหลด จึงต้องอยู่นอกชุดที่ snapshotOf() เทียบ
+         ไม่งั้นแค่เพิ่มรูปจะทำให้แถวขึ้นว่า "แก้แล้วยังไม่บันทึก" ทั้งที่บันทึกไปแล้ว */
+      row.images = src.images || [];
     }
     if (TAB === "category") {
       row.sub_count = Number(src.sub_count);
@@ -491,6 +495,379 @@
   }
 
   /* ============================================================
+   *  รูปสินค้า (สูงสุด 3 รูป)
+   * ============================================================
+   *  ต่างจากช่องอื่นในตารางตรงที่บันทึกทันทีตอนอัปโหลด ไม่รอกดปุ่มบันทึก
+   *  เพราะเป็นไฟล์ ไม่ใช่ข้อความ — เก็บค้างไว้ในหน่วยความจำจนกว่าจะกดบันทึก
+   *  แปลว่าต้องแบกไฟล์หลาย MB ไว้ และถ้าปิดหน้าไปก่อนก็หายทั้งหมด
+   *
+   *  วิธีเดียวกับโลโก้บริษัทในหน้าหน่วยงาน (assets/js/agencies.js)
+   * ============================================================ */
+  var PIMG_MAX   = 3;
+  var PIMG_BYTES = 3 * 1024 * 1024;
+
+  var pimgInput = null;
+  var pimgRow   = null;
+
+  function ensureImageInput() {
+    if (pimgInput) { return pimgInput; }
+
+    pimgInput = document.createElement("input");
+    pimgInput.type   = "file";
+    pimgInput.accept = "image/png,image/jpeg,image/gif";
+
+    /* เลือกได้ทีละหลายไฟล์ คนที่ถ่ายรูปสินค้ามาสามมุมจะได้ไม่ต้องกดเพิ่มทีละรูป
+       ส่วนที่เกินช่องว่างที่เหลือจะถูกตัดทิ้งพร้อมบอกผู้ใช้ (ดู uploadImages) */
+    pimgInput.multiple = true;
+    pimgInput.hidden   = true;
+    document.body.appendChild(pimgInput);
+
+    pimgInput.addEventListener("change", function () {
+      if (this.files && this.files.length > 0 && pimgRow) {
+        uploadImages(pimgRow, this.files);
+      }
+      /* ล้างค่าไว้เสมอ ไม่งั้นเลือกไฟล์เดิมซ้ำจะไม่เกิด event change อีก */
+      this.value = "";
+    });
+
+    return pimgInput;
+  }
+
+  function imagesOf(row) {
+    return row.getData().images || [];
+  }
+
+  /* เขียนรายการรูปชุดใหม่ที่เซิร์ฟเวอร์ตอบกลับมาลงในแถว
+     ไม่แตะ _state และไม่แตะ original[] เพราะรูปถูกบันทึกลงฐานข้อมูลไปแล้วจริง
+     ถ้าไปทำเครื่องหมายว่า "แก้แล้วยังไม่บันทึก" ผู้ใช้จะเข้าใจผิดว่าต้องกดบันทึกอีก */
+  function setImages(row, images) {
+    row.update({ images: images || [] });
+    if (typeof window.renderIcons === "function") {
+      window.renderIcons(row.getElement());
+    }
+  }
+
+  /* ---------- ยิงคำสั่งไปหา api/product_image.php ----------
+   * ไม่เปิด/ปิดกล่อง "กำลังทำงาน" เอง เพราะการอัปโหลดหลายไฟล์ต้องคุมกล่องเดียว
+   * ให้ค้างไว้ตลอดทั้งชุด ผู้เรียกจึงเป็นคนเปิดปิดเอง
+   *
+   * ---------------------------------------------------------------
+   * แยกสาเหตุที่ล้มเหลวออกจากกันให้ชัด
+   * ---------------------------------------------------------------
+   * ของเดิมใช้ .then(r => r.json()) แล้วมี .catch เดียวจบ ซึ่งกลืนสามเรื่อง
+   * ที่ต่างกันสิ้นเชิงมารวมเป็นข้อความเดียวว่า "ติดต่อเซิร์ฟเวอร์ไม่ได้":
+   *     1. ต่อเซิร์ฟเวอร์ไม่ติดจริง ๆ
+   *     2. เซิร์ฟเวอร์ตอบมาแล้วแต่ไม่ใช่ JSON
+   *     3. โค้ดฝั่งหน้าจอเองพังหลังได้รับคำตอบที่ถูกต้องแล้ว
+   *
+   * ข้อ 2 เกิดได้ง่ายบนเครื่องนี้ เพราะ php.ini ตั้ง display_errors ไว้
+   * และไม่มี output buffering — warning บรรทัดเดียวจะถูกพ่นออกไปนำหน้า JSON
+   * ทำให้ JSON.parse พัง ทั้งที่สถานะเป็น 200 และงานฝั่งเซิร์ฟเวอร์อาจสำเร็จไปแล้ว
+   *
+   * ข้อ 3 อันตรายที่สุด เพราะรายงานว่าเป็นปัญหาเครือข่ายทั้งที่เป็นบั๊กของเราเอง
+   * แล้วไล่หาสาเหตุผิดทางทั้งหมด
+   *
+   * จึงอ่านคำตอบเป็นข้อความก่อนแล้วค่อยแปลงเอง ถ้าแปลงไม่ได้ก็ส่งของจริง
+   * ที่เซิร์ฟเวอร์พ่นมาให้ผู้ใช้เห็นเลย จะได้รู้สาเหตุโดยไม่ต้องเปิด DevTools
+   */
+  function pimgPost(form, done, fail) {
+    form.append("csrf_token", CFG.csrfToken);
+
+    var status = 0;
+
+    fetch("api/product_image.php", {
+      method: "POST",
+      credentials: "same-origin",
+      body: form,
+    })
+      .then(function (r) {
+        status = r.status;
+        return r.text();
+      })
+      .then(function (text) {
+        var res = null;
+        try {
+          res = JSON.parse(text);
+        } catch (err) {
+          res = null;
+        }
+
+        if (res === null) {
+          fail(
+            "เซิร์ฟเวอร์ตอบกลับมาไม่ใช่ JSON (สถานะ " + status + ") — " +
+            String(text).replace(/\s+/g, " ").slice(0, 200),
+          );
+          return;
+        }
+
+        if (!res.ok) {
+          fail(res.message || "ทำรายการไม่สำเร็จ");
+          return;
+        }
+
+        /* งานฝั่งเซิร์ฟเวอร์สำเร็จแล้ว ตั้งแต่บรรทัดนี้ไปถ้าพังคือบั๊กของหน้าจอ
+           ต้องไม่ปล่อยให้ตกไปที่ .catch ข้างล่างแล้วถูกรายงานว่าเน็ตมีปัญหา */
+        try {
+          done(res);
+        } catch (err) {
+          fail("บันทึกขึ้นเซิร์ฟเวอร์แล้ว แต่หน้าจอแสดงผลต่อไม่ได้: " +
+               (err && err.message ? err.message : String(err)));
+        }
+      })
+      .catch(function (err) {
+        fail("ติดต่อเซิร์ฟเวอร์ไม่ได้" +
+             (err && err.message ? " (" + err.message + ")" : ""));
+      });
+  }
+
+
+  /* ---------- อัปโหลดรูปทีละชุด ----------
+   * เลือกได้หลายไฟล์ แต่ใส่ได้เท่าที่ยังมีช่องว่างเหลือเท่านั้น
+   * ที่เกินมาถูกตัดทิ้งโดยไม่ถือว่าผิดพลาด แล้วบอกท้ายงานว่าใช้ไปกี่รูป
+   * ตัดทิ้งเงียบ ๆ ไม่ได้ เพราะผู้ใช้เลือกมา 8 ไฟล์แล้วเห็นแค่ 3 จะนึกว่าระบบพัง
+   *
+   * ส่งทีละไฟล์ต่อกันเป็นทอด ไม่ยิงพร้อมกัน เพราะฝั่งเซิร์ฟเวอร์หาช่องว่าง
+   * ช่องแรกที่ยังไม่มีรูปให้เอง ถ้ายิงพร้อมกันทุกคำขอจะเห็นช่องว่างช่องเดียวกัน
+   * แล้วชนกันที่ UNIQUE (product_id, sort_no) — จะมีรูปเดียวที่รอดเข้าไป
+   */
+  function uploadImages(row, fileList) {
+    var data = row.getData();
+    var free = PIMG_MAX - imagesOf(row).length;
+
+    if (free <= 0) {
+      if (window.appError) {
+        window.appError("สินค้านี้มีรูปครบ " + PIMG_MAX + " รูปแล้ว กรุณาลบรูปเดิมออกก่อน");
+      }
+      return;
+    }
+
+    /* คัดตามลำดับที่ผู้ใช้เลือกมา เอาเท่าที่ช่องว่างรับไหว
+       ไฟล์ใหญ่เกินถูกข้ามโดยไม่กินช่อง — ตรวจที่ฝั่งนี้ก่อนยิง
+       ไฟล์ 10 MB ที่จะโดนปฏิเสธอยู่ดีไม่ควรถูกส่งขึ้นไปให้เสียเวลาและแบนด์วิดท์
+       (ฝั่งเซิร์ฟเวอร์ตรวจซ้ำอยู่แล้ว ตรงนี้แค่ช่วยให้รู้เร็วขึ้น) */
+    var use = [];
+    var tooBig = 0;
+
+    for (var i = 0; i < fileList.length && use.length < free; i++) {
+      if (fileList[i].size > PIMG_BYTES) { tooBig++; continue; }
+      use.push(fileList[i]);
+    }
+
+    var skipped = fileList.length - use.length - tooBig;
+
+    if (use.length === 0) {
+      if (window.appError) {
+        window.appError("ไฟล์ที่เลือกใหญ่เกิน 3 MB ทั้งหมด กรุณาย่อรูปก่อนอัปโหลด");
+      }
+      return;
+    }
+
+    var okCount = 0;
+    var lastErr = "";
+
+    /* ---------- สรุปผลท้ายงาน ----------
+     * กฎเหล็กของส่วนนี้: จบงานแล้วต้องเปิดกล่อง SweetAlert "กล่องเดียว" เท่านั้น
+     *
+     * SweetAlert มีกล่องเดียวทั้งหน้า การสั่งเปิดกล่องที่สองไม่ว่าจะเป็น toast
+     * หรือกล่องกลางจอ จะไปแทนที่กล่องแรกเสมอ และการสั่ง Swal.close() แล้วเปิดใหม่
+     * ติด ๆ กัน ทำให้กล่องใหม่โดนจังหวะปิดของกล่องเก่าปิดตามไปด้วย
+     *
+     * เคยเขียนเป็น "เปิดกล่องจัดการรูป แล้วแจ้งผลอีกกล่อง" ซึ่งได้ผลไม่แน่นอน
+     * แล้วแต่จังหวะ — บางครั้งข้อความสาเหตุขึ้นมาแวบเดียวแล้วโดนกลบหายไป
+     * จนไล่หาสาเหตุที่อัปโหลดไม่ได้ไม่เจอ
+     *
+     * ตอนนี้จึงเหลือทางเดียว:
+     *     ล้มเหลวทั้งหมด -> กล่องแจ้งสาเหตุอย่างเดียว ไม่เปิดกล่องจัดการรูปซ้อน
+     *                       (ไม่มีอะไรเปลี่ยน ผู้ใช้กดที่ช่องรูปเข้ามาใหม่ได้)
+     *     สำเร็จบางส่วน  -> กล่องจัดการรูปกล่องเดียว โดยเอาสรุปไปแปะไว้ในกล่องนั้นเลย
+     */
+    function finish() {
+      if (okCount === 0) {
+        /* ไม่ต้องเรียก appClose ก่อน — Swal.fire แทนที่กล่อง "กำลังอัปโหลด" ให้เอง
+           สั่งปิดเองก่อนจะกลายเป็นการปิดกล่องที่กำลังจะเปิด */
+        if (window.appError) {
+          window.appError(lastErr || "อัปโหลดไม่สำเร็จ");
+        } else if (window.appClose) {
+          window.appClose();
+        }
+        return;
+      }
+
+      var note = [];
+      if (skipped > 0) { note.push("ข้าม " + skipped + " รูป เพราะครบ " + PIMG_MAX + " รูปแล้ว"); }
+      if (tooBig > 0)  { note.push("ข้าม " + tooBig + " รูป เพราะไฟล์ใหญ่เกิน 3 MB"); }
+      if (lastErr !== "") { note.push("บางรูปไม่สำเร็จ: " + lastErr); }
+
+      var msg = "เพิ่มรูปแล้ว " + okCount + " รูป";
+      if (note.length > 0) { msg += " · " + note.join(" · "); }
+
+      openImageBox(row, msg);
+    }
+
+    function sendNext(n) {
+      if (n >= use.length) { finish(); return; }
+
+      if (window.appLoading) {
+        window.appLoading("กำลังอัปโหลด " + (n + 1) + "/" + use.length + "…");
+      }
+
+      var form = new FormData();
+      form.append("action", "upload");
+      form.append("product_id", data.product_id);
+      form.append("image", use[n]);
+
+      pimgPost(
+        form,
+        function (res) {
+          okCount++;
+          setImages(row, res.images);
+          sendNext(n + 1);
+        },
+        function (message) {
+          /* รูปหนึ่งพลาดไม่ควรทำให้ที่เหลือไม่ได้ขึ้นเลย ทำต่อแล้วสรุปท้ายงาน */
+          lastErr = message;
+          sendNext(n + 1);
+        },
+      );
+    }
+
+    sendNext(0);
+  }
+
+  function removeImage(row, imageId) {
+    var form = new FormData();
+    form.append("action", "remove");
+    form.append("image_id", imageId);
+
+    if (window.appLoading) { window.appLoading("กำลังลบรูป…"); }
+
+    pimgPost(
+      form,
+      function (res) {
+        if (window.appClose) { window.appClose(); }
+        setImages(row, res.images);
+        openImageBox(row);
+      },
+      function (message) {
+        if (window.appClose) { window.appClose(); }
+        if (window.appError) { window.appError(message); }
+      },
+    );
+  }
+
+
+  /* ---------- กล่องจัดการรูปของสินค้าหนึ่งรายการ ----------
+   * แสดงช่องว่างครบ 3 ช่องเสมอ ไม่ใช่โชว์เฉพาะรูปที่มี
+   * ผู้ใช้จะได้เห็นทันทีว่าใส่ได้อีกกี่รูป โดยไม่ต้องนับเอง
+   */
+  function openImageBox(row, note) {
+    if (!window.Swal) { return; }
+
+    var data = row.getData();
+    var imgs = imagesOf(row);
+
+    /* สรุปผลของรอบที่เพิ่งทำ แปะไว้ในกล่องเดียวกัน ไม่แยกไปเป็นอีกกล่อง
+       เพราะ SweetAlert มีกล่องเดียวทั้งหน้า เปิดซ้อนแล้วกล่องหลังจะกลบกล่องแรก */
+    var html = note ? ('<p class="pimg-note">' + escapeHtml(note) + "</p>") : "";
+
+    html +=
+      '<p class="pimg-lead">ใส่ได้สูงสุด ' + PIMG_MAX + " รูป " +
+      "รูปแรกคือรูปที่เอาไปแสดงในหน้าทำรายการเบิก<br>" +
+      "รองรับ JPG, PNG และ GIF ไฟล์ละไม่เกิน 3 MB</p>" +
+      '<div class="pimg-slots">';
+
+    for (var i = 0; i < PIMG_MAX; i++) {
+      if (i < imgs.length) {
+        /* ตัวรูปเป็นปุ่มกดดูใหญ่ได้ ส่วนปุ่มลบลอยทับอยู่มุมขวาบนแยกกัน
+           รูปในช่อง 5 เซนติเมตรดูไม่ออกว่าเป็นสินค้าตัวไหน ถ้าไม่มีทางขยาย
+           ผู้ใช้ต้องลบทิ้งแล้วอัปโหลดใหม่เพื่อดูว่าใช่รูปที่ต้องการหรือเปล่า */
+        html +=
+          '<div class="pimg-slot has-img">' +
+          '<button type="button" class="pimg-zoom" data-pimg-zoom="' + i + '"' +
+          ' title="กดเพื่อดูรูปใหญ่" aria-label="ดูรูปใหญ่">' +
+          '<img src="' + escapeHtml(imgs[i].url) + '" alt=""></button>' +
+          (i === 0 ? '<span class="pimg-badge">รูปหลัก</span>' : "") +
+          '<button type="button" class="pimg-del" data-pimg-del="' + imgs[i].image_id + '"' +
+          ' title="ลบรูปนี้" aria-label="ลบรูปนี้">&#10005;</button>' +
+          "</div>";
+      } else {
+        html +=
+          '<button type="button" class="pimg-slot is-add" data-pimg-add="1">' +
+          '<i data-lucide="image-plus" class="h-5 w-5"></i>' +
+          "<span>เพิ่มรูป</span></button>";
+      }
+    }
+    html += "</div>";
+
+    window.Swal.fire({
+      title: "รูปของ " + (data.product_name || data.product_code || "สินค้า"),
+      html: html,
+      width: 560,
+      confirmButtonText: "ปิด",
+      confirmButtonColor: "#4a5568",
+      buttonsStyling: false,
+      heightAuto: false,
+      customClass: { popup: "app-swal", confirmButton: "app-swal-confirm" },
+      didOpen: function () {
+        var popup = window.Swal.getPopup();
+        if (!popup) { return; }
+
+        if (typeof window.renderIcons === "function") {
+          window.renderIcons(popup);
+        }
+
+        var adds = popup.querySelectorAll("[data-pimg-add]");
+        for (var a = 0; a < adds.length; a++) {
+          adds[a].onclick = function () {
+            pimgRow = row;
+            ensureImageInput().click();
+          };
+        }
+
+        /* ดูรูปใหญ่ — ส่งรูปทั้งชุดไป กดลูกศรเลื่อนดูรูปอื่นของสินค้าตัวเดียวกันต่อได้
+           กล่องดูรูปเป็น element ของตัวเอง ไม่ใช่ SweetAlert ซ้อน
+           กล่องจัดการนี้จึงยังเปิดค้างอยู่ข้างหลัง ปิดแล้วกลับมาที่เดิมได้ทันที */
+        var zooms = popup.querySelectorAll("[data-pimg-zoom]");
+        for (var z = 0; z < zooms.length; z++) {
+          (function (btn) {
+            btn.onclick = function () {
+              if (window.ImageView) {
+                window.ImageView.open(
+                  imagesOf(row),
+                  Number(btn.getAttribute("data-pimg-zoom")),
+                );
+              }
+            };
+          })(zooms[z]);
+        }
+
+        var dels = popup.querySelectorAll("[data-pimg-del]");
+        for (var d = 0; d < dels.length; d++) {
+          (function (btn) {
+            btn.onclick = function () {
+              var id = btn.getAttribute("data-pimg-del");
+
+              /* ลบรูปย้อนคืนไม่ได้ ไฟล์ถูกลบออกจากดิสก์ทันที จึงต้องถามก่อน */
+              if (typeof window.appConfirm === "function") {
+                window.appConfirm({
+                  title: "ลบรูปนี้",
+                  text: "ลบแล้วเอากลับคืนไม่ได้ ต้องอัปโหลดใหม่",
+                  confirmText: "ลบรูป",
+                }).then(function (ok) {
+                  if (ok) { removeImage(row, id); }
+                });
+              } else {
+                removeImage(row, id);
+              }
+            };
+          })(dels[d]);
+        }
+      },
+    });
+  }
+
+
+  /* ============================================================
    *  คอลัมน์ของแต่ละตาราง
    * ============================================================ */
   function buildColumns() {
@@ -671,6 +1048,70 @@
     /* ---------- ทะเบียนสินค้า ---------- */
     return [
       colCollapse(),
+      {
+        /* ---------- รูปสินค้า ----------
+         * คนเบิกส่วนใหญ่ไม่ใช่คนคลัง จำรหัสไม่ได้ และชื่อสินค้าหลายตัว
+         * ก็ใกล้กันจนแยกไม่ออกจากตัวหนังสืออย่างเดียว รูปช่วยตรงนั้น
+         *
+         * ช่องนี้ไม่นับเป็นค่าที่ต้องกดบันทึก — รูปถูกบันทึกทันทีตอนอัปโหลด
+         * เหมือนโลโก้บริษัทในหน้าหน่วยงาน (ดู uploadImage ข้างล่าง)
+         * จึงไม่อยู่ใน SPEC.product.fields และไม่ถูก snapshotOf() นับ
+         */
+        title: "รูป",
+        field: "images",
+        width: 116,
+        hozAlign: "center",
+        headerSort: false,
+        responsive: 4,
+        download: false,
+        clipboard: false,
+        ...G.control,
+        formatter: function (cell) {
+          var row = cell.getRow().getData();
+
+          /* แถวใหม่ยังไม่มี product_id จริง จะแนบรูปให้ไม่ได้
+             (ฝั่งเซิร์ฟเวอร์ปฏิเสธซ้ำอยู่แล้ว ตรงนี้บอกเหตุผลให้เห็นก่อนกด) */
+          /* ---------- ไอคอนในช่องนี้วาดด้วย CSS ไม่ใช่ <i data-lucide> ----------
+           * lucide แปลง <i> เป็น <svg> ให้ครั้งเดียวตอนโหลดหน้าเสร็จ
+           * แต่ Tabulator สร้าง HTML ของเซลล์ทีหลัง และสร้างใหม่ทุกครั้งที่
+           * เรียง กรอง เลื่อน หรือเปลี่ยนหน้า ไอคอนจึงไม่เคยถูกวาดเลย
+           * เห็นแต่คำว่า "เพิ่มรูป" ลอย ๆ ไม่มีรูปไอคอน
+           *
+           * จะแก้ด้วยการสั่ง renderIcons ใหม่ทุกครั้งที่ตารางวาดก็ได้
+           * แต่ต้องไล่แปลงทั้งตารางทุกครั้งที่เลื่อน ซึ่งไม่คุ้มกับไอคอนสองตัว
+           * (เหตุผลเดียวกับรูปย่อในหน้าเบิก ดู .tf-thumb.is-none)
+           */
+          if (row._state === "new") {
+            return (
+              '<span class="pimg-cell is-locked" title="บันทึกสินค้าก่อน จึงจะใส่รูปได้">' +
+              '<span class="pimg-ico is-lock" aria-hidden="true"></span></span>'
+            );
+          }
+
+          var imgs = row.images || [];
+
+          if (imgs.length === 0) {
+            return (
+              '<button type="button" class="pimg-cell is-empty" data-pimg="open"' +
+              ' title="กดเพื่อเพิ่มรูป (ใส่ได้สูงสุด 3 รูป)">' +
+              '<span class="pimg-ico is-add" aria-hidden="true"></span>' +
+              '</button>'
+            );
+          }
+
+          /* โชว์รูปแรกเป็นตัวแทน แล้วบอกจำนวนที่เหลือด้วยตัวเลขมุมขวา
+             เรียงรูปเล็กสามรูปในช่องกว้าง 116px จะเล็กจนดูไม่ออกว่าเป็นอะไร */
+          return (
+            '<button type="button" class="pimg-cell has-img" data-pimg="open"' +
+            ' title="กดเพื่อจัดการรูป (มี ' + imgs.length + ' รูป)">' +
+            '<img src="' + escapeHtml(imgs[0].url) + '" alt="" loading="lazy">' +
+            (imgs.length > 1
+              ? '<span class="pimg-more num">' + imgs.length + "</span>"
+              : "") +
+            "</button>"
+          );
+        },
+      },
       {
         /* รหัสสินค้าระบบสร้างให้ แก้ไม่ได้ แต่ยังต้องเลือกข้อความไปคัดลอกได้
                    จึงเปิดช่องแก้แล้วใส่ readonly แทนที่จะปิดการแก้ไปเลย
@@ -937,6 +1378,34 @@
       markChanged(cell.getRow());
       refreshPending();
     });
+
+    /* ---------- กดที่ช่องรูปสินค้า ----------
+     * ผูกที่ตัวตารางที่เดียว ไม่ผูกกับ formatter ของแต่ละช่อง
+     * เพราะ Tabulator วาด HTML ของช่องใหม่ทุกครั้งที่ข้อมูลเปลี่ยน
+     * ตัวจับเหตุการณ์ที่ผูกไว้กับปุ่มเดิมจะหลุดไปพร้อมกับ HTML ชุดเก่า
+     */
+    if (TAB === "product" && table.element) {
+      table.element.addEventListener("click", function (e) {
+        var btn = e.target.closest
+          ? e.target.closest('[data-pimg="open"]')
+          : null;
+        if (!btn) { return; }
+
+        var rowEl = btn.closest(".tabulator-row");
+        if (!rowEl) { return; }
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        var rows = table.getRows();
+        for (var i = 0; i < rows.length; i++) {
+          if (rows[i].getElement() === rowEl) {
+            openImageBox(rows[i]);
+            return;
+          }
+        }
+      });
+    }
 
     /* วางจาก Excel — แถวที่วางเข้ามายังไม่มี _key ให้ถือเป็นแถวใหม่ */
     table.on("clipboardPasted", function () {

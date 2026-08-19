@@ -26,6 +26,10 @@
 
 require_once dirname(__FILE__) . '/db.php';
 
+/* รูปสินค้า — stock_list() แนบไปให้ด้วย เพราะทั้งหน้าทะเบียนสินค้า
+   และหน้าทำรายการเบิกต้องใช้ ถ้าไม่แนบมาตรงนี้ ทั้งสองหน้าจะต้องยิงถามเพิ่มอีกรอบ */
+require_once dirname(__FILE__) . '/product_image.php';
+
 
 /* ============================================================
  *  คุม transaction
@@ -206,10 +210,32 @@ function stock_list($options = array())
             'max_qty'           => (float)$max_qty,
             'unit_cost'         => (float)$unit_cost,
             'is_active'         => (int)$is_active,
-            'qty'               => (float)$qty
+            'qty'               => (float)$qty,
+            'images'            => array()      /* เติมทีเดียวทั้งชุดข้างล่าง */
         );
     }
     mysqli_stmt_close($stmt);
+
+    /* ---------- แนบรูปสินค้า ----------
+     * ยิง query เพิ่มครั้งเดียวสำหรับสินค้าทั้งชุด ไม่ใช่ทีละแถว
+     * หน้าเบิกโหลดสินค้าทั้งคลังมาให้เลือก ถ้าถามทีละตัวจะกลายเป็น
+     * หลายร้อย query ต่อการเปิดหน้าหนึ่งครั้ง
+     *
+     * ไม่ทำเป็น JOIN ในคำสั่งข้างบน เพราะสินค้าหนึ่งตัวมีได้ 3 รูป
+     * แถวสินค้าจะกลายเป็นสามแถว แล้วทุกที่ที่นับจำนวนสินค้าจะได้เลขผิดทันที
+     */
+    if (count($rows) > 0) {
+        $ids = array();
+        for ($i = 0; $i < count($rows); $i++) {
+            $ids[] = $rows[$i]['product_id'];
+        }
+
+        $images = product_image_map($ids);
+        for ($i = 0; $i < count($rows); $i++) {
+            $pid = $rows[$i]['product_id'];
+            if (isset($images[$pid])) { $rows[$i]['images'] = $images[$pid]; }
+        }
+    }
 
     return $rows;
 }

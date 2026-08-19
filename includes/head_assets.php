@@ -122,6 +122,11 @@ window.THAI_DATE_CONFIG = <?php echo app_json(thai_date_config()); ?>;
 <script src="<?php echo asset_url('assets/js/sweetalert2.all.min.js', $ASSET_BASE); ?>"></script>
 <script src="<?php echo asset_url('assets/js/swal-theme.js', $ASSET_BASE); ?>"></script>
 
+<!-- กล่องดูรูปขนาดใหญ่ (ImageView.open) — ใช้ทั้งหน้าทะเบียนสินค้าและหน้าทำรายการเบิก
+     เป็น element ของตัวเอง ไม่ใช่ SweetAlert จึงลอยทับกล่อง SweetAlert ได้
+     โดยไม่ไปปิดกล่องที่เปิดอยู่ (ดูเหตุผลเต็มในหัวไฟล์) -->
+<script src="<?php echo asset_url('assets/js/img-view.js', $ASSET_BASE); ?>"></script>
+
 <!-- ตารางแบบแก้ในช่องได้ (Tabulator, MIT)
      โหลดเฉพาะ CSS ที่นี่เพราะเล็กและใช้หลายหน้า
      ส่วนไฟล์ JS หนัก 430 KB จึงให้หน้าที่ใช้จริงโหลดเอง -->

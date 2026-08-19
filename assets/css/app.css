@@ -6045,3 +6045,387 @@ button.bc-side-toggle { display: none; }
 /* ปุ่มตัวอย่างเป็น span ไม่ใช่ button จึงต้องบอกเองว่ากดไม่ได้
    ไม่งั้นเมาส์จะขึ้นเป็นมือชี้เหมือนปุ่มจริงแล้วชวนให้กด */
 .fs-preview-btns > * { cursor: default; }
+
+
+/* ============================================================
+ *  รูปสินค้า (สูงสุด 3 รูปต่อรายการ)
+ * ============================================================
+ *  ใช้สองที่: ช่องรูปในตารางทะเบียนสินค้า และรูปย่อหน้าแถวในหน้าทำรายการเบิก
+ *  ไฟล์จริงอยู่ที่ assets/img/product/ (ดู backend/product_image.php)
+ * ============================================================ */
+
+/* ---------- ช่องรูปในตารางทะเบียนสินค้า ----------
+   โครงเดียวกับ .logo-tile ของหน้าหน่วยงาน แต่เตี้ยกว่าเพราะแถวสินค้าเยอะกว่ามาก
+   ทุกสถานะสูงเท่ากันหมด แถวในตารางจะได้ไม่สูงไม่เท่ากันสลับกันไป */
+.pimg-cell {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .25rem;
+    width: 4.5rem;
+    height: 2.5rem;
+    border-radius: .5rem;
+    overflow: hidden;
+    transition: border-color .15s ease, background-color .15s ease;
+}
+
+.pimg-cell.has-img {
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    cursor: pointer;
+}
+.pimg-cell.has-img:hover { border-color: #029488; }
+.pimg-cell.has-img img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    padding: 2px;
+}
+
+/* จำนวนรูปทั้งหมด บอกว่ายังมีรูปอื่นอยู่ข้างใน ไม่ใช่มีแค่รูปที่เห็น */
+.pimg-more {
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    min-width: 1rem;
+    padding: 0 .1875rem;
+    border-radius: .25rem;
+    background: rgba(15, 23, 42, .72);
+    color: #fff;
+    font-size: 0.625rem;
+    font-weight: 700;
+    line-height: 1rem;
+    text-align: center;
+}
+
+/* เส้นประบอกว่า "ตรงนี้ว่างและใส่ของได้" ต่างจากเส้นทึบที่แปลว่ามีของอยู่แล้ว
+   (กติกาเดียวกับ .logo-tile.is-empty ของหน้าหน่วยงาน) */
+.pimg-cell.is-empty {
+    flex-direction: column;
+    gap: 0;
+    border: 1px dashed #cbd5e1;
+    background: #f8fafc;
+    color: #94a3b8;
+    cursor: pointer;
+}
+.pimg-cell.is-empty:hover { border-color: #029488; color: #029488; background: #effbf9; }
+.pimg-cap { font-size: 0.625rem; line-height: 1; }
+
+/* แถวใหม่ที่ยังไม่ได้บันทึกยังไม่มี id ให้ผูกรูป จึงกดไม่ได้
+   ใช้กุญแจแทนเส้นประ เพราะเส้นประแปลว่า "ใส่ได้" ซึ่งตอนนี้ยังไม่จริง */
+.pimg-cell.is-locked {
+    border: 1px solid #f1f5f9;
+    background: #f8fafc;
+    color: #cbd5e1;
+    cursor: not-allowed;
+}
+
+.dark .pimg-cell.has-img  { border-color: #334155; background: #0f172a; }
+.dark .pimg-cell.is-empty { border-color: #475569; background: #1e293b; color: #64748b; }
+.dark .pimg-cell.is-empty:hover { border-color: #2dd4bf; color: #5eead4; background: rgba(45, 212, 191, .1); }
+.dark .pimg-cell.is-locked { border-color: #1e293b; background: #1e293b; color: #475569; }
+
+
+/* ---------- กล่องจัดการรูป ---------- */
+.pimg-lead { margin: 0 0 .9rem; font-size: 0.875rem; color: #475569; }
+.dark .pimg-lead { color: #cbd5e1; }
+
+/* โชว์ช่องครบ 3 ช่องเสมอ ผู้ใช้จะได้เห็นทันทีว่าใส่ได้อีกกี่รูปโดยไม่ต้องนับเอง */
+.pimg-slots {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .625rem;
+}
+
+.pimg-slot {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: .25rem;
+    aspect-ratio: 1 / 1;
+    border-radius: .75rem;
+    overflow: hidden;
+}
+
+.pimg-slot.has-img { border: 1px solid #e2e8f0; background: #f8fafc; }
+.pimg-slot.has-img img { width: 100%; height: 100%; object-fit: contain; padding: .25rem; }
+
+.pimg-slot.is-add {
+    border: 1px dashed #cbd5e1;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: border-color .15s ease, color .15s ease, background-color .15s ease;
+}
+.pimg-slot.is-add:hover { border-color: #029488; color: #029488; background: #effbf9; }
+
+/* บอกว่ารูปไหนคือรูปที่จะไปโผล่ในหน้าเบิก ไม่งั้นผู้ใช้ไม่รู้ว่าลำดับมีความหมาย */
+.pimg-badge {
+    position: absolute;
+    left: .375rem;
+    top: .375rem;
+    padding: .0625rem .375rem;
+    border-radius: 999px;
+    background: #029488;
+    color: #fff;
+    font-size: 0.625rem;
+    font-weight: 600;
+}
+
+.pimg-del {
+    position: absolute;
+    right: .375rem;
+    top: .375rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.375rem;
+    height: 1.375rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, .6);
+    color: #fff;
+    font-size: 0.75rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.pimg-del:hover { background: #dc2626; }
+
+.dark .pimg-slot.has-img { border-color: #334155; background: #0f172a; }
+.dark .pimg-slot.is-add  { border-color: #475569; background: #1e293b; color: #94a3b8; }
+.dark .pimg-slot.is-add:hover { border-color: #2dd4bf; color: #5eead4; background: rgba(45, 212, 191, .1); }
+
+
+/* ---------- รูปย่อหน้าแถวในหน้าทำรายการเบิก ----------
+   สินค้าที่ยังไม่มีรูปได้กล่องเปล่าที่กว้างเท่ากัน ไม่ใช่ไม่มีอะไรเลย
+   ไม่งั้นชื่อสินค้าของแถวที่มีรูปกับไม่มีรูปจะเริ่มไม่ตรงกัน กวาดตาแล้วสะดุด */
+.tf-thumb {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: .5rem;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    overflow: hidden;
+}
+.tf-thumb img { width: 100%; height: 100%; object-fit: contain; padding: 1px; }
+
+/* ไอคอนกล่องพัสดุวาดด้วย CSS ไม่ใช่ <i data-lucide> เพราะรายการฝั่งซ้าย
+   ถูกวาดใหม่ทุกตัวอักษรที่พิมพ์ในช่องค้นหา ถ้าใช้ lucide จะต้องสั่งวาด
+   ไอคอนใหม่ทั้งร้อยแถวทุกครั้งที่กดแป้น */
+.tf-thumb.is-none {
+    border-style: dashed;
+    border-color: #e2e8f0;
+    background: #f8fafc;
+}
+.tf-thumb.is-none::before {
+    content: '';
+    width: 1rem;
+    height: 1rem;
+    background-color: #cbd5e1;
+    -webkit-mask: var(--pimg-box) center / contain no-repeat;
+    mask: var(--pimg-box) center / contain no-repeat;
+}
+
+/* เก็บรูปทรงไอคอนไว้ที่เดียว ใช้เป็นหน้ากากให้สีเปลี่ยนตามธีมได้
+   (ถ้าใส่เป็น background-image ตรง ๆ จะเปลี่ยนสีในโหมดมืดไม่ได้) */
+:root {
+    --pimg-box: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7.5 4.27 9 5.15'/%3E%3Cpath d='M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z'/%3E%3Cpath d='m3.3 7 8.7 5 8.7-5'/%3E%3Cpath d='M12 22V12'/%3E%3C/svg%3E");
+}
+
+.dark .tf-thumb          { border-color: #334155; background: #0f172a; }
+.dark .tf-thumb.is-none  { border-color: #334155; background: #1e293b; }
+.dark .tf-thumb.is-none::before { background-color: #475569; }
+
+
+/* ============================================================
+ *  กล่องดูรูปขนาดใหญ่ (assets/js/img-view.js)
+ * ============================================================
+ *  ---------------------------------------------------------------
+ *  ทำไม z-index ต้องเป็น 10000
+ *  ---------------------------------------------------------------
+ *  ต้องลอยอยู่บนสุดจริง ๆ เพราะถูกเปิดจาก "ในกล่องอื่น" ได้ทุกกล่อง
+ *  ที่สำคัญที่สุดคือกล่องจัดการรูปในหน้าทะเบียนสินค้า ซึ่งเป็น SweetAlert
+ *
+ *  เคยตั้งไว้ 90 โดยคิดว่าสูงกว่าทุกอย่างแล้ว (กล่องรายละเอียดเอกสารอยู่ที่ 80)
+ *  แต่ลืมไปว่าไฟล์นี้ตั้ง .swal2-container ไว้ที่ 9999 ตั้งแต่ต้น
+ *  ผลคือกดดูรูปแล้วกล่องจัดการรูปยังลอยทับรูปอยู่ ปิดบังสิ่งที่กดมาเพื่อจะดู
+ *
+ *  10000 = สูงกว่า 9999 ที่ SweetAlert ใช้อยู่หนึ่งขั้น
+ *  ถ้าวันหนึ่งมีคนขยับเลขของ SweetAlert ต้องขยับตัวนี้ตามให้สูงกว่าเสมอ
+ * ============================================================ */
+.iv {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    /* ---------- ทำไมเว้นซ้ายขวากว้างขนาดนี้ ----------
+       ปุ่มลูกศรลอยทับอยู่บนตัวรูป ถ้าเว้นแค่ 1rem รูปจะกินพื้นที่ไปจนถึงใต้ปุ่ม
+       แล้วปุ่มจะทับส่วนที่คนกำลังดูอยู่พอดี — วัดแล้วรูปล้ำเข้าไปทั้งสองข้าง
+       3.25rem คือความกว้างปุ่มบวกระยะขอบ เว้น 4rem จึงพ้นพอดีและเหลือช่องไฟ
+
+       บนจอแคบใช้อีกท่าหนึ่ง (ดู @media ข้างล่าง) เพราะ 4rem สองข้าง
+       กินไปหนึ่งในสามของจอมือถือ เหลือที่ให้รูปน้อยเกินไป */
+    padding: 3rem 4rem 4rem;
+
+    /* เข้มกว่าฉากหลังของกล่องอื่นในระบบ เพราะงานของกล่องนี้คือให้ดูรูป
+       ฉากหลังจาง ๆ จะทำให้สีของหน้าข้างหลังไปกวนสีของรูป */
+    background: rgba(2, 6, 23, .88);
+
+    animation: appVeilIn .16s ease-out;
+}
+
+.iv-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: .5rem;
+    background: #fff;      /* รูปพื้นโปร่งจะได้ไม่จมหายไปกับฉากหลังดำ */
+    animation: appPopIn .2s cubic-bezier(.22, 1, .36, 1);
+}
+
+.iv-close,
+.iv-nav {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .12);
+    color: #fff;
+    cursor: pointer;
+    transition: background-color .15s ease;
+}
+.iv-close:hover,
+.iv-nav:hover { background: rgba(255, 255, 255, .28); }
+
+.iv-close:focus-visible,
+.iv-nav:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(255, 255, 255, .35); }
+
+.iv-close {
+    top: .75rem;
+    right: .75rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 1.125rem;
+    line-height: 1;
+}
+
+/* ปุ่มเลื่อนสูงเท่าครึ่งจอ ไม่ใช่ปุ่มกลม ๆ เล็ก ๆ
+   บนมือถือถือเครื่องมือเดียวแล้วต้องเล็งปุ่ม 40px กลางขอบจอทำได้ยาก */
+.iv-nav {
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2.75rem;
+    height: 4.5rem;
+    border-radius: .75rem;
+    font-size: 1.25rem;
+}
+.iv-nav.is-prev { left: .5rem; }
+.iv-nav.is-next { right: .5rem; }
+
+.iv-cap {
+    position: absolute;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: .25rem .75rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .14);
+    color: #fff;
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+/* ---------- จอแคบ : ย้ายลูกศรลงมาอยู่แถวล่างข้างตัวเลข ----------
+   ปุ่มติดขอบซ้ายขวาแบบจอใหญ่ใช้ไม่ได้บนมือถือ เพราะต้องเว้นที่ให้ปุ่ม
+   ข้างละ 4rem ซึ่งกินไปหนึ่งในสามของจอ เหลือที่ให้รูปน้อยเกินไป
+
+   ย้ายลงล่างแล้วรูปได้ความกว้างเกือบเต็มจอ และปุ่มยังอยู่ในระยะนิ้วโป้ง
+   ซึ่งกดง่ายกว่าปุ่มที่ติดขอบจอตรงกลางความสูงอยู่แล้ว */
+@media (max-width: 639px) {
+    .iv { padding: 3rem 1rem 5rem; }
+
+    .iv-nav {
+        top: auto;
+        bottom: .75rem;
+        transform: none;
+        width: 3rem;
+        height: 2.5rem;
+        border-radius: .625rem;
+    }
+    .iv-nav.is-prev { left: auto; right: calc(50% + 2.5rem); }
+    .iv-nav.is-next { right: auto; left:  calc(50% + 2.5rem); }
+
+    .iv-cap { bottom: 1.25rem; }
+}
+
+
+/* ---------- ตัวบอกว่ากดดูรูปใหญ่ได้ ---------- */
+
+/* รูปในกล่องจัดการรูป — เต็มช่อง เพราะปุ่มลบลอยทับอยู่มุมขวาบนแล้ว
+   ถ้าปุ่มดูรูปไม่เต็มช่อง จะมีขอบที่กดแล้วไม่เกิดอะไรขึ้นอยู่รอบ ๆ */
+.pimg-zoom {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: zoom-in;
+}
+.pimg-zoom img { width: 100%; height: 100%; object-fit: contain; padding: .25rem; }
+
+/* รูปย่อในหน้าทำรายการเบิก — เคอร์เซอร์บอกว่ากดตรงนี้ได้อีกอย่าง
+   ไม่เหมือนที่เหลือของแถวซึ่งเป็นการเลือกสินค้า */
+.tf-thumb:not(.is-none) { cursor: zoom-in; }
+.tf-thumb:not(.is-none):hover { border-color: #029488; }
+.dark .tf-thumb:not(.is-none):hover { border-color: #2dd4bf; }
+
+/* สรุปผลของรอบอัปโหลดที่เพิ่งทำ อยู่ในกล่องจัดการรูปกล่องเดียวกัน
+   ไม่แยกเป็นกล่องแจ้งผลอีกใบ เพราะ SweetAlert เปิดได้ทีละกล่อง */
+.pimg-note {
+    margin: 0 0 .75rem;
+    padding: .5rem .75rem;
+    border-radius: .5rem;
+    background: #effbf9;
+    border: 1px solid #a9ebe4;
+    color: #055f59;
+    font-size: 0.8125rem;
+    text-align: left;
+}
+.dark .pimg-note { background: rgba(2, 148, 136, .12); border-color: #055f59; color: #71dbd2; }
+
+/* ---------- ไอคอนในช่องรูปของตาราง ----------
+   วาดด้วย CSS ไม่ใช่ <i data-lucide> เพราะ Tabulator สร้าง HTML ของเซลล์ใหม่
+   ทุกครั้งที่เรียง กรอง เลื่อน หรือเปลี่ยนหน้า ส่วน lucide แปลง <i> เป็น <svg>
+   ให้ครั้งเดียวตอนโหลดหน้าเสร็จ ไอคอนในเซลล์จึงไม่เคยถูกวาดเลย
+
+   ใช้เป็นหน้ากาก (mask) ไม่ใช่ background-image เพื่อให้เปลี่ยนสีตามสถานะ
+   และตามธีมมืด/สว่างได้ด้วย currentColor
+   รูปทรงลอกมาจาก lucide ชุดเดียวกับที่ระบบใช้ (image-plus / lock) */
+:root {
+    --pimg-add:  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 5h6'/%3E%3Cpath d='M19 2v6'/%3E%3Cpath d='M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5'/%3E%3Cpath d='m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21'/%3E%3Ccircle cx='9' cy='9' r='2'/%3E%3C/svg%3E");
+    --pimg-lock: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='11' x='3' y='11' rx='2' ry='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E");
+}
+
+.pimg-ico {
+    display: block;
+    width: 1.125rem;
+    height: 1.125rem;
+    background-color: currentColor;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+}
+.pimg-ico.is-add  { -webkit-mask-image: var(--pimg-add);  mask-image: var(--pimg-add); }
+.pimg-ico.is-lock { -webkit-mask-image: var(--pimg-lock); mask-image: var(--pimg-lock); width: 1rem; height: 1rem; }

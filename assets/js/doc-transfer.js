@@ -185,6 +185,32 @@
          * ทั้งที่ชื่อหมวดย่อยซ้ำกันข้ามหมวดได้ ("รายการหมึก" มีอยู่ทั้งสองหมวดหลัก)
          * แยกสองป้ายคนละสีเพราะสองชั้นนี้ใช้คนละตัวกรอง ต้องกวาดตาแยกออกได้ทันที
          */
+        /* ---------- รูปสินค้าย่อหน้าแถว ----------
+         * คนเบิกส่วนใหญ่ไม่ใช่คนคลัง จำรหัสไม่ได้ และชื่อสินค้าหลายตัวก็ใกล้กัน
+         * จนแยกไม่ออกจากตัวหนังสืออย่างเดียว ("ปากกาลูกลื่น 0.5" กับ "ปากกาเจล 0.5")
+         * รูปเดียวตัดปัญหาเบิกผิดตัวได้เกือบหมด
+         *
+         * สินค้าที่ยังไม่มีรูปได้กล่องเปล่าที่กว้างเท่ากัน ไม่ใช่ไม่มีอะไรเลย
+         * ไม่งั้นชื่อสินค้าของแถวที่มีรูปกับไม่มีรูปจะเริ่มไม่ตรงกัน อ่านแล้วสะดุด
+         *
+         * loading="lazy" เพราะรายการนี้ยาวเป็นร้อยแถว แต่เห็นทีละไม่กี่แถว
+         * ถ้าโหลดทุกรูปตั้งแต่เปิดหน้า จะดึงรูปหลายสิบไฟล์ที่ไม่มีใครได้เห็น
+         */
+        function thumbHtml(p) {
+            var imgs = p.images || [];
+
+            /* กล่องเปล่าวาดไอคอนด้วย CSS ไม่ใช่ <i data-lucide>
+               เพราะรายการนี้ถูกวาดใหม่ทุกตัวอักษรที่พิมพ์ในช่องค้นหา
+               ถ้าใช้ lucide จะต้องสั่งวาดไอคอนใหม่ทั้งร้อยแถวทุกครั้งที่กดแป้น */
+            if (imgs.length === 0 || !imgs[0].url) {
+                return '<span class="tf-thumb is-none" aria-hidden="true"></span>';
+            }
+
+            return '<span class="tf-thumb">'
+                 + '<img src="' + escapeHtml(imgs[0].url) + '" alt="" loading="lazy">'
+                 + '</span>';
+        }
+
         function catTags(p) {
             var out = '';
 
@@ -239,6 +265,7 @@
 
                 html += '<button type="button" class="tf-item' + (picked ? ' is-picked' : '') + '"'
                      +  ' data-id="' + p.product_id + '">'
+                     +  thumbHtml(p)
                      +  '<span class="tf-item-main">'
                      +    '<span class="tf-code">' + escapeHtml(p.product_code) + '</span>'
                      +    '<span class="tf-name">' + escapeHtml(p.product_name) + '</span>'
@@ -430,7 +457,25 @@
         /* ---------- ผูก event ---------- */
         elLeft.addEventListener('click', function (e) {
             var btn = e.target.closest ? e.target.closest('.tf-item') : null;
-            if (btn) { add(Number(btn.getAttribute('data-id'))); }
+            if (!btn) { return; }
+
+            /* กดที่รูป = ดูรูปใหญ่ ไม่ใช่เลือกสินค้า
+               ต้องเช็คก่อนเรียก add() เพราะรูปอยู่ในปุ่มของแถวทั้งแถว
+               ถ้าไม่ดักไว้ การกดดูรูปจะกลายเป็นการหยิบของใส่ใบเบิกไปด้วย
+
+               เฉพาะรูปที่มีจริง กล่องเปล่าไม่มีอะไรให้ดู กดแล้วให้เลือกตามปกติ */
+            var thumb = e.target.closest ? e.target.closest('.tf-thumb') : null;
+            if (thumb && !thumb.classList.contains('is-none')) {
+                var p = byId[Number(btn.getAttribute('data-id'))];
+                if (p && window.ImageView) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.ImageView.open(p.images || []);
+                    return;
+                }
+            }
+
+            add(Number(btn.getAttribute('data-id')));
         });
 
         elRight.addEventListener('click', function (e) {
