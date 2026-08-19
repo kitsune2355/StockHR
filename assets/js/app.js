@@ -6,7 +6,8 @@
  *  3) กาง/พับเมนูย่อย
  *  4) สลับโหมดสว่าง/มืด (จำค่าไว้ใน localStorage)
  *  5) ยืนยันก่อนออกจากระบบ
- *  6) โลโก้โหลดไม่สำเร็จ -> สลับไปใช้ไอคอนแทน
+ *  6) แถบแท็บที่เลื่อนได้ -> เลื่อนแท็บที่เปิดอยู่มาให้เห็น
+ *  7) โลโก้โหลดไม่สำเร็จ -> สลับไปใช้ไอคอนแทน
  *
  *  หมายเหตุ: ซ่อน/แสดงต้องสั่งผ่าน attribute ไม่ใช่ property (el.hidden = true)
  *  เพราะ .hidden มีเฉพาะใน HTMLElement ส่วน <svg> ที่ Lucide สร้างเป็น
@@ -215,7 +216,44 @@
         }
 
         /* ============================================================
-         *  6. โลโก้สำรอง
+         *  6. แถบแท็บที่เลื่อนได้ — เลื่อนแท็บที่เปิดอยู่มาให้เห็น
+         * ============================================================
+         *  บนจอมือถือแถบแท็บกว้างเกินจอแล้วเลื่อนเอา ซึ่งเริ่มที่ซ้ายสุดเสมอ
+         *  ถ้าแท็บที่เปิดอยู่เป็นตัวท้าย ๆ ผู้ใช้จะเห็นแต่แท็บอื่นที่ไม่ได้เปิดอยู่
+         *  แล้วเข้าใจว่ากดแท็บไม่ติด เพราะไม่มีอะไรบอกว่ายังมีของเลยขอบขวาไปอีก
+         *
+         *  ไม่ใช้ scrollIntoView เพราะมันเลื่อนทั้งหน้าในแนวตั้งไปด้วย
+         *  ผลคือหัวเรื่องของหน้าถูกดันหายไปตั้งแต่เพิ่งเปิดเข้ามา
+         * ============================================================ */
+        var strips = document.querySelectorAll('.tab-strip-scroll');
+        for (var s = 0; s < strips.length; s++) {
+            var strip = strips[s];
+
+            /* ไม่ล้นก็ไม่มีอะไรให้เลื่อน */
+            if (strip.scrollWidth <= strip.clientWidth) { continue; }
+
+            var current = strip.querySelector('[aria-current="page"]');
+            if (!current) { continue; }
+
+            /* วัดด้วย getBoundingClientRect ไม่ใช่ offsetLeft
+               เพราะ offsetLeft นับจาก "บรรพบุรุษที่มี position" ไม่ใช่จากตัวแถบ
+               แถบแท็บเป็น static ค่าที่ได้จึงรวมระยะขอบของหน้าเข้ามาด้วย
+               แล้วเลื่อนเพี้ยนไปเท่ากับ padding ของกรอบหน้า */
+            var stripBox = strip.getBoundingClientRect();
+            var itemBox  = current.getBoundingClientRect();
+            var left     = itemBox.left - stripBox.left + strip.scrollLeft;
+
+            /* จัดให้อยู่กลางเท่าที่ทำได้ เห็นแท็บข้างเคียงทั้งสองฝั่งด้วย
+               จะได้รู้ว่าแถบนี้เลื่อนได้ ไม่ใช่มีอยู่แค่นี้ */
+            var want = left - (strip.clientWidth - itemBox.width) / 2;
+            var max  = strip.scrollWidth - strip.clientWidth;
+
+            strip.scrollLeft = Math.max(0, Math.min(want, max));
+        }
+
+
+        /* ============================================================
+         *  7. โลโก้สำรอง
          * ============================================================ */
         var logo     = document.querySelector('.logo-img');
         var fallback = document.querySelector('.logo-fallback');

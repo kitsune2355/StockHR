@@ -76,11 +76,13 @@ $last_hint = ($tab === 'unit')
 <!-- ===== แท็บ =====
      ทุกลิงก์มี id ของตัวเอง (pcTab-<คีย์>) ให้คู่มือชี้ได้ตรงตัว
      ไม่ต้องพึ่ง selector ที่อิงลำดับหรือคลาส ซึ่งพังทันทีที่เพิ่มแท็บใหม่ -->
-<div id="pcTabs" class="mb-4 flex flex-none flex-wrap items-center gap-1 border-b border-slate-200 dark:border-slate-800">
+<div class="mb-4 flex-none border-b border-slate-200 dark:border-slate-800">
+<div id="pcTabs" class="tab-strip-scroll flex items-center gap-1">
   <?php foreach ($tabs as $key => $t): ?>
   <a id="pcTab-<?php echo $key; ?>"
      href="main.php?page=product_category&amp;tab=<?php echo $key; ?>"
-     class="-mb-px flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition <?php
+     <?php echo ($tab === $key) ? 'aria-current="page"' : ''; ?>
+     class="flex flex-none items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-semibold transition <?php
         echo ($tab === $key)
             ? 'border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300'
             : 'border-transparent text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300'; ?>">
@@ -89,6 +91,7 @@ $last_hint = ($tab === 'unit')
     <span class="num rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-400"><?php echo $t['count']; ?></span>
   </a>
   <?php endforeach; ?>
+</div>
 </div>
 
 
