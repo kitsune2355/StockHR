@@ -52,7 +52,7 @@ $levels = array(
   <div class="<?php echo $panel; ?> mt-5">
 
     <!-- ===== ขนาดที่ใช้อยู่ ===== -->
-    <div class="flex items-center gap-4 border-b border-slate-200 px-6 py-5 dark:border-slate-800">
+    <div id="fsCurrent" class="flex items-center gap-4 border-b border-slate-200 px-6 py-5 dark:border-slate-800">
       <span class="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-300">
         <i data-lucide="a-large-small" class="h-5 w-5" aria-hidden="true"></i>
       </span>
@@ -72,7 +72,7 @@ $levels = array(
       <!-- ตัวอย่างในปุ่มใช้ em ไม่ใช่ rem เพราะต้องโชว์ "ขนาดของระดับนั้น"
            ไม่ใช่ขนาดที่กำลังใช้อยู่ ถ้าใช้ rem ทุกปุ่มจะตัวเท่ากันหมด
            แล้วมองไม่ออกว่าต่างกันตรงไหนจนกว่าจะกดลองทีละอัน -->
-      <div class="fs-levels">
+      <div id="fsLevels" class="fs-levels">
         <?php foreach ($levels as $lv): ?>
         <button type="button" class="fs-level" data-value="<?php echo (int)$lv['value']; ?>"
                 aria-pressed="false">
@@ -91,7 +91,7 @@ $levels = array(
         ถ้าระดับสำเร็จรูปยังไม่พอดี ใช้แถบเลื่อนหรือปุ่มบวก/ลบ ปรับได้ทีละ 1% (ตั้งแต่ 75% ถึง 150%)
       </p>
 
-      <div class="fs-fine">
+      <div id="fsFine" class="fs-fine">
         <button type="button" id="fsMinus" class="fs-step" aria-label="ลดขนาดลง 1%">
           <i data-lucide="minus" class="h-4 w-4" aria-hidden="true"></i>
         </button>
@@ -126,7 +126,7 @@ $levels = array(
     <div class="px-6 py-5">
       <h2 class="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">ตัวอย่าง</h2>
 
-      <div class="fs-preview">
+      <div id="fsPreview" class="fs-preview">
         <h3 class="fs-preview-title">ยอดคงเหลือในคลัง</h3>
         <p class="fs-preview-sub">ตัวอย่างจากหน้ารายงานยอดคงเหลือ · ข้อมูลสมมติ</p>
 
