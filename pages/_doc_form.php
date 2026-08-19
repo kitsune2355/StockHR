@@ -172,7 +172,10 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
         </button>
       </div>
 
-      <div class="ml-auto flex flex-wrap items-center gap-2">
+      <?php /* grid-toolbar-actions ทำให้แถบปุ่มของหน้านี้ใช้กฎเดียวกับหน้าอื่นบนมือถือ
+               (ปุ่มรองเหลือแต่ไอคอนเกาะกลุ่มซ้าย ปุ่มบันทึกไปสุดขวา แถวเดียวจบ)
+               ไม่ต้องมีกฎเฉพาะของหน้านี้แยกอีกชุด */ ?>
+      <div class="grid-toolbar-actions ml-auto flex flex-wrap items-center gap-2">
         <?php if ($doc_type === 'receive') { ?>
         <?php /* ปุ่มเพิ่มรายการยังต้องมีอยู่ แม้จะยิงบาร์โค้ดได้แล้ว
                  เพราะของบางอย่างไม่มีฉลากแปะ และเครื่องอ่านก็เสียได้ */ ?>

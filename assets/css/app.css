@@ -1015,13 +1015,23 @@ body.no-bg-image #appMain::before {
 @media (max-width: 640px) {
     .grid-toolbar { padding: .75rem; gap: .625rem; }
 
-    /* ปุ่มทั้งชุดต้องอยู่บรรทัดเดียวให้ได้บนจอ 390px ขึ้นไป
-       ระยะห่างจึงบีบลงเหลือ 6px — วัดแล้วปุ่มรวมกัน 290px ในพื้นที่ 324px */
+    /* จอที่แคบกว่า ~310px ปุ่มจะตกบรรทัดเอง ซึ่งยังอ่านออกอยู่
+       (บันทึกไปอยู่ขวาล่าง) ดีกว่าบีบทุกอย่างจนกดไม่ถูก */
     .grid-toolbar-actions {
         width: 100%;
-        justify-content: space-between;
         gap: .375rem;
     }
+
+    /* ช่องจำนวน + ปุ่มเพิ่ม ถูกจับคู่ไว้ใน div เดียว ให้ระยะห่างข้างในเท่ากับข้างนอก
+       ไม่งั้นคู่นี้จะห่างกัน 8px ส่วนปุ่มที่เหลือห่าง 6px เห็นได้ว่าไม่เท่ากัน */
+    .grid-toolbar-actions > div { gap: .375rem; }
+
+    /* ---------- ทำไมเขียนชื่อคลาสซ้ำสองครั้ง ----------
+       ปุ่มพวกนี้มี px-4 ของ Tailwind ติดมาด้วย ซึ่งมีน้ำหนักเท่ากับ .btn-compact
+       และถูกแทรกลงหน้าทีหลัง app.css จึงชนะเสมอ ผลคือกฎบีบระยะขอบข้างล่าง
+       ไม่เคยทำงานเลย ปุ่มยังกว้าง 50px เท่าเดิมทั้งที่เหลือแต่ไอคอน
+       เขียนชื่อคลาสซ้ำเพื่อเพิ่มน้ำหนักให้ชนะ โดยไม่ต้องพึ่ง !important
+       (วิธีเดียวกับ [hidden][hidden] ที่ใช้อยู่แล้วในไฟล์นี้) */
 
     /* ซ่อนแบบยังอ่านออกด้วยโปรแกรมอ่านหน้าจอ ไม่ใช่ display:none */
     .btn-compact .btn-label {
@@ -1033,9 +1043,11 @@ body.no-bg-image #appMain::before {
         white-space: nowrap;
         border: 0;
     }
-    .btn-compact {
-        padding-left: .625rem;
-        padding-right: .625rem;
+    /* เหลือแต่ไอคอนแล้ว จึงบีบให้เป็นปุ่มขนาดเท่า ๆ กัน
+       ได้ทั้งหน้าตาที่สม่ำเสมอและที่ว่างพอให้ทุกปุ่มอยู่บรรทัดเดียว */
+    .btn-compact.btn-compact {
+        padding-left: .5rem;
+        padding-right: .5rem;
         gap: 0;
     }
     .grid-toolbar-actions #btnSave {
@@ -2104,23 +2116,27 @@ body.no-bg-image #appMain::before {
 /* ---------- แถบเครื่องมือบนจอเล็ก ----------
    ตัวกรอง (สถานะ/ช่วงวันที่/ประเภท) ที่ตั้ง w-auto ไว้สำหรับจอกว้าง
    พอมาอยู่บนมือถือจะกว้างไม่เท่ากันจนดูรก และบางตัวแคบเกินกว่าจะอ่านออก
-   บังคับให้เรียงเป็น 2 ช่องเท่า ๆ กัน ส่วนปุ่มยืดเต็มแถว */
+   บังคับให้เรียงเป็น 2 ช่องเท่า ๆ กัน ส่วนปุ่มยืดเต็มแถว
+
+   ยกเว้น .grid-toolbar-actions ที่มีกฎของตัวเองอยู่แล้วในบล็อก 640px ข้างบน
+   (ปุ่มเหลือแต่ไอคอนเรียงแถวเดียว) ถ้าไม่กันไว้ กฎตรงนี้จะชนะเพราะอยู่ทีหลัง
+   แล้วปุ่มไอคอนจะถูกยืดเต็มครึ่งแถบจนเหลือแต่ที่ว่าง — เคยเป็นแบบนั้นมาแล้ว */
 @media (max-width: 767px) {
     .grid-toolbar .ss,
     .grid-toolbar > div > select,
     .grid-toolbar > div > input[type="date"],
     .grid-toolbar > div > label { width: 100%; }
 
-    .grid-toolbar > div:last-child {
+    .grid-toolbar > div:last-child:not(.grid-toolbar-actions) {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: .5rem;
         width: 100%;
     }
-    .grid-toolbar > div:last-child > * { width: 100%; min-width: 0; }
+    .grid-toolbar > div:last-child:not(.grid-toolbar-actions) > * { width: 100%; min-width: 0; }
 
     /* ปุ่มที่มีทั้งไอคอนและข้อความ ให้จัดกลางเมื่อยืดเต็มช่อง */
-    .grid-toolbar > div:last-child > button { justify-content: center; }
+    .grid-toolbar > div:last-child:not(.grid-toolbar-actions) > button { justify-content: center; }
 }
 
 /* ช่องวันที่บน iOS/Android สูงไม่เท่าช่องอื่นถ้าไม่บังคับ */
@@ -2130,8 +2146,23 @@ input[type="date"].input-control { min-height: 2.75rem; }
    ปุ่มบันทึกต้องอยู่ในระยะนิ้วโป้งเสมอ ไม่ต้องเลื่อนขึ้นไปหา */
 @media (max-width: 767px) {
     .grid-toolbar > div.ml-auto,
-    .grid-toolbar > div:last-child > #btnSave { width: 100%; }
-    .grid-toolbar > div:last-child > #btnSave { grid-column: 1 / -1; }
+    .grid-toolbar > div:last-child:not(.grid-toolbar-actions) > #btnSave { width: 100%; }
+    .grid-toolbar > div:last-child:not(.grid-toolbar-actions) > #btnSave { grid-column: 1 / -1; }
+
+    /* ---------- ปุ่มรองชิดซ้าย ปุ่มบันทึกสุดขวา ----------
+       ไม่ใช้ space-between เพราะมันเกลี่ยช่องว่างเท่ากันทุกช่อง
+       แล้วปุ่มบันทึกดูเหมือนเป็นตัวหนึ่งในกลุ่มปุ่มรอง ทั้งที่เป็นปุ่มหลัก
+
+       เขียนเป็น .grid-toolbar > .grid-toolbar-actions ไม่ใช่คลาสเดี่ยว
+       เพื่อให้มีน้ำหนักชนะ max-lg:justify-end ของ Tailwind ที่ติดมากับ element
+       โดยไม่ต้องหวังว่า app.css จะถูกแทรกทีหลัง */
+    .grid-toolbar > .grid-toolbar-actions { justify-content: flex-start; }
+    .grid-toolbar > .grid-toolbar-actions > #btnSave { margin-left: auto; }
+
+    /* ใบเบิกกับใบจ่ายไม่มีปุ่มเพิ่มรายการ เหลือปุ่มบันทึกอยู่ตัวเดียวในแถบ
+       ไม่มีอะไรให้เกาะกลุ่มด้วยแล้ว จึงยืดเต็มแถวไปเลยตามของเดิม
+       เป็นเป้าที่กดง่ายที่สุดเท่าที่จะทำได้ ซึ่งเหมาะกับปุ่มสุดท้ายของงาน */
+    .grid-toolbar > .grid-toolbar-actions > #btnSave:only-child { width: 100%; }
 }
 /* ============================================================
    หน้าเบิกบนจอเล็ก — ให้เลื่อนทั้งก้อนแทนที่จะยัดทุกอย่างลงในจอเดียว
