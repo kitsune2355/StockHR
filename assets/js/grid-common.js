@@ -59,6 +59,24 @@
         };
     }
 
+    /* ---------- จำนวนปุ่มเลขหน้า ----------
+     * จอมือถือกว้างไม่พอให้ปุ่มเลขหน้าห้าปุ่มอยู่แถวเดียวกับปุ่มลูกศรสี่ตัว
+     * พอไม่พอก็ตกบรรทัดจนแถบล่างสูงขึ้นไปกินพื้นที่ของตาราง
+     *
+     * สามปุ่มพอให้เห็นว่าอยู่หน้าไหนและขยับทีละหน้าได้ ส่วนการกระโดดไกล ๆ
+     * ใช้ปุ่มหน้าแรก/หน้าสุดท้ายที่อยู่ข้าง ๆ ได้อยู่แล้ว
+     *
+     * 640px ตรงกับ breakpoint ที่ CSS ของแถบแบ่งหน้าใช้อยู่ (ดู app.css)
+     * ต้องเป็นตัวเลขเดียวกันเสมอ ไม่งั้นจะมีช่วงกว้างที่จัดเรียงแบบจอแคบ
+     * แต่ยังมีปุ่มห้าปุ่มอยู่ ซึ่งเป็นกรณีที่แถบล่างพังพอดี
+     */
+    var NARROW_PX = 640;
+
+    function pageButtonCount() {
+        return (window.innerWidth || 1024) < NARROW_PX ? 3 : 5;
+    }
+
+
     /* ---------- ค่าตั้งต้นของทุกตาราง ---------- */
     function base() {
         return {
@@ -69,6 +87,7 @@
             pagination: true,
             paginationSize: 25,
             paginationSizeSelector: [10, 25, 50, 100],
+            paginationButtonCount: pageButtonCount(),
             paginationCounter: 'rows',
 
             locale: 'th-th',
@@ -906,6 +925,57 @@
     } else {
         watchPopups();
     }
+
+
+    /* ---------- ปรับจำนวนปุ่มเลขหน้าเมื่อความกว้างจอเปลี่ยน ----------
+     * หมุนมือถือหรือย่อ/ขยายหน้าต่างแล้วปุ่มต้องเปลี่ยนตามทันที
+     * ไม่ใช่ต้องโหลดหน้าใหม่ถึงจะได้จำนวนที่ถูกต้อง
+     *
+     * Tabulator อ่าน paginationButtonCount ครั้งเดียวตอนสร้างตาราง แล้วคัดลอก
+     * ไปเก็บไว้ในโมดูล page ของตัวเอง การแก้ค่าใน options เฉย ๆ จึงไม่มีผล
+     * กับตารางที่วาดไปแล้ว ต้องแก้ที่โมดูลด้วยแล้วสั่งวาดแถบล่างใหม่
+     *
+     * แก้ทั้งสองที่เพราะคนละหน้าที่กัน: ในโมดูลคือค่าที่ใช้วาดตอนนี้
+     * ส่วนใน options คือค่าที่ตารางจะอ่านถ้ามีอะไรสั่งตั้งต้นโมดูลใหม่
+     */
+    function syncPageButtons() {
+        if (!window.Tabulator || !window.Tabulator.findTable) { return; }
+
+        var want   = pageButtonCount();
+        var tables = window.Tabulator.findTable('.tabulator') || [];
+
+        for (var i = 0; i < tables.length; i++) {
+            var table = tables[i];
+            var page  = table.modules ? table.modules.page : null;
+
+            if (!page || page.count === want) { continue; }
+
+            /* ตารางที่ปิดการแบ่งหน้าไว้ (เช่นตารางกรอกของในหน้าทำเอกสาร)
+               ไม่มีแถบล่างให้ปรับ และสั่ง setPage ใส่จะกลายเป็น error เปล่า ๆ */
+            if (!table.options.pagination) { continue; }
+
+            var now = table.getPage();
+            if (!now) { continue; }
+
+            page.count = want;
+            table.options.paginationButtonCount = want;
+
+            /* สั่งไปหน้าเดิมเพื่อให้วาดแถบแบ่งหน้าใหม่ ไม่ได้เปลี่ยนหน้าที่ดูอยู่
+               รับ error ทิ้งไว้ด้วย เพราะเป็น Promise และเรื่องนี้ล้มเหลวได้
+               โดยไม่กระทบอะไร (อย่างมากคือปุ่มยังเป็นชุดเดิมจนกดเปลี่ยนหน้า) */
+            var done = table.setPage(now);
+            if (done && done.then) { done.then(null, function () {}); }
+        }
+    }
+
+    var resizeTimer = null;
+
+    window.addEventListener('resize', function () {
+        /* หน่วงไว้ก่อน การลากขอบหน้าต่างยิง resize รัวมาก
+           ถ้าวาดแถบล่างใหม่ทุกครั้งจะกระตุกเห็นได้ชัด */
+        if (resizeTimer) { window.clearTimeout(resizeTimer); }
+        resizeTimer = window.setTimeout(syncPageButtons, 150);
+    });
 
 
     window.GridCommon = {
