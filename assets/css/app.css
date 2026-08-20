@@ -2956,6 +2956,172 @@ button.fp-toggle { display: none; }
 .dark .rc-sign-line { background: #334155; }
 .dark .rc-sign-cap  { color: #94a3b8; }
 
+/* ============================================================
+   รายละเอียดการสั่งซื้อ-เบิกใช้ รายเดือน (pages/report_supply.php)
+   ============================================================
+   ตารางไขว้ที่กว้างกว่าจอเสมอ เพราะกางคอลัมน์ตามหน่วยงานที่เบิกในเดือนนั้น
+   จึงต้องเลื่อนแนวนอนในกรอบของตัวเอง แล้วตรึงหัวตารางกับสี่คอลัมน์แรกไว้
+   ไม่งั้นเลื่อนไปคอลัมน์ที่ 20 แล้วจะไม่รู้ว่ากำลังดูสินค้าตัวไหนของหน่วยงานใด */
+
+.sp-check {
+    display: inline-flex; align-items: center; gap: .5rem;
+    font-size: 0.8125rem; color: #475569; cursor: pointer; user-select: none;
+}
+.sp-check input { width: 1rem; height: 1rem; accent-color: #0f766e; cursor: pointer; }
+
+.sp-wrap {
+    position: relative;
+    max-height: calc(100vh - 21rem);
+    min-height: 18rem;
+    overflow: auto;
+    border: 1px solid #e2e8f0; border-radius: 1rem; background: #fff;
+}
+
+/* border-collapse: separate ไม่ใช่ collapse — ช่องที่ตรึงไว้ด้วย position: sticky
+   จะทิ้งเส้นขอบหายไปตอนเลื่อน ถ้าใช้ collapse (เส้นเป็นของตารางไม่ใช่ของช่อง) */
+.sp-table {
+    border-collapse: separate; border-spacing: 0;
+    font-size: 0.75rem; white-space: nowrap;
+}
+.sp-table th, .sp-table td {
+    padding: .375rem .5rem;
+    border-bottom: 1px solid #f1f5f9;
+    background: #fff;
+}
+.sp-table td { color: #334155; }
+
+/* ---------- หัวตารางสองชั้น ---------- */
+.sp-table thead th {
+    position: sticky; z-index: 3;
+    font-weight: 600; color: #334155; text-align: center;
+    border-bottom: 1px solid #cbd5e1;
+}
+.sp-table thead tr:first-child th { top: 0; height: 2.75rem; }
+.sp-table thead tr + tr th        { top: 2.75rem; height: 1.75rem; font-size: 0.6875rem; color: #64748b; }
+.sp-table thead th small {
+    display: block; margin-top: .125rem;
+    font-size: 0.625rem; font-weight: 400; color: #94a3b8;
+    max-width: 11rem; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* เส้นคั่นระหว่างกลุ่ม ช่วยให้สายตาจับได้ว่าคู่ไหนเป็นของหน่วยงานเดียวกัน */
+.sp-table .sp-g, .sp-table th.sp-sub:nth-child(odd) { border-left: 1px solid #e2e8f0; }
+.sp-table td.num:nth-child(odd)                     { border-left: 1px solid #f1f5f9; }
+
+/* ---------- สีประจำกลุ่ม ----------
+   ไล่ตามลำดับเวลาของเรื่อง: ยกมา -> ซื้อเข้า -> เบิกออก -> คงเหลือ
+   คอลัมน์คงเหลือปลายเดือนใช้สีแบรนด์ เพราะเป็นตัวเลขที่คนเปิดรายงานมาหา */
+.sp-table .sp-g-open     { background: #fff7ed; }
+.sp-table .sp-g-buy      { background: #eff6ff; }
+.sp-table .sp-g-adj      { background: #fefce8; }
+.sp-table .sp-g-dept     { background: #fff; }
+.sp-table .sp-g-dept-alt { background: #f8fafc; }
+.sp-table .sp-g-out      { background: #fef3c7; }
+.sp-table .sp-g-close    { background: #f0fdfa; }
+
+.sp-table thead .sp-g-open  { color: #9a3412; }
+.sp-table thead .sp-g-buy   { color: #1d4ed8; }
+.sp-table thead .sp-g-adj   { color: #a16207; }
+.sp-table thead .sp-g-out   { color: #92400e; }
+.sp-table thead .sp-g-close { color: #0f766e; }
+
+/* ---------- คอลัมน์ที่ตรึงไว้ทางซ้าย ----------
+   ความกว้างต้องคงที่ ไม่งั้นค่า left ของคอลัมน์ถัดไปจะคำนวณไม่ได้
+   ตัวเลขชุดนี้จึงต้องแก้พร้อมกันทั้งบล็อกเสมอ */
+.sp-table .sp-fix { position: sticky; z-index: 2; text-align: left; }
+.sp-table thead .sp-fix { z-index: 5; }
+
+.sp-table .sp-fix-1 { left: 0;     width: 46px;  min-width: 46px;  text-align: right; color: #94a3b8; }
+.sp-table .sp-fix-2 { left: 46px;  width: 104px; min-width: 104px; }
+.sp-table .sp-fix-3 { left: 150px; width: 260px; min-width: 260px;
+                      max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+.sp-table .sp-fix-4 { left: 410px; width: 62px;  min-width: 62px;  color: #64748b; }
+.sp-table .sp-fix-all { left: 0; }
+
+/* เงาบอกขอบของส่วนที่ตรึงไว้ ไม่งั้นตอนเลื่อนจะดูเหมือนตัวเลขทับชื่อสินค้า */
+.sp-table .sp-fix-4::after {
+    content: ''; position: absolute; top: 0; right: -6px; bottom: -1px; width: 6px;
+    background: linear-gradient(to right, rgba(15,23,42,.08), transparent);
+    pointer-events: none;
+}
+
+.sp-code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; color: #0f766e; }
+
+.sp-table .num   { text-align: right; font-variant-numeric: tabular-nums; }
+.sp-table .money { font-weight: 500; }
+.sp-zero { color: #cbd5e1; }
+
+/* ---------- แถวหัวหมวด ---------- */
+.sp-table .sp-cat td {
+    position: sticky; left: 0;
+    padding: .4375rem .75rem;
+    background: #fdf2f8; color: #9d174d;
+    font-weight: 700; border-bottom: 1px solid #fbcfe8;
+}
+
+/* แถวที่มีความเคลื่อนไหวในเดือนนี้ เน้นให้เห็นในกองที่ว่างเปล่าเป็นส่วนใหญ่ */
+.sp-table tbody tr.is-moved .sp-fix-2,
+.sp-table tbody tr.is-moved .sp-fix-3 { font-weight: 600; color: #0f172a; }
+.sp-table tbody tr:hover td:not(.sp-cat) { background: #f8fafc; }
+.sp-table tbody tr:hover .sp-g-open  { background: #ffedd5; }
+.sp-table tbody tr:hover .sp-g-buy   { background: #dbeafe; }
+.sp-table tbody tr:hover .sp-g-adj   { background: #fef9c3; }
+.sp-table tbody tr:hover .sp-g-dept-alt { background: #f1f5f9; }
+.sp-table tbody tr:hover .sp-g-out   { background: #fde68a; }
+.sp-table tbody tr:hover .sp-g-close { background: #ccfbf1; }
+
+/* ---------- แถวรวมท้ายตาราง ---------- */
+.sp-table tfoot td {
+    position: sticky; bottom: 0; z-index: 4;
+    background: #f1f5f9; font-weight: 700; color: #0f172a;
+    border-top: 2px solid #cbd5e1;
+}
+.sp-table tfoot .sp-fix-all { z-index: 6; }
+.sp-sum-label { text-align: left; }
+
+/* จอแคบตรึงคอลัมน์ไม่ไหว — 472px คือเกือบทั้งจอ เหลือที่ให้ตัวเลขไม่พอ
+   ปล่อยให้เลื่อนทั้งตารางตามปกติ ดีกว่าเห็นแต่ชื่อสินค้ากับขอบจอ */
+@media (max-width: 900px) {
+    .sp-table .sp-fix { position: static; }
+    .sp-table .sp-fix-3 { max-width: 14rem; }
+    .sp-table .sp-fix-4::after { display: none; }
+}
+
+/* ---------- โหมดมืด ---------- */
+.dark .sp-check { color: #cbd5e1; }
+.dark .sp-wrap  { background: #0f172a; border-color: #1e293b; }
+.dark .sp-table th, .dark .sp-table td { background: #0f172a; border-bottom-color: #1e293b; }
+.dark .sp-table td { color: #cbd5e1; }
+.dark .sp-table thead th { color: #e2e8f0; border-bottom-color: #334155; }
+.dark .sp-table thead tr + tr th { color: #94a3b8; }
+.dark .sp-table thead th small   { color: #64748b; }
+.dark .sp-table .sp-g, .dark .sp-table th.sp-sub:nth-child(odd) { border-left-color: #1e293b; }
+.dark .sp-table td.num:nth-child(odd) { border-left-color: #16202f; }
+
+.dark .sp-table .sp-g-open  { background: rgba(124,45,18,.28); }
+.dark .sp-table .sp-g-buy   { background: rgba(30,58,138,.28); }
+.dark .sp-table .sp-g-adj   { background: rgba(113,63,18,.28); }
+.dark .sp-table .sp-g-dept-alt { background: #16202f; }
+.dark .sp-table .sp-g-out   { background: rgba(146,64,14,.32); }
+.dark .sp-table .sp-g-close { background: rgba(19,78,74,.35); }
+
+.dark .sp-table thead .sp-g-open  { color: #fdba74; }
+.dark .sp-table thead .sp-g-buy   { color: #93c5fd; }
+.dark .sp-table thead .sp-g-adj   { color: #fde047; }
+.dark .sp-table thead .sp-g-out   { color: #fcd34d; }
+.dark .sp-table thead .sp-g-close { color: #5eead4; }
+
+.dark .sp-table .sp-fix-1 { color: #64748b; }
+.dark .sp-table .sp-fix-4 { color: #94a3b8; }
+.dark .sp-code  { color: #5eead4; }
+.dark .sp-zero  { color: #334155; }
+.dark .sp-table .sp-cat td { background: rgba(131,24,67,.35); color: #fbcfe8; border-bottom-color: #831843; }
+.dark .sp-table tbody tr.is-moved .sp-fix-2,
+.dark .sp-table tbody tr.is-moved .sp-fix-3 { color: #f1f5f9; }
+.dark .sp-table tbody tr:hover td:not(.sp-cat) { background: #1e293b; }
+.dark .sp-table tfoot td { background: #1e293b; color: #f1f5f9; border-top-color: #475569; }
+
+
 /* เงินในตารางเอกสาร (หน้ารับเข้า) */
 .doc-money { font-variant-numeric: tabular-nums; color: #0f766e; }
 .dark .doc-money { color: #5eead4; }
@@ -3517,6 +3683,45 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     #rcDrill, #rcDrillBackdrop, .no-print { display: none !important; }
     tr.rc-drill td:first-child { text-decoration: none; }
 }
+@media print {
+    /* ---------- รายละเอียดการสั่งซื้อ-เบิกใช้ ----------
+       ตารางนี้กว้างกว่าหน้ากระดาษเสมอ จึงต้องบีบตัวอักษรลงและปลดทุกอย่าง
+       ที่ตรึงไว้ตอนดูบนจอ ช่องที่เป็น position: sticky จะลอยไปทับเนื้อหา
+       เวลาพิมพ์ เพราะกระดาษไม่มี "การเลื่อน" ให้เกาะ
+
+       การสั่งพิมพ์แนวนอนอยู่ใน pages/report_supply.php ไม่ได้อยู่ที่นี่
+       เพราะ @page มีผลกับทั้งเอกสาร ถ้าใส่ในไฟล์ที่ทุกหน้าใช้ร่วมกัน
+       รายงานหน้าอื่นจะพลอยพิมพ์เป็นแนวนอนไปด้วยทั้งที่ไม่ได้ต้องการ */
+    .sp-wrap {
+        max-height: none !important;
+        overflow: visible !important;
+        border: 0 !important;
+        background: #fff !important;
+    }
+
+    .sp-table { font-size: 0.5rem; width: 100%; }
+    .sp-table th, .sp-table td { padding: .125rem .1875rem; }
+
+    .sp-table thead th,
+    .sp-table tfoot td,
+    .sp-table .sp-fix,
+    .sp-table .sp-cat td { position: static !important; }
+    .sp-table .sp-fix-4::after { display: none !important; }
+
+    /* หัวตารางซ้ำทุกหน้ากระดาษ ไม่งั้นหน้าที่สองเป็นต้นไปจะเป็นตัวเลขล้วน
+       ไม่มีอะไรบอกว่าคอลัมน์ไหนคือหน่วยงานใด */
+    .sp-table thead { display: table-header-group; }
+    .sp-table tr    { page-break-inside: avoid; }
+
+    /* พื้นสีประจำกลุ่มต้องติดไปกับกระดาษด้วย เพราะมันคือสิ่งเดียวที่บอกว่า
+       สองคอลัมน์ที่ติดกันเป็นคู่ของใคร ถ้าพิมพ์ออกมาขาวหมดจะนับคอลัมน์ผิด */
+    .sp-table th, .sp-table td {
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    .sp-table .sp-fix-1, .sp-table .sp-fix-2,
+    .sp-table .sp-fix-3, .sp-table .sp-fix-4 { background: #fff !important; }
+}
+
 
 /* ---------- ประกาศฝ่ายธุรการ บนหน้าทำรายการเบิก ----------
    จัดข้อความชิดซ้ายทั้งหมด ไม่ใช้ค่ากึ่งกลางของ SweetAlert2

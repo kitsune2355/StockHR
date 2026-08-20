@@ -149,4 +149,23 @@ if ($action === 'cost_drill') {
 }
 
 
+/* ============================================================
+ *  รายละเอียดการสั่งซื้อ-เบิกใช้ รายเดือน
+ *
+ *  ตารางไขว้รายสินค้า: ยกมา + ซื้อ - เบิก (แยกคอลัมน์ตามหน่วยงาน) = คงเหลือ
+ *  จำกัดสิทธิ์เท่ารายงานค่าใช้จ่าย เพราะกางมูลค่าของทั้งคลังเหมือนกัน
+ * ============================================================ */
+if ($action === 'supply') {
+
+    api_require_role(array('super_admin', 'admin'));
+    require_once dirname(dirname(__FILE__)) . '/backend/report_supply.php';
+
+    $month  = isset($input['month']) ? trim($input['month']) : date('Y-m');
+    $report = supply_report($month);
+
+    $report['months'] = cost_months();
+    api_ok($report);
+}
+
+
 api_fail('ไม่รู้จักคำสั่งที่ส่งมา');
