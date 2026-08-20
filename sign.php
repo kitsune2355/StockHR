@@ -36,6 +36,10 @@
 
 error_reporting(E_ALL ^ E_NOTICE);
 
+/* ต้องมาก่อนไฟล์อื่น เพราะมันเปิดบัฟเฟอร์รับคำตอบไว้ตั้งแต่บรรทัดที่ include
+   เซ็นรับแล้วได้หน้าขอบคุณทันที ส่วนเมลแจ้งคลังตามไปทีหลังโดยไม่ให้ใครรอ */
+require_once dirname(__FILE__) . '/backend/after_response.php';
+
 require_once dirname(__FILE__) . '/backend/thai_date.php';
 require_once dirname(__FILE__) . '/backend/sign_link.php';
 require_once dirname(__FILE__) . '/backend/document.php';

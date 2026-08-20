@@ -235,13 +235,18 @@ function notify_deliver($people, $args)
     /* ส่งออกทันทีถ้า .env ตั้ง MAIL_SEND_MODE=instant
        แต่ฝากไว้ให้ทำ "หลังตอบผู้ใช้ไปแล้ว" ไม่ใช่ตรงนี้
        ไม่งั้นคนกดอนุมัติต้องนั่งรอ SMTP หลายวินาทีทั้งที่งานของเขาเสร็จแล้ว
-       (ดู api_after_response ใน api/_bootstrap.php)
 
-       เส้นทางที่ไม่ได้ผ่าน API เช่นหน้าเซ็นรับของ จะไม่มีตัวรับฝาก
-       เมลจึงค้างในคิวรอ cron หรือปุ่มส่ง เหมือนพฤติกรรมเดิม */
+       มีตัวรับฝากสองตัว ต่างกันแค่ทางเข้า ไม่ต่างกันเรื่องพฤติกรรม
+         api_after_response  หน้าในระบบที่คุยผ่าน JSON (ดู api/_bootstrap.php)
+         after_response      หน้าที่เปิดจากลิงก์ในเมล (ดู backend/after_response.php)
+
+       เหลือทางที่ไม่มีตัวรับฝากจริง ๆ คือ cron กับสคริปต์บรรทัดคำสั่ง
+       ตรงนั้นไม่มีใครนั่งรออยู่หน้าจอ ส่งคาที่เดิมได้เลย */
     if ($n > 0) {
         if (function_exists('api_after_response')) {
             api_after_response('mail_flush_instant');
+        } elseif (function_exists('after_response')) {
+            after_response('mail_flush_instant');
         } else {
             mail_flush_instant($actor);
         }

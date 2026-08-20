@@ -47,6 +47,10 @@
 
 error_reporting(E_ALL ^ E_NOTICE);
 
+/* ต้องมาก่อนไฟล์อื่น เพราะมันเปิดบัฟเฟอร์รับคำตอบไว้ตั้งแต่บรรทัดที่ include
+   กดอนุมัติแล้วได้หน้าถัดไปทันที ส่วนเมลแจ้งผลตามไปทีหลังโดยไม่ให้ใครรอ */
+require_once dirname(__FILE__) . '/backend/after_response.php';
+
 require_once dirname(__FILE__) . '/backend/thai_date.php';
 require_once dirname(__FILE__) . '/backend/approve_link.php';
 require_once dirname(__FILE__) . '/backend/document.php';
