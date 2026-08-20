@@ -418,6 +418,15 @@
                    ส่วนใหญ่ซื้อราคาเดิม จะได้ไม่ต้องพิมพ์ซ้ำ แต่แก้ได้ถ้าราคาขยับ */
                 var p = byId[cell.getValue()];
                 row.update({ qty: 0, unit_cost: (p && p.unit_cost) ? p.unit_cost : 0 });
+
+                /* เลือกสินค้าที่มีบรรทัดอยู่แล้ว = ตั้งใจจะกรอกของตัวนั้น ไม่ใช่ตั้งใจได้สองบรรทัด
+                   ปล่อยให้ซ้ำไว้จะไปโผล่ตอนกดบันทึก (collect ห้ามสินค้าซ้ำในใบเดียวกัน)
+                   ซึ่งเป็นจังหวะที่แย่ที่สุด เพราะกรอกมาทั้งใบแล้วค่อยมารู้
+
+                   หน่วงหนึ่งจังหวะก่อนลบบรรทัด ให้ Tabulator ปิดตัวแก้ไขของช่องนี้ให้เสร็จก่อน
+                   ลบทิ้งกลางคันแล้วมันจะไปอ้างถึงบรรทัดที่ไม่มีอยู่แล้ว */
+                var dupPid = cell.getValue();
+                setTimeout(function () { mergeDuplicate(row, dupPid); }, 0);
             }
             row.reformat();
             refreshTotals();
@@ -427,6 +436,61 @@
         table.on('dataChanged', refreshTotals);
 
         G.guardRanges(table);
+    }
+
+    /* ---------- เลือกสินค้าซ้ำกับบรรทัดอื่น : รวมกลับเข้าบรรทัดเดิม ----------
+     *
+     * ใบหนึ่งมีสินค้าตัวเดียวกันได้บรรทัดเดียว (backend ตรวจซ้ำอีกชั้น) การมีสองบรรทัด
+     * จึงไม่ใช่ทางเลือก แต่เป็นสิ่งที่ต้องแก้ก่อนบันทึกอยู่ดี — เอาออกตั้งแต่ตอนที่ยังรู้ว่า
+     * ผู้ใช้กำลังทำอะไรอยู่ ดีกว่าเก็บไว้ไปแจ้งตอนกดบันทึก
+     *
+     * ไม่ต้องห่วงจำนวนของบรรทัดที่ถูกลบ เพราะการเปลี่ยนสินค้าล้างจำนวนทิ้งไปแล้วก่อนหน้านี้
+     * (ดู cellEdited) ส่วนหมายเหตุยกไปให้บรรทัดที่เก็บไว้ถ้าตรงนั้นยังว่าง จะได้ไม่หายไปด้วย
+     *
+     * การยิงบาร์โค้ดใช้กติกาเดียวกันอยู่แล้ว (ดู scanAdd) ต่างกันแค่ยิงคือบวกจำนวน
+     * ส่วนเลือกเองคือย้ายไปกรอกจำนวนที่บรรทัดเดิม
+     */
+    function mergeDuplicate(row, pid) {
+        if (!table || num(pid) <= 0) { return false; }
+
+        var rows = table.getRows();
+        var mine = row.getData()._id;
+        var keep = null;
+
+        for (var i = 0; i < rows.length; i++) {
+            var d = rows[i].getData();
+            if (d._id === mine) { continue; }
+            if (num(d.product_id) === num(pid)) { keep = rows[i]; break; }
+        }
+        if (!keep) { return false; }
+
+        var note = String(row.getData().note || '').trim();
+        if (note !== '' && String(keep.getData().note || '').trim() === '') {
+            keep.update({ note: note });
+        }
+
+        /* จำเลขบรรทัดไว้ก่อนลบ แล้วเลื่อนลงหนึ่งถ้าบรรทัดที่เก็บไว้อยู่ใต้บรรทัดที่หายไป
+           อ่านหลังลบก็ได้เลขที่ถูก แต่ต้องไปเชื่อจังหวะการจัดลำดับใหม่ของ Tabulator */
+        var keepNo = keep.getPosition(true);
+        if (keepNo > row.getPosition(true)) { keepNo--; }
+
+        row.delete();
+        keep.reformat();
+        refreshTotals();
+        flashRow(keep);
+
+        var p = byId[num(pid)];
+        showNote(true, (p ? p.product_code + ' ' + p.product_name : 'สินค้านี้')
+                     + ' มีอยู่แล้วในบรรทัดที่ ' + keepNo
+                     + ' — รวมให้เป็นบรรทัดเดียว กรอกจำนวนต่อได้เลย');
+
+        /* เปิดช่องจำนวนของบรรทัดที่เก็บไว้ให้เลย เพราะนั่นคือสิ่งที่ผู้ใช้กำลังจะทำต่อ
+           ถ้าไม่เปิดให้ จะกลายเป็นว่าบรรทัดหายไปเฉย ๆ แล้วต้องไปหาเองว่าทำต่อตรงไหน */
+        setTimeout(function () {
+            try { keep.getCell('qty').edit(); } catch (e) { /* แก้ไม่ได้ก็ไม่เป็นไร */ }
+        }, 0);
+
+        return true;
     }
 
     /* ห่อตารางให้มีหน้าตาเดียวกับตัวเลือกสองฝั่ง */
@@ -637,10 +701,10 @@
        เพราะหน้ารับเข้าเขียนข้อความหลัง addRow เสร็จ ซึ่งเป็นคนละจังหวะ */
     var scanResultHook = null;
 
-    function scanSay(ok, text) {
-        beep(ok);
-        if (scanResultHook) { scanResultHook(ok, text); }
-
+    /* กล่องข้อความใต้แถบเครื่องมือ ใช้ร่วมกันทั้งการยิงและการเลือกสินค้าเอง
+       แยกออกมาจาก scanSay เพราะการเลือกเองไม่ควรมีเสียง และไม่ควรดึงโฟกัสกลับไป
+       ช่องยิง — ตอนนั้นกำลังจะเปิดช่องจำนวนให้กรอกต่อ */
+    function showNote(ok, text) {
         var box = el('scanMsg');
         if (!box) { return; }
 
@@ -648,8 +712,14 @@
         box.className = 'doc-scan-msg ' + (ok ? 'is-ok' : 'is-bad');
         setHidden(box, false);
 
-        if (scanSay._timer) { clearTimeout(scanSay._timer); }
-        scanSay._timer = setTimeout(function () { setHidden(box, true); }, ok ? 2500 : 6000);
+        if (showNote._timer) { clearTimeout(showNote._timer); }
+        showNote._timer = setTimeout(function () { setHidden(box, true); }, ok ? 2500 : 6000);
+    }
+
+    function scanSay(ok, text) {
+        beep(ok);
+        if (scanResultHook) { scanResultHook(ok, text); }
+        showNote(ok, text);
 
         /* ดึงโฟกัสกลับมาที่ช่องยิงเสมอ การวาดตารางใหม่หลังเพิ่มบรรทัด
            อาจย้ายโฟกัสไปที่อื่นได้ ถ้าไม่ดึงกลับ การยิงครั้งถัดไปจะตกไปในช่องอื่น */
