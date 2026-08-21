@@ -67,6 +67,12 @@
     /* $opts (ไม่ใส่ก็ได้)
          groups    หัวชั้นบนแบบพาดหลายคอลัมน์ [{ title, span }]
          footLabel ป้ายของแถวรวม ถ้าไม่ใส่จะเป็น "รวม" */
+    /* คอลัมน์ที่ตั้ง fix ไว้จะถูกตรึงไม่ให้เลื่อนหายไปทางซ้าย
+       ตัวเลขคือลำดับที่ตรึง ซึ่ง CSS เอาไปคิดเป็นระยะ left ให้ (ดู .rc-fix-1/-2) */
+    function fixCls(col) {
+        return (col.align || '') + (col.fix ? ' rc-fix rc-fix-' + col.fix : '');
+    }
+
     function drawTable(node, cols, rows, totalOf, drill, opts) {
         opts = opts || {};
         if (!rows || rows.length === 0) {
@@ -82,7 +88,8 @@
             head += '<tr>';
             for (var gi = 0; gi < opts.groups.length; gi++) {
                 var gg = opts.groups[gi];
-                head += '<th colspan="' + gg.span + '" class="rc-grouphead">'
+                head += '<th colspan="' + gg.span + '" class="rc-grouphead'
+                     +  (gg.fix ? ' rc-fix rc-fix-' + gg.fix : '') + '">'
                      +  esc(gg.title || '') + '</th>';
             }
             head += '</tr>';
@@ -90,7 +97,7 @@
 
         head += '<tr>';
         for (var c = 0; c < cols.length; c++) {
-            head += '<th class="' + (cols[c].align || '') + '"'
+            head += '<th class="' + fixCls(cols[c]) + '"'
                  +  (cols[c].note ? ' title="' + esc(cols[c].note) + '"' : '') + '>'
                  +  esc(cols[c].title)
                  +  (cols[c].note ? '<small class="rc-colnote">' + esc(cols[c].note) + '</small>' : '')
@@ -121,7 +128,7 @@
                 var col = cols[j];
                 var raw = rows[i][col.key];
                 var txt = col.fmt ? col.fmt(raw, rows[i]) : esc(raw);
-                body += '<td class="' + (col.align || '') + '">' + txt + '</td>';
+                body += '<td class="' + fixCls(col) + '">' + txt + '</td>';
 
                 if (totalOf && totalOf.indexOf(col.key) >= 0) {
                     totals[col.key] = (totals[col.key] || 0) + Number(raw || 0);
@@ -136,12 +143,13 @@
             foot = '<tfoot><tr>';
             for (var k = 0; k < cols.length; k++) {
                 var cc = cols[k];
+                var fc = cc.fix ? ' rc-fix rc-fix-' + cc.fix : '';
                 if (k === 0) {
-                    foot += '<td class="rc-sum-label">' + esc(opts.footLabel || 'รวม') + '</td>';
+                    foot += '<td class="rc-sum-label' + fc + '">' + esc(opts.footLabel || 'รวม') + '</td>';
                 } else if (totalOf.indexOf(cc.key) >= 0) {
-                    foot += '<td class="num">' + (cc.key === 'qty' ? qty(totals[cc.key]) : money(totals[cc.key])) + '</td>';
+                    foot += '<td class="num' + fc + '">' + (cc.key === 'qty' ? qty(totals[cc.key]) : money(totals[cc.key])) + '</td>';
                 } else {
-                    foot += '<td></td>';
+                    foot += '<td class="' + fc.replace(/^ /, '') + '"></td>';
                 }
             }
             foot += '</tr></tfoot>';
@@ -156,10 +164,15 @@
      * สร้างจากข้อมูลทุกครั้งที่เปลี่ยนเดือน ใช้ร่วมกันทั้งบนจอและตอนส่งออก
      */
     function catDeptCols(cd) {
+        /* ไม่มีคอลัมน์ลำดับ — หมวดหมู่หลักมีอยู่ไม่กี่หมวดและมีชื่อกำกับอยู่แล้ว
+           เลขลำดับจึงไม่ได้ช่วยอ้างอิงอะไร มีแต่กินที่ที่ควรเป็นของคอลัมน์ที่ตรึง
+
+           สองคอลัมน์แรกตรึงไว้ เลื่อนดูหน่วยงานที่อยู่ขวาสุดแค่ไหน
+           ก็ยังเห็นว่ากำลังดูหมวดไหนและหมวดนั้นซื้อเข้ามาเท่าไร
+           ซึ่งเป็นสองตัวเลขที่ต้องใช้เทียบกับยอดเบิกตลอดเวลา */
         var cols = [
-            { key: 'no',   title: 'ลำดับ', align: 'num' },
-            { key: 'category_name', title: 'รายการ' },
-            { key: 'buy',  title: 'ยอดรวมสั่งซื้อทั้งหมด', align: 'num',
+            { key: 'category_name', title: 'รายการ', fix: 1 },
+            { key: 'buy',  title: 'ยอดรวมสั่งซื้อทั้งหมด', align: 'num', fix: 2,
               fmt: function (v) { return v ? money(v) : '<span class="grid-empty">-</span>'; } }
         ];
 
@@ -190,7 +203,7 @@
         var out = [];
         for (var i = 0; i < cd.rows.length; i++) {
             var r = cd.rows[i];
-            var one = { no: i + 1, category_name: r.category_name, buy: r.buy, out: r.out };
+            var one = { category_name: r.category_name, buy: r.buy, out: r.out };
             for (var k in r.dept) {
                 if (r.dept.hasOwnProperty(k)) { one[k] = r.dept[k]; }
             }
@@ -226,8 +239,12 @@
         var cd = res.byCatDept;
         drawTable(el('tblCatDept'), catDeptCols(cd), catDeptRows(cd), catDeptTotalOf(cd), null, {
             footLabel: 'ยอดรวมแต่ละหน่วยงาน',
+            /* สองช่องแรกแยกเป็นเซลล์ละคอลัมน์ ไม่รวบเป็น colspan เดียว
+               เพราะเซลล์ที่ตรึงต้องมีความกว้างตรงกับคอลัมน์ที่มันตรึงอยู่
+               ถ้ารวบไว้ หัวกลุ่มของหน่วยงานจะมุดเข้าไปใต้คอลัมน์ที่ตรึงตอนเลื่อน */
             groups: [
-                { title: '', span: 3 },
+                { title: '', span: 1, fix: 1 },
+                { title: '', span: 1, fix: 2 },
                 { title: 'ยอดรวมการเบิกใช้ของแต่ละหน่วยงาน', span: cd.departments.length },
                 { title: '', span: 1 }
             ]
@@ -517,7 +534,6 @@
                ไฟล์ที่ได้จึงมีคอลัมน์เท่ากับที่ตาเห็นเสมอ */
             var cd = DATA.byCatDept;
             var cdCols = [
-                { key: 'no',  title: 'ลำดับ', numeric: true },
                 { key: 'category_name', title: 'รายการ' },
                 { key: 'buy', title: 'ยอดรวมสั่งซื้อทั้งหมด', numeric: true }
             ];

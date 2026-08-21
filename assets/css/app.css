@@ -2980,6 +2980,63 @@ button.fp-toggle { display: none; }
 
 .dark .rc-table thead .rc-grouphead { color: #94a3b8; border-bottom-color: #334155; }
 .dark .rc-colnote { color: #64748b; }
+/* ---------- ตรึงสองคอลัมน์ซ้ายของตารางหมวดหมู่ x หน่วยงาน ----------
+   เดือนที่มีหน่วยงานเบิกสิบกว่าหน่วย ตารางกว้างกว่าจอสองเท่า
+   พอเลื่อนไปดูหน่วยงานขวาสุด ชื่อหมวดกับยอดสั่งซื้อจะหลุดออกไปทางซ้าย
+   แล้วตัวเลขที่เห็นก็ไม่รู้ว่าเป็นของหมวดไหน
+
+   ตรึงแค่สองคอลัมน์นี้เพราะเป็นสองตัวที่ต้องเอาไปเทียบกับยอดเบิกตลอด
+   ("หมวดนี้ซื้อเข้ามาเท่าไร" กับ "หน่วยงานนี้เบิกไปเท่าไร")
+
+   ต้องเปลี่ยนเป็น border-collapse: separate ด้วย เพราะแบบ collapse
+   เส้นขอบเป็นของตัวตาราง ไม่ใช่ของเซลล์ เซลล์ที่ตรึงจึงลอยไปโดยไม่มีเส้น
+   แล้วต้องประกาศเส้นคืนที่ตัวเซลล์เอง (สามบรรทัดถัดไป) */
+.rc-table-wide { border-collapse: separate; border-spacing: 0; }
+
+.rc-table-wide thead th          { border-bottom: 1px solid #e2e8f0; }
+.rc-table-wide tbody tr + tr td  { border-top: 1px solid #f1f5f9; }
+.rc-table-wide tfoot td          { border-top: 2px solid #cbd5e1; }
+
+.rc-table-wide .rc-fix { position: sticky; z-index: 2; background: #fff; }
+
+/* ความกว้างต้องคงที่ ไม่งั้น left ของคอลัมน์ที่สองจะไม่ตรงกับขอบของคอลัมน์แรก
+   ค่า left ของ .rc-fix-2 = ความกว้างของ .rc-fix-1 พอดี ผูกกันอยู่ */
+.rc-table-wide .rc-fix-1 { left: 0; }
+.rc-table-wide .rc-fix-2 { left: 14rem; box-shadow: 1px 0 0 #e2e8f0; }
+
+.rc-table-wide th.rc-fix-1, .rc-table-wide td.rc-fix-1 { width: 14rem;   min-width: 14rem; }
+.rc-table-wide th.rc-fix-2, .rc-table-wide td.rc-fix-2 { width: 10.5rem; min-width: 10.5rem; }
+
+/* ชื่อหมวดยาวกว่าช่องได้ ให้ตัดบรรทัดแทนที่จะล้นไปทับคอลัมน์ถัดไป
+   (ตารางนี้ตั้ง nowrap ไว้ทั้งใบเพื่อไม่ให้คอลัมน์หน่วยงานหักบรรทัด) */
+.rc-table-wide td.rc-fix-1 { white-space: normal; }
+
+/* หัวตารางกับแถวรวมมีพื้นหลังของตัวเอง ต้องทับพื้นขาวของ .rc-fix
+   ไม่งั้นเซลล์ที่ตรึงจะกลายเป็นช่องขาวคาอยู่กลางแถบสีเทา */
+.rc-table-wide thead th.rc-fix,
+.rc-table-wide tfoot td.rc-fix { background: #f8fafc; z-index: 3; }
+
+/* พื้นหลังตอนชี้แถวอยู่ที่ <tr> ซึ่งอยู่ใต้เซลล์ที่ตรึง ต้องทาซ้ำที่เซลล์ */
+.rc-table-wide tbody tr:hover td.rc-fix { background: #f8fafc; }
+
+.dark .rc-table-wide thead th          { border-bottom-color: #334155; }
+.dark .rc-table-wide tbody tr + tr td  { border-top-color: #1e293b; }
+.dark .rc-table-wide tfoot td          { border-top-color: #475569; }
+.dark .rc-table-wide .rc-fix           { background: #0f172a; }
+.dark .rc-table-wide .rc-fix-2         { box-shadow: 1px 0 0 #1e293b; }
+.dark .rc-table-wide thead th.rc-fix,
+.dark .rc-table-wide tfoot td.rc-fix   { background: #1e293b; }
+.dark .rc-table-wide tbody tr:hover td.rc-fix { background: #1e293b; }
+
+/* บนมือถือ สองคอลัมน์ที่ตรึงกินที่เกือบทั้งจอ เหลือให้หน่วยงานไม่ถึงนิ้ว
+   เลิกตรึงแล้วให้เลื่อนดูตามปกติ ได้ประโยชน์กว่า */
+@media (max-width: 767px) {
+    .rc-table-wide .rc-fix   { position: static; box-shadow: none; }
+    .rc-table-wide .rc-fix-2 { box-shadow: none; }
+    .rc-table-wide th.rc-fix-1, .rc-table-wide td.rc-fix-1 { width: auto; min-width: 9rem; }
+    .rc-table-wide th.rc-fix-2, .rc-table-wide td.rc-fix-2 { width: auto; min-width: 8rem; }
+}
+
 
 /* ---------- ที่เซ็นท้ายรายงาน ---------- */
 .rc-foot {
