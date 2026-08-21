@@ -2240,6 +2240,48 @@ input[type="date"].input-control { min-height: 2.75rem; }
     #formBody.is-transfer > div:last-child { flex: none; }
 }
 /* ============================================================
+   หน้ารับเข้า/จ่ายออกบนจอเล็ก — ตารางต้องมีความสูงจริง
+   ============================================================
+   สองหน้านี้ตั้ง full = true เหมือนหน้าเบิก กรอบจึงสูงคงที่และ
+   ตารางรับความสูงมาจาก flex-1 ที่เหลือจากส่วนหัวเอกสาร
+
+   บนจอกว้างเหลือให้ตารางหลายร้อย pixel ไม่มีปัญหา
+   แต่บนมือถือช่องในส่วนหัวเรียงลงมาทีละช่อง วัดจริงบนจอสูง 684:
+       ส่วนหัวเอกสาร 361 + แถบเครื่องมือ 113 + สรุปท้าย 85 = 559
+       เหลือให้ตาราง 19 pixel — เห็นแค่เส้นหัวตารางแถบเดียว
+   พอเลือกใบเบิกแล้วมีกล่องข้อมูลใบเบิกโผล่เพิ่ม ก็เหลือศูนย์ ตารางหายไปเลย
+
+   แก้แบบเดียวกับหน้าเบิก: เลื่อนทั้งก้อนแทนที่จะยัดลงจอเดียว
+   ตรึงแถบที่มีปุ่มบันทึกไว้ด้านบน แล้วกำหนดความสูงของตารางเอง
+   ไม่ปล่อยให้เป็นเศษที่เหลือ
+
+   height ต้องมี !important เพราะ Tabulator เขียน height:100% เป็น
+   inline style ที่ตัว #items ตอนสร้างตาราง (ดู buildTable ใน doc-form.js)
+   ประกาศธรรมดาใน stylesheet จะแพ้ inline เสมอ */
+@media (max-width: 1023px) {
+
+    #formBody:not(.is-transfer) { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+    #formBody:not(.is-transfer) .grid-toolbar {
+        position: sticky; top: 0; z-index: 6;
+        background: #fff;
+    }
+    .dark #formBody:not(.is-transfer) .grid-toolbar { background: #0f172a; }
+
+    /* 60vh ให้เห็นราวหกเจ็ดบรรทัดพร้อมกัน มากพอจะตรวจของที่ยิงไปแล้ว
+       โดยยังเหลือที่ให้เห็นแถบปุ่มและส่วนหัวถัดขึ้นไป
+       min-height กันจอแนวนอนที่ 60vh แคบจนเหลือสองบรรทัด */
+    #formBody:not(.is-transfer) #items {
+        flex: none;
+        height: 60vh !important;
+        min-height: 18rem;
+    }
+
+    /* สรุปท้ายตารางไม่ต้องตรึง ปุ่มบันทึกตรึงอยู่ด้านบนแล้ว */
+    #formBody:not(.is-transfer) > div:last-child { flex: none; }
+}
+
+/* ============================================================
    แถบตัวกรองด้านขวาในพื้นที่เนื้อหา (filter-panel.js)
    ============================================================
    อยู่ใน <main> เดียวกับเนื้อหา ไม่ใช่ overlay ของทั้งหน้าต่าง
@@ -2914,6 +2956,31 @@ button.fp-toggle { display: none; }
 }
 .rc-empty { padding: 1.5rem 1rem; text-align: center; color: #94a3b8; font-size: 0.8125rem; }
 
+/* ---------- ตารางสรุปหมวดหมู่ x หน่วยงาน ----------
+   คอลัมน์หน่วยงานมีได้สิบกว่าคอลัมน์ ตารางจึงกว้างกว่ากรอบ
+   ให้เลื่อนในกรอบของตัวเอง ไม่ใช่ดันทั้งหน้าให้เลื่อน */
+.rc-table-wrap { overflow-x: auto; }
+
+.rc-table-wide { min-width: 100%; }
+.rc-table-wide th, .rc-table-wide td { white-space: nowrap; }
+
+/* หัวชั้นบนที่พาดคลุมคอลัมน์หน่วยงาน */
+.rc-table thead .rc-grouphead {
+    text-align: center; font-size: 0.75rem; color: #64748b;
+    border-bottom: 1px solid #e2e8f0;
+}
+.rc-table thead .rc-grouphead:empty { border-bottom: 0; }
+
+/* ชื่อบริษัทใต้ชื่อหน่วยงาน — ตัวเล็กลงเพราะเป็นข้อมูลกำกับ ไม่ใช่หัวคอลัมน์ */
+.rc-colnote {
+    display: block; margin-top: .125rem;
+    font-size: 0.625rem; font-weight: 400; color: #94a3b8;
+    max-width: 9rem; overflow: hidden; text-overflow: ellipsis;
+}
+
+.dark .rc-table thead .rc-grouphead { color: #94a3b8; border-bottom-color: #334155; }
+.dark .rc-colnote { color: #64748b; }
+
 /* ---------- ที่เซ็นท้ายรายงาน ---------- */
 .rc-foot {
     display: grid; gap: 2rem; margin-top: 3rem; padding-top: 1rem;
@@ -3043,20 +3110,10 @@ button.fp-toggle { display: none; }
 /* ค่า left ไม่ได้อยู่ที่นี่ — report-supply.js คำนวณแล้วใส่เป็น style ให้ทีละช่อง
    เพราะผู้ใช้ซ่อนคอลัมน์เองได้ ตำแหน่งของคอลัมน์ที่เหลือจึงเปลี่ยนทุกครั้ง
    ความกว้างในนี้ต้องตรงกับตาราง FIX_W ใน report-supply.js เสมอ */
-.sp-table .sp-fix-1 { width: 2.75rem;   min-width: 2.75rem;  text-align: right; color: #94a3b8; }
-.sp-table .sp-fix-2 { width: 6.25rem;   min-width: 6.25rem; }
-.sp-table .sp-fix-3 { width: 14.375rem; min-width: 14.375rem;
-                      max-width: 14.375rem; overflow: hidden; text-overflow: ellipsis; }
-.sp-table .sp-fix-4 { width: 3.625rem;  min-width: 3.625rem; color: #64748b; }
-
-/* ยกมา : จำนวน / เป็นเงิน */
-.sp-table .sp-fix-5 { width: 4.75rem;   min-width: 4.75rem; }
-.sp-table .sp-fix-6 { width: 6.25rem;   min-width: 6.25rem; }
-
-/* ซื้อเข้า : จำนวน / ราคา/หน่วย / เป็นเงิน */
-.sp-table .sp-fix-7 { width: 4.75rem;   min-width: 4.75rem; }
-.sp-table .sp-fix-8 { width: 6.5rem;    min-width: 6.5rem; }
-.sp-table .sp-fix-9 { width: 6.5rem;    min-width: 6.5rem; }
+/* ความกว้างมาจาก <colgroup> ที่ report-supply.js พ่นให้ ไม่ได้อยู่ในนี้แล้ว
+   เพราะผู้ใช้ลากย่อ/ขยายเองได้ เหลือไว้แค่สีกับการจัดวางของแต่ละคอลัมน์ */
+.sp-table .sp-fix-1 { text-align: right; color: #94a3b8; }
+.sp-table .sp-fix-4 { color: #64748b; }
 
 .sp-table .sp-fix-all { left: 0; }
 
@@ -3173,7 +3230,6 @@ button.fp-toggle { display: none; }
    ปล่อยให้เลื่อนทั้งตารางตามปกติ ดีกว่าเห็นแต่ชื่อสินค้ากับขอบจอ */
 @media (max-width: 1280px) {
     .sp-table .sp-fix { position: static; }
-    .sp-table .sp-fix-3 { max-width: 14rem; }
     .sp-table .sp-fix-9::after { display: none; }
 }
 
@@ -3304,6 +3360,51 @@ button.fp-toggle { display: none; }
 .dark .sp-cols-item:hover { background: #1e293b; }
 .dark .sp-cols-item small { color: #64748b; }
 .dark .sp-cols-sep { color: #64748b; }
+/* ---------- ลากขอบหัวคอลัมน์เพื่อย่อ/ขยาย ----------
+   table-layout: fixed ทำให้ความกว้างมาจาก colgroup ที่เดียว เบราว์เซอร์
+   ไม่ต้องวัดเนื้อหาทุกช่องเพื่อเดาความกว้าง ซึ่งกับสามร้อยกว่าแถวคูณสี่สิบ
+   คอลัมน์คือคอขวดตอนลาก และการลากก็แค่แก้ตัวเลขใน <col> ตัวเดียว
+
+   แลกมาด้วยการที่เนื้อหายาวเกินช่องจะถูกตัด จึงต้องมี ellipsis ให้ทุกช่อง
+   ไม่ใช่เฉพาะคอลัมน์ชื่อสินค้าเหมือนก่อน */
+.sp-table { table-layout: fixed; }
+
+.sp-table th, .sp-table td { overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- ช่องที่ห้ามตัด ----------
+   overflow: hidden สร้าง scroll container ขึ้นมาใหม่ ซึ่งทำให้ span ที่ตั้ง
+   position: sticky ข้างในไปเกาะกับช่องนั้นแทนที่จะเกาะกรอบตารางที่เลื่อนอยู่
+   ป้ายหมวดกับป้ายแถวรวมจึงเลิกตรึงทันทีถ้าปล่อยให้ช่องพวกนี้ตัดเนื้อหา */
+.sp-table .sp-cat td,
+.sp-table .sp-subcat td,
+.sp-table .sp-sum-label { overflow: visible; }
+
+.sp-table th { position: relative; }
+
+/* ที่จับต้องอยู่ "ในกรอบ" ของหัวคอลัมน์ เพราะหัวคอลัมน์ตั้ง overflow: hidden ไว้
+   ถ้าให้ล้นออกไปทางขวา (right ติดลบ) จะถูกตัดจนเหลือแถบบางเฉียบที่กดไม่โดน */
+.sp-grip {
+    position: absolute; top: 0; right: 0; bottom: 0;
+    width: .625rem; z-index: 4;
+    cursor: col-resize;
+}
+.sp-grip::after {
+    content: ''; position: absolute; top: 20%; bottom: 20%; right: 1px;
+    width: 2px; border-radius: 1px; background: transparent;
+    transition: background .12s;
+}
+.sp-grip:hover::after { background: #0f766e; }
+
+/* ระหว่างลาก ห้ามให้เมาส์ไปเลือกข้อความในตาราง ไม่งั้นจะลากติดแถบน้ำเงินไปด้วย */
+body.sp-resizing { cursor: col-resize; user-select: none; }
+body.sp-resizing .sp-grip::after { background: #0f766e; }
+
+.dark .sp-grip:hover::after,
+.dark body.sp-resizing .sp-grip::after { background: #5eead4; }
+
+/* กระดาษไม่มีอะไรให้ลาก */
+@media print { .sp-grip { display: none !important; } }
+
 
 .dark .sp-table tbody tr.is-moved .sp-fix-2,
 .dark .sp-table tbody tr.is-moved .sp-fix-3 { color: #f1f5f9; }

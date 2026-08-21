@@ -332,6 +332,120 @@ function cost_drill($from, $to, $filter = array())
 
 
 /* ============================================================
+ *  สรุปตามหมวดหมู่หลัก × หน่วยงาน
+ * ============================================================
+ *  หน้าตาแบบใบที่บัญชีทำมือกันอยู่: แถวละหมวดหมู่หลัก คอลัมน์ละหน่วยงาน
+ *  มีทั้งยอดสั่งซื้อรวมของหมวดนั้น และยอดเบิกของแต่ละหน่วยงาน
+ *
+ *      ลำดับ | รายการ(หมวด) | ยอดรวมสั่งซื้อ | หน่วยงาน... | รวมเบิกทั้งหมด
+ *
+ *  ต่างจากตาราง "แยกตามหมวดหมู่" ที่มีอยู่แล้ว ตรงที่ตัวนั้นดูฝั่งเบิกอย่างเดียว
+ *  และไม่ได้กางว่าใครเบิก ตัวนี้เอาสองมุมมาไว้ในตารางเดียวให้เห็นพร้อมกัน
+ *
+ *  กางเฉพาะหน่วยงานที่มีการเบิกจริงในเดือนนั้น เหมือนรายงานสั่งซื้อ-เบิกใช้
+ *  เดือนที่ไม่มีใครเบิกเลยจะเหลือแค่คอลัมน์ยอดสั่งซื้อ
+ */
+function cost_cat_dept($from, $to)
+{
+    /* ---------- ฝั่งซื้อ : รวมทั้งหมวด ---------- */
+    $buy_sql = "SELECT COALESCE(c.`category_id`, 0) AS `cid`,
+                       COALESCE(c.`category_name`, '(ไม่ระบุหมวดหมู่)') AS `cname`,
+                       SUM(CASE WHEN m.`move_type` = 'receive' THEN m.`total_cost`
+                                ELSE -m.`total_cost` END) AS `val`
+                FROM `tb_stock_movement` m
+                INNER JOIN `tb_product`      p ON p.`product_id`       = m.`product_id`
+                LEFT  JOIN `tb_sub_category` s ON s.`sub_category_id`  = p.`sub_category_id`
+                LEFT  JOIN `tb_category`     c ON c.`category_id`      = s.`category_id`
+                WHERE m.`move_date` >= ? AND m.`move_date` <= ?
+                  AND m.`move_type` IN ('receive', 'cancel_receive')
+                GROUP BY c.`category_id`, c.`category_name`";
+
+    /* ---------- ฝั่งเบิก : แยกหมวด x หน่วยงาน ---------- */
+    $out_sql = "SELECT COALESCE(c.`category_id`, 0) AS `cid`,
+                       COALESCE(c.`category_name`, '(ไม่ระบุหมวดหมู่)') AS `cname`,
+                       COALESCE(h.`department_id`, 0) AS `did`,
+                       COALESCE(dp.`department_name`, '(ไม่ระบุหน่วยงาน)') AS `dname`,
+                       COALESCE(co.`company_name`, '') AS `company`,
+                       SUM(CASE WHEN m.`move_type` = 'issue' THEN m.`total_cost`
+                                ELSE -m.`total_cost` END) AS `val`
+                FROM `tb_stock_movement` m
+                INNER JOIN `tb_product`      p  ON p.`product_id`      = m.`product_id`
+                LEFT  JOIN `tb_sub_category` s  ON s.`sub_category_id` = p.`sub_category_id`
+                LEFT  JOIN `tb_category`     c  ON c.`category_id`     = s.`category_id`
+                LEFT  JOIN `tb_doc_header`   h  ON h.`doc_id`          = m.`doc_id`
+                LEFT  JOIN `tb_department`   dp ON dp.`department_id`  = h.`department_id`
+                LEFT  JOIN `tb_company`      co ON co.`company_id`     = dp.`company_id`
+                WHERE m.`move_date` >= ? AND m.`move_date` <= ?
+                  AND m.`move_type` IN ('issue', 'cancel_issue')
+                GROUP BY c.`category_id`, h.`department_id`";
+
+    $buy  = cost_rows($buy_sql, $from, $to);
+    $outs = cost_rows($out_sql, $from, $to);
+
+    /* ---------- ประกอบเป็นตาราง ---------- */
+    $cat  = array();      /* cid -> แถว */
+    $dept = array();      /* did -> ข้อมูลหน่วยงาน */
+
+    function cost_cat_slot(&$cat, $cid, $cname) {
+        if (!isset($cat[$cid])) {
+            $cat[$cid] = array('category_id' => (int)$cid, 'category_name' => $cname,
+                               'buy' => 0, 'out' => 0, 'dept' => array());
+        }
+    }
+
+    for ($i = 0; $i < count($buy); $i++) {
+        $cid = (int)$buy[$i]['cid'];
+        cost_cat_slot($cat, $cid, $buy[$i]['cname']);
+        $cat[$cid]['buy'] += (float)$buy[$i]['val'];
+    }
+
+    for ($i = 0; $i < count($outs); $i++) {
+        $cid = (int)$outs[$i]['cid'];
+        $did = (int)$outs[$i]['did'];
+        $val = (float)$outs[$i]['val'];
+
+        /* ยกเลิกจ่ายออกอาจหักจนเหลือศูนย์พอดี ไม่ต้องกางคอลัมน์ให้ */
+        if ($val == 0) { continue; }
+
+        cost_cat_slot($cat, $cid, $outs[$i]['cname']);
+        $cat[$cid]['out'] += $val;
+
+        $dk = 'd' . $did;
+        if (!isset($cat[$cid]['dept'][$dk])) { $cat[$cid]['dept'][$dk] = 0; }
+        $cat[$cid]['dept'][$dk] += $val;
+
+        if (!isset($dept[$did])) {
+            $dept[$did] = array('id' => $did,
+                                'name' => trim($outs[$i]['dname']) !== '' ? $outs[$i]['dname'] : '(ไม่ระบุชื่อ)',
+                                'company' => $outs[$i]['company']);
+        }
+    }
+
+    /* หน่วยงานเรียงตามบริษัทแล้วตามชื่อ — ชื่อหน่วยงานซ้ำข้ามบริษัทได้
+       คนอ่านจึงต้องเห็นชื่อบริษัทกำกับถึงจะแยกออก */
+    $departments = array_values($dept);
+    usort($departments, 'cost_dept_cmp');
+
+    /* หมวดหมู่เรียงตามรหัส ให้ลำดับคงที่ทุกเดือน */
+    ksort($cat);
+
+    return array('departments' => $departments, 'rows' => array_values($cat));
+}
+
+
+function cost_dept_cmp($a, $b)
+{
+    if ($a['company'] === '' && $b['company'] !== '') { return 1; }
+    if ($b['company'] === '' && $a['company'] !== '') { return -1; }
+
+    $c = strcmp($a['company'], $b['company']);
+    if ($c !== 0) { return $c; }
+
+    return strcmp($a['name'], $b['name']);
+}
+
+
+/* ============================================================
  *  รวมทุกส่วนของรายงาน + ยอดสรุปหัวกระดาษ
  * ============================================================ */
 function cost_report($month)
@@ -378,6 +492,7 @@ function cost_report($month)
     return array(
         'range'   => $range,
         'byComp'  => $by_comp,
+        'byCatDept' => cost_cat_dept($from, $to),
         'byDept'  => $by_dept,
         'byCat'   => $by_cat,
         'receipts'=> $recv,

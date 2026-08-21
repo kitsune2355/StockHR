@@ -64,15 +64,37 @@
      *  แถวรวมท้ายตารางคำนวณจากข้อมูลชุดเดียวกับที่แสดง
      *  ตัวเลขรวมจึงตรงกับที่ตาเห็นเสมอ ไม่ใช่มาจากคนละที่
      * ============================================================ */
-    function drawTable(node, cols, rows, totalOf, drill) {
+    /* $opts (ไม่ใส่ก็ได้)
+         groups    หัวชั้นบนแบบพาดหลายคอลัมน์ [{ title, span }]
+         footLabel ป้ายของแถวรวม ถ้าไม่ใส่จะเป็น "รวม" */
+    function drawTable(node, cols, rows, totalOf, drill, opts) {
+        opts = opts || {};
         if (!rows || rows.length === 0) {
             node.innerHTML = '<tbody><tr><td class="rc-empty">ไม่มีรายการในเดือนนี้</td></tr></tbody>';
             return;
         }
 
-        var head = '<thead><tr>';
+        var head = '<thead>';
+
+        /* หัวชั้นบน — ใช้กับตารางที่คอลัมน์กลางเป็นชุดเดียวกัน (เช่นรายหน่วยงาน)
+           ถ้าไม่มีก็ข้ามไป ตารางอื่นในหน้านี้ยังเป็นหัวชั้นเดียวเหมือนเดิม */
+        if (opts.groups && opts.groups.length > 0) {
+            head += '<tr>';
+            for (var gi = 0; gi < opts.groups.length; gi++) {
+                var gg = opts.groups[gi];
+                head += '<th colspan="' + gg.span + '" class="rc-grouphead">'
+                     +  esc(gg.title || '') + '</th>';
+            }
+            head += '</tr>';
+        }
+
+        head += '<tr>';
         for (var c = 0; c < cols.length; c++) {
-            head += '<th class="' + (cols[c].align || '') + '">' + esc(cols[c].title) + '</th>';
+            head += '<th class="' + (cols[c].align || '') + '"'
+                 +  (cols[c].note ? ' title="' + esc(cols[c].note) + '"' : '') + '>'
+                 +  esc(cols[c].title)
+                 +  (cols[c].note ? '<small class="rc-colnote">' + esc(cols[c].note) + '</small>' : '')
+                 +  '</th>';
         }
         head += '</tr></thead>';
 
@@ -115,7 +137,7 @@
             for (var k = 0; k < cols.length; k++) {
                 var cc = cols[k];
                 if (k === 0) {
-                    foot += '<td class="rc-sum-label">รวม</td>';
+                    foot += '<td class="rc-sum-label">' + esc(opts.footLabel || 'รวม') + '</td>';
                 } else if (totalOf.indexOf(cc.key) >= 0) {
                     foot += '<td class="num">' + (cc.key === 'qty' ? qty(totals[cc.key]) : money(totals[cc.key])) + '</td>';
                 } else {
@@ -129,6 +151,61 @@
     }
 
 
+    /* ---------- โครงคอลัมน์ของตารางสรุปหมวด x หน่วยงาน ----------
+     * คอลัมน์กลางเป็นหน่วยงานที่เบิกจริงในเดือนนั้น จำนวนจึงไม่คงที่
+     * สร้างจากข้อมูลทุกครั้งที่เปลี่ยนเดือน ใช้ร่วมกันทั้งบนจอและตอนส่งออก
+     */
+    function catDeptCols(cd) {
+        var cols = [
+            { key: 'no',   title: 'ลำดับ', align: 'num' },
+            { key: 'category_name', title: 'รายการ' },
+            { key: 'buy',  title: 'ยอดรวมสั่งซื้อทั้งหมด', align: 'num',
+              fmt: function (v) { return v ? money(v) : '<span class="grid-empty">-</span>'; } }
+        ];
+
+        for (var i = 0; i < cd.departments.length; i++) {
+            cols.push(deptCol(cd.departments[i]));
+        }
+
+        cols.push({ key: 'out', title: 'รวมเบิกทั้งหมด', align: 'num',
+                    fmt: function (v) { return v ? '<b>' + money(v) + '</b>'
+                                                 : '<span class="grid-empty">-</span>'; } });
+        return cols;
+    }
+
+    /* ปิด id ของหน่วยงานไว้ใน closure ทีละตัว ไม่ใช้ตัวแปรวนซ้ำร่วมกัน
+       ไม่งั้นทุกคอลัมน์จะไปอ่านค่าของหน่วยงานสุดท้ายเหมือนกันหมด */
+    function deptCol(d) {
+        return {
+            key:   'd' + d.id,
+            title: String(d.name || '').replace(/^\s+|\s+$/g, ''),
+            note:  d.company,
+            align: 'num',
+            fmt:   function (v) { return v ? money(v) : '<span class="grid-empty">-</span>'; }
+        };
+    }
+
+    /* แบนข้อมูลหน่วยงานออกมาเป็นคีย์ระดับบนสุด drawTable จะได้อ่านตรง ๆ */
+    function catDeptRows(cd) {
+        var out = [];
+        for (var i = 0; i < cd.rows.length; i++) {
+            var r = cd.rows[i];
+            var one = { no: i + 1, category_name: r.category_name, buy: r.buy, out: r.out };
+            for (var k in r.dept) {
+                if (r.dept.hasOwnProperty(k)) { one[k] = r.dept[k]; }
+            }
+            out.push(one);
+        }
+        return out;
+    }
+
+    function catDeptTotalOf(cd) {
+        var keys = ['buy'];
+        for (var i = 0; i < cd.departments.length; i++) { keys.push('d' + cd.departments[i].id); }
+        keys.push('out');
+        return keys;
+    }
+
     function render(res) {
         DATA = res;
 
@@ -141,6 +218,20 @@
         el('sumIn').textContent     = money(s.total_in);
         el('sumQtyIn').textContent  = qty(s.qty_in);
         el('sumStock').textContent  = money(s.stock_value);
+
+        /* ---------- สรุปหมวดหมู่ x หน่วยงาน ----------
+           ใบเดียวที่ตอบได้ทั้ง "เดือนนี้ซื้อของกลุ่มไหนไปเท่าไร" และ
+           "แต่ละหน่วยงานเบิกของกลุ่มนั้นไปคนละเท่าไร" ซึ่งเป็นสองคำถามที่
+           บัญชีถามคู่กันเสมอ แต่เดิมต้องเปิดสองตารางแล้วไล่จับคู่เอง */
+        var cd = res.byCatDept;
+        drawTable(el('tblCatDept'), catDeptCols(cd), catDeptRows(cd), catDeptTotalOf(cd), null, {
+            footLabel: 'ยอดรวมแต่ละหน่วยงาน',
+            groups: [
+                { title: '', span: 3 },
+                { title: 'ยอดรวมการเบิกใช้ของแต่ละหน่วยงาน', span: cd.departments.length },
+                { title: '', span: 1 }
+            ]
+        });
 
         /* ---------- 0) บริษัท ----------
            แต่ละบริษัทปิดงบแยกกัน บัญชีจึงต้องได้ยอดรายบริษัทโดยไม่ต้องนั่งบวก
@@ -366,7 +457,7 @@
         setHidden(btn.querySelector('.btn-spinner'), !on);
     }
 
-    function sheetFrom(cols, rows, totalOf) {
+    function sheetFrom(cols, rows, totalOf, footLabel) {
         var aoa = [];
         var head = [];
         for (var c = 0; c < cols.length; c++) { head.push(cols[c].title); }
@@ -390,7 +481,7 @@
         if (totalOf && totalOf.length > 0 && rows.length > 0) {
             var sum = [];
             for (var k = 0; k < cols.length; k++) {
-                if (k === 0) { sum.push('รวม'); }
+                if (k === 0) { sum.push(footLabel || 'รวม'); }
                 else if (totalOf.indexOf(cols[k].key) >= 0) { sum.push(Number(totals[cols[k].key] || 0)); }
                 else { sum.push(''); }
             }
@@ -420,6 +511,29 @@
 
         var go = function () {
             var wb = XLSX.utils.book_new();
+
+            /* ---------- สรุปหมวดหมู่ x หน่วยงาน ----------
+               คอลัมน์หน่วยงานไม่คงที่ จึงสร้างจากโครงเดียวกับที่วาดบนจอ
+               ไฟล์ที่ได้จึงมีคอลัมน์เท่ากับที่ตาเห็นเสมอ */
+            var cd = DATA.byCatDept;
+            var cdCols = [
+                { key: 'no',  title: 'ลำดับ', numeric: true },
+                { key: 'category_name', title: 'รายการ' },
+                { key: 'buy', title: 'ยอดรวมสั่งซื้อทั้งหมด', numeric: true }
+            ];
+            for (var ci = 0; ci < cd.departments.length; ci++) {
+                var d = cd.departments[ci];
+                cdCols.push({
+                    key: 'd' + d.id, numeric: true,
+                    title: String(d.name || '').replace(/^s+|s+$/g, '')
+                         + (d.company ? ' (' + d.company + ')' : '')
+                });
+            }
+            cdCols.push({ key: 'out', title: 'รวมเบิกทั้งหมด', numeric: true });
+
+            XLSX.utils.book_append_sheet(wb,
+                sheetFrom(cdCols, catDeptRows(cd), catDeptTotalOf(cd), 'ยอดรวมแต่ละหน่วยงาน'),
+                'สรุปหมวดและหน่วยงาน');
 
             XLSX.utils.book_append_sheet(wb, sheetFrom([
                 { key: 'name', title: 'หน่วยงาน' }, { key: 'company', title: 'บริษัท' },

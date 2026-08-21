@@ -97,11 +97,26 @@ $input    = 'input-control h-11 rounded-xl border border-slate-200 bg-white px-4
       </div>
     </div>
 
+    <!-- ===== ตารางสรุป : หมวดหมู่ x หน่วยงาน =====
+         ใบที่บัญชีทำมือกันอยู่ — แถวละหมวดหมู่หลัก คอลัมน์ละหน่วยงาน
+         มีทั้งยอดสั่งซื้อของหมวดนั้นและยอดเบิกของแต่ละหน่วยงานในตารางเดียว
+
+         วางไว้บนสุดเพราะเป็นภาพรวมที่สุด ตารางที่เหลือคือการเจาะลงไปทีละมุม -->
+    <section class="rc-sec">
+      <h2 class="rc-sec-title"><span class="rc-no">1</span> สรุปค่าใช้จ่ายการสั่งซื้อ - เบิกใช้ แยกตามหมวดหมู่และหน่วยงาน</h2>
+      <p class="rc-note">
+        กางเฉพาะหน่วยงานที่มีการเบิกจริงในเดือนนี้ · ชื่อบริษัทกำกับอยู่ใต้ชื่อหน่วยงาน เพราะชื่อหน่วยงานซ้ำกันข้ามบริษัทได้
+      </p>
+      <div class="rc-table-wrap">
+        <table class="rc-table rc-table-wide" id="tblCatDept"></table>
+      </div>
+    </section>
+
     <!-- ===== ตารางที่ 1 : แยกตามบริษัท =====
          แต่ละบริษัทปิดงบแยกกัน จึงต้องมียอดรายบริษัทให้เลย
          ไม่ใช่ให้บัญชีนั่งบวกเองจากตารางรายหน่วยงาน -->
     <section class="rc-sec">
-      <h2 class="rc-sec-title"><span class="rc-no">1</span> ค่าใช้จ่ายแยกตามบริษัท</h2>
+      <h2 class="rc-sec-title"><span class="rc-no">2</span> ค่าใช้จ่ายแยกตามบริษัท</h2>
       <p class="rc-note no-print">กดที่บรรทัดใดก็ได้ เพื่อดูว่ายอดนั้นมาจากเอกสารใบไหนบ้าง</p>
       <div class="rc-table-wrap">
         <table class="rc-table" id="tblComp"></table>
@@ -110,7 +125,7 @@ $input    = 'input-control h-11 rounded-xl border border-slate-200 bg-white px-4
 
     <!-- ===== ตารางที่ 2 : แยกตามหน่วยงาน ===== -->
     <section class="rc-sec">
-      <h2 class="rc-sec-title"><span class="rc-no">2</span> ค่าใช้จ่ายแยกตามหน่วยงานที่เบิก</h2>
+      <h2 class="rc-sec-title"><span class="rc-no">3</span> ค่าใช้จ่ายแยกตามหน่วยงานที่เบิก</h2>
       <div class="rc-table-wrap">
         <table class="rc-table" id="tblDept"></table>
       </div>
@@ -118,7 +133,7 @@ $input    = 'input-control h-11 rounded-xl border border-slate-200 bg-white px-4
 
     <!-- ===== ตารางที่ 3 : แยกตามหมวดหมู่ ===== -->
     <section class="rc-sec">
-      <h2 class="rc-sec-title"><span class="rc-no">3</span> ค่าใช้จ่ายแยกตามหมวดหมู่สินค้า</h2>
+      <h2 class="rc-sec-title"><span class="rc-no">4</span> ค่าใช้จ่ายแยกตามหมวดหมู่สินค้า</h2>
       <div class="rc-table-wrap">
         <table class="rc-table" id="tblCat"></table>
       </div>
@@ -126,7 +141,7 @@ $input    = 'input-control h-11 rounded-xl border border-slate-200 bg-white px-4
 
     <!-- ===== ตารางที่ 4 : การรับเข้า ===== -->
     <section class="rc-sec">
-      <h2 class="rc-sec-title"><span class="rc-no">4</span> สรุปการรับเข้าในเดือน</h2>
+      <h2 class="rc-sec-title"><span class="rc-no">5</span> สรุปการรับเข้าในเดือน</h2>
       <p class="rc-note">
         แยกบรรทัดตามราคาที่ซื้อ — สินค้าตัวเดียวกันที่ซื้อคนละราคาในเดือนเดียว จะแยกเป็นคนละบรรทัด
       </p>
@@ -137,7 +152,7 @@ $input    = 'input-control h-11 rounded-xl border border-slate-200 bg-white px-4
 
     <!-- ===== ตารางที่ 5 : รายละเอียด ===== -->
     <section class="rc-sec">
-      <h2 class="rc-sec-title"><span class="rc-no">5</span> รายละเอียดจ่ายสินค้าออกรายตัวสินค้า แยกตามหน่วยงาน </h2>
+      <h2 class="rc-sec-title"><span class="rc-no">6</span> รายละเอียดจ่ายสินค้าออกรายตัวสินค้า แยกตามหน่วยงาน </h2>
       <p class="rc-note no-print">กดที่บรรทัด เพื่อดูว่าสินค้าตัวนี้ถูกเบิกไปวันไหน ด้วยเอกสารใบใด</p>
       <div class="rc-table-wrap">
         <table class="rc-table" id="tblDetail"></table>

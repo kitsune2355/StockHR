@@ -29,26 +29,40 @@
      */
     var hiddenCols = {};
 
-    /* ความกว้าง (rem) ของช่องที่ตรึงได้ ต้องตรงกับ .sp-fix-N ใน app.css เสมอ
-       เอามาบวกกันเองเพราะ CSS ไม่รู้ว่าผู้ใช้ซ่อนคอลัมน์ไหนไปบ้าง */
-    var FIX_W = {
-        'sp-fix-1': 2.75,  'sp-fix-2': 6.25,  'sp-fix-3': 14.375,
-        'sp-fix-4': 3.625, 'sp-fix-5': 4.75,  'sp-fix-6': 6.25,
-        'sp-fix-7': 4.75,  'sp-fix-8': 6.5,   'sp-fix-9': 6.5
-    };
+    /* ---------- ความกว้างคอลัมน์ (rem) ----------
+     * ค่าปริยายแยกตามชนิดของช่อง ไม่ได้ปักไว้รายคอลัมน์ เพราะจำนวนคอลัมน์
+     * ไม่คงที่ (หน่วยงานกางตามเดือน) จะเขียนไว้ล่วงหน้าไม่ได้
+     *
+     * ผู้ใช้ลากขอบเพื่อย่อ/ขยายได้ ค่าที่ลากไว้เก็บใน colWidth ทับค่าปริยาย
+     * เก็บด้วยกุญแจที่ไม่ขึ้นกับลำดับ (เช่น 'open:1') เดือนใหม่ที่คอลัมน์
+     * ขยับตำแหน่งจึงยังได้ความกว้างเดิมที่เคยตั้งไว้
+     */
+    var COL_W = { seq: 2.75, code: 6.25, name: 14.375, unit: 3.625,
+                  qty: 4.75, money: 6.25, text: 6.5 };
 
-    /* คลาสตรึงของช่องนี้คือตัวไหน (คืน '' ถ้าไม่ใช่ช่องที่ตรึง) */
-    /* style="left:..." ของช่องที่ตรึง ช่องธรรมดาได้สตริงว่าง */
-    function fixStyle(col) {
-        return (col && typeof col.left === 'number') ? ' style="left:' + col.left + 'rem"' : '';
+    var COL_MIN = 2;        /* ย่อจนอ่านไม่ออกไม่มีประโยชน์ */
+    var COL_MAX = 40;
+
+    var colWidth = {};      /* กุญแจคอลัมน์ -> ความกว้าง (rem) ที่ผู้ใช้ตั้งเอง */
+
+    function widthOf(key, fallback) {
+        var w = colWidth[key];
+        return (typeof w === 'number' && w > 0) ? w : fallback;
     }
 
+    /* style="left:..." ของช่องที่ตรึง ช่องธรรมดาได้สตริงว่าง */
+    function fixStyle(col) {
+        if (!col || typeof col.left !== 'number') { return ''; }
+        /* ปัดทศนิยมทิ้ง ไม่งั้นการบวกความกว้างทีละคอลัมน์จะได้ 37.004999999999995
+           ซึ่งยาวเกินจำเป็นในทุกช่องของตารางสามร้อยกว่าแถว */
+        return ' style="left:' + (Math.round(col.left * 1000) / 1000) + 'rem"';
+    }
+
+    /* ช่องนี้ตรึงอยู่หรือเปล่า (ดูจากคลาส sp-fix-N ที่ติดมา) */
     function fixKey(cls) {
         if (!cls) { return ''; }
-        for (var k in FIX_W) {
-            if (FIX_W.hasOwnProperty(k) && (' ' + cls + ' ').indexOf(' ' + k + ' ') >= 0) { return k; }
-        }
-        return '';
+        var m = (' ' + cls + ' ').match(/ sp-fix-([1-9]) /);
+        return m ? m[0].replace(/ /g, '') : '';
     }
 
     function el(id) { return document.getElementById(id); }
@@ -123,6 +137,9 @@
             { key: 'name', title: 'รายการ',     cls: 'sp-fix sp-fix-3' },
             { key: 'unit', title: 'หน่วย',      cls: 'sp-fix sp-fix-4' }
         ];
+        for (var fw = 0; fw < fixed.length; fw++) {
+            fixed[fw].w = widthOf(fixed[fw].key, COL_W[fixed[fw].key]);
+        }
 
         var groups = [];
 
@@ -240,31 +257,48 @@
         }
         groups = keep;
 
+        /* ---------- กุญแจและความกว้างของทุกช่องในกลุ่ม ----------
+           กุญแจใช้ชื่อกลุ่มบวกลำดับช่องในกลุ่ม ไม่ใช่ลำดับในตาราง
+           เดือนที่หน่วยงานสลับตำแหน่งจึงยังจำความกว้างเดิมได้ */
+        for (var gw = 0; gw < groups.length; gw++) {
+            for (var cw = 0; cw < groups[gw].cols.length; cw++) {
+                var col = groups[gw].cols[cw];
+                col.wkey = groups[gw].key + ':' + cw;
+                col.w    = widthOf(col.wkey, COL_W[col.kind] || COL_W.money);
+            }
+        }
+
         /* ---------- ตำแหน่งซ้ายของช่องที่ตรึง ----------
-         * ไล่บวกความกว้างของช่องที่ "เหลืออยู่จริง" ตามลำดับซ้ายไปขวา
-         * ปักไว้ใน CSS ไม่ได้ เพราะซ่อนคอลัมน์กลางแล้วตัวที่เหลือต้องเลื่อนมาแทน
+         * ไล่บวกความกว้าง "ที่ใช้จริง" ของช่องที่เหลืออยู่ ตามลำดับซ้ายไปขวา
+         * ปักไว้ใน CSS ไม่ได้ เพราะทั้งการซ่อนคอลัมน์และการลากย่อ/ขยาย
+         * ทำให้ตำแหน่งของตัวที่เหลือเปลี่ยนไปตลอด
          */
         var at = 0;
         for (var f2 = 0; f2 < fixed.length; f2++) {
             fixed[f2].left = at;
-            at += FIX_W[fixKey(fixed[f2].cls)] || 0;
+            at += fixed[f2].w;
         }
         for (var g2 = 0; g2 < groups.length; g2++) {
             var head = null;
             for (var e2 = 0; e2 < groups[g2].cols.length; e2++) {
-                var key = fixKey(groups[g2].cols[e2].cls);
-                if (!key) { continue; }
+                if (!fixKey(groups[g2].cols[e2].cls)) { continue; }
                 if (head === null) { head = at; }
                 groups[g2].cols[e2].left = at;
-                at += FIX_W[key];
+                at += groups[g2].cols[e2].w;
             }
             groups[g2].left = head;      /* ใช้กับหัวกลุ่มชั้นบน */
         }
 
-        var width = fixed.length;
-        for (var g3 = 0; g3 < groups.length; g3++) { width += groups[g3].cols.length; }
+        var width  = fixed.length;
+        var totalW = 0;
+        for (var f3 = 0; f3 < fixed.length; f3++) { totalW += fixed[f3].w; }
+        for (var g3 = 0; g3 < groups.length; g3++) {
+            width += groups[g3].cols.length;
+            for (var c3 = 0; c3 < groups[g3].cols.length; c3++) { totalW += groups[g3].cols[c3].w; }
+        }
 
-        return { fixed: fixed, groups: groups, width: width };
+        return { fixed: fixed, groups: groups, width: width,
+                 totalW: Math.round(totalW * 1000) / 1000 };
     }
 
 
@@ -441,16 +475,42 @@
         return out + '</tr>';
     }
 
+    /* ---------- ที่จับสำหรับลากย่อ/ขยาย ----------
+       ใส่ไว้ในหัวคอลัมน์ทุกช่องของหัวชั้นล่าง และในสี่คอลัมน์แรกที่พาดสองชั้น
+       data-wkey บอกว่ากำลังลากคอลัมน์ไหน จะได้จำความกว้างไว้ถูกตัว */
+    function grip(wkey) {
+        return '<span class="sp-grip" data-wkey="' + esc(wkey) + '"'
+             + ' title="ลากเพื่อย่อ/ขยาย · ดับเบิลคลิกเพื่อคืนความกว้างเดิม"></span>';
+    }
+
     function draw(cols, rows) {
 
         var html = '';
+
+        /* ---------- ความกว้างของทุกคอลัมน์ ----------
+         * ประกาศครั้งเดียวใน colgroup แล้วให้ตารางเป็น table-layout: fixed
+         * เบราว์เซอร์จึงไม่ต้องวัดเนื้อหาทุกช่องเพื่อเดาความกว้าง
+         * (สามร้อยกว่าแถวคูณสี่สิบคอลัมน์ การวัดใหม่ทุกครั้งที่ลากคือคอขวด)
+         * และการลากย่อ/ขยายก็แค่แก้ตัวเลขในนี้ตัวเดียว
+         */
+        html += '<colgroup>';
+        for (var cg = 0; cg < cols.fixed.length; cg++) {
+            html += '<col style="width:' + cols.fixed[cg].w + 'rem">';
+        }
+        for (var cgg = 0; cgg < cols.groups.length; cgg++) {
+            var cgc = cols.groups[cgg].cols;
+            for (var cgi = 0; cgi < cgc.length; cgi++) {
+                html += '<col style="width:' + cgc[cgi].w + 'rem">';
+            }
+        }
+        html += '</colgroup>';
 
         /* ---------- หัวสองชั้น ---------- */
         html += '<thead><tr>';
         for (var f = 0; f < cols.fixed.length; f++) {
             html += '<th rowspan="2" class="' + cols.fixed[f].cls + '"'
                  +  fixStyle(cols.fixed[f]) + '>'
-                 +  esc(cols.fixed[f].title) + '</th>';
+                 +  esc(cols.fixed[f].title) + grip(cols.fixed[f].key) + '</th>';
         }
         for (var g = 0; g < cols.groups.length; g++) {
             var grp = cols.groups[g];
@@ -468,7 +528,7 @@
             for (var k = 0; k < sc.length; k++) {
                 html += '<th class="num sp-sub sp-g-' + cols.groups[s].tone
                      +  (sc[k].cls ? ' ' + sc[k].cls : '') + '"' + fixStyle(sc[k]) + '>'
-                     +  esc(sc[k].title) + '</th>';
+                     +  esc(sc[k].title) + grip(sc[k].wkey) + '</th>';
             }
         }
         html += '</tr></thead>';
@@ -476,7 +536,8 @@
         if (rows.length === 0) {
             html += '<tbody><tr><td colspan="' + cols.width + '" class="rc-empty">'
                  +  'ไม่มีรายการที่ตรงกับตัวกรอง</td></tr></tbody>';
-            el('spTable').innerHTML = html;
+            el('spTable').style.width = cols.totalW + 'rem';
+            el('spTable').innerHTML   = html;
             return;
         }
 
@@ -580,9 +641,91 @@
         }
         foot += '</tr></tfoot>';
 
-        el('spTable').innerHTML = html + body + foot;
+        /* ---------- ตารางต้องบอกความกว้างของตัวเอง ----------
+         * table-layout: fixed กับ width: auto เบราว์เซอร์จะบีบตารางให้เท่ากรอบ
+         * ที่ครอบอยู่ แล้วเฉลี่ยความกว้างคอลัมน์เอง ไม่สนใจ <colgroup> เลย
+         * ผลคือทุกคอลัมน์แคบเท่ากันหมดและตำแหน่งที่ตรึงไว้ก็เพี้ยนตาม
+         *
+         * บอกความกว้างรวมไปตรง ๆ ตารางจึงกว้างตามคอลัมน์จริง แล้วกรอบ .sp-wrap
+         * ค่อยเลื่อนเอา ซึ่งเป็นพฤติกรรมเดิมก่อนเปลี่ยนมาใช้ fixed */
+        el('spTable').style.width = cols.totalW + 'rem';
+        el('spTable').innerHTML   = html + body + foot;
     }
 
+
+    /* ============================================================
+     *  ลากขอบหัวคอลัมน์เพื่อย่อ/ขยาย
+     * ============================================================
+     *  ระหว่างลากแก้แค่ <col> ตัวเดียวกับตำแหน่งของคอลัมน์ที่ตรึงอยู่
+     *  ไม่ได้วาดตารางใหม่ เพราะสามร้อยกว่าแถวคูณสี่สิบคอลัมน์ วาดใหม่ทุกครั้ง
+     *  ที่เมาส์ขยับจะกระตุกจนใช้ไม่ได้
+     *
+     *  ปล่อยเมาส์แล้วค่อยวาดใหม่รอบเดียว ให้ทุกอย่างกลับมาตรงกันแน่นอน
+     * ============================================================ */
+    var dragCol = null;
+
+    function remPx() {
+        var v = parseFloat(getComputedStyle(document.documentElement).fontSize);
+        return (v > 0) ? v : 16;
+    }
+
+    /* ลำดับของคอลัมน์นี้ในตาราง ใช้หา <col> ที่ต้องแก้ */
+    function colIndexOf(cols, wkey) {
+        var i = 0, g, e;
+        for (i = 0; i < cols.fixed.length; i++) {
+            if (cols.fixed[i].key === wkey) { return i; }
+        }
+        i = cols.fixed.length;
+        for (g = 0; g < cols.groups.length; g++) {
+            for (e = 0; e < cols.groups[g].cols.length; e++) {
+                if (cols.groups[g].cols[e].wkey === wkey) { return i; }
+                i++;
+            }
+        }
+        return -1;
+    }
+
+    function startDrag(ev, wkey) {
+        var cols = buildCols(DATA);
+        var idx  = colIndexOf(cols, wkey);
+        if (idx < 0) { return; }
+
+        var colEls = el('spTable').getElementsByTagName('col');
+        if (!colEls[idx]) { return; }
+
+        dragCol = {
+            wkey: wkey,
+            idx:  idx,
+            el:   colEls[idx],
+            from: ev.clientX,
+            base: parseFloat(colEls[idx].style.width) || 6,
+            unit: remPx()
+        };
+        document.body.className += ' sp-resizing';
+        ev.preventDefault();
+    }
+
+    function moveDrag(ev) {
+        if (!dragCol) { return; }
+
+        var w = dragCol.base + (ev.clientX - dragCol.from) / dragCol.unit;
+        if (w < COL_MIN) { w = COL_MIN; }
+        if (w > COL_MAX) { w = COL_MAX; }
+
+        dragCol.w = Math.round(w * 100) / 100;
+        dragCol.el.style.width = dragCol.w + 'rem';
+    }
+
+    function endDrag() {
+        if (!dragCol) { return; }
+
+        if (typeof dragCol.w === 'number') { colWidth[dragCol.wkey] = dragCol.w; }
+        dragCol = null;
+        document.body.className = document.body.className.replace(/\s*sp-resizing/, '');
+
+        /* วาดใหม่รอบเดียว ตำแหน่งของคอลัมน์ที่ตรึงทางซ้ายจะได้ขยับตามความกว้างใหม่ */
+        render();
+    }
 
     /* ---------- วาดใหม่ทั้งหน้าเมื่อข้อมูลหรือตัวกรองเปลี่ยน ---------- */
     function render() {
@@ -1285,6 +1428,24 @@
                 render();
             });
         }
+
+        /* ---------- ลากย่อ/ขยายคอลัมน์ ---------- */
+        el('spTable').addEventListener('mousedown', function (ev) {
+            var g = ev.target;
+            if (!g || !g.className || String(g.className).indexOf('sp-grip') < 0) { return; }
+            startDrag(ev, g.getAttribute('data-wkey'));
+        });
+
+        document.addEventListener('mousemove', moveDrag);
+        document.addEventListener('mouseup', endDrag);
+
+        /* ดับเบิลคลิกที่ขอบ = คืนความกว้างเดิมของคอลัมน์นั้น */
+        el('spTable').addEventListener('dblclick', function (ev) {
+            var g = ev.target;
+            if (!g || !g.className || String(g.className).indexOf('sp-grip') < 0) { return; }
+            delete colWidth[g.getAttribute('data-wkey')];
+            render();
+        });
 
         el('btnPrint').addEventListener('click', function () { window.print(); });
         el('btnExport').addEventListener('click', exportExcel);
