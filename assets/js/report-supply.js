@@ -22,6 +22,35 @@
 
     var DATA = null;
 
+    /* ---------- คอลัมน์ที่ผู้ใช้ปิดไว้ ----------
+     * เก็บเป็น "รายการที่ปิด" ไม่ใช่ "รายการที่เปิด" เพราะเดือนใหม่มีหน่วยงาน
+     * ไม่เหมือนเดือนเก่า ถ้าเก็บเป็นรายการที่เปิด หน่วยงานที่เพิ่งโผล่มา
+     * จะถูกซ่อนไปโดยที่ผู้ใช้ไม่ได้สั่ง ค่าปริยายคือเห็นทุกคอลัมน์เสมอ
+     */
+    var hiddenCols = {};
+
+    /* ความกว้าง (rem) ของช่องที่ตรึงได้ ต้องตรงกับ .sp-fix-N ใน app.css เสมอ
+       เอามาบวกกันเองเพราะ CSS ไม่รู้ว่าผู้ใช้ซ่อนคอลัมน์ไหนไปบ้าง */
+    var FIX_W = {
+        'sp-fix-1': 2.75,  'sp-fix-2': 6.25,  'sp-fix-3': 14.375,
+        'sp-fix-4': 3.625, 'sp-fix-5': 4.75,  'sp-fix-6': 6.25,
+        'sp-fix-7': 4.75,  'sp-fix-8': 6.5,   'sp-fix-9': 6.5
+    };
+
+    /* คลาสตรึงของช่องนี้คือตัวไหน (คืน '' ถ้าไม่ใช่ช่องที่ตรึง) */
+    /* style="left:..." ของช่องที่ตรึง ช่องธรรมดาได้สตริงว่าง */
+    function fixStyle(col) {
+        return (col && typeof col.left === 'number') ? ' style="left:' + col.left + 'rem"' : '';
+    }
+
+    function fixKey(cls) {
+        if (!cls) { return ''; }
+        for (var k in FIX_W) {
+            if (FIX_W.hasOwnProperty(k) && (' ' + cls + ' ').indexOf(' ' + k + ' ') >= 0) { return k; }
+        }
+        return '';
+    }
+
     function el(id) { return document.getElementById(id); }
 
     function setHidden(node, hide) {
@@ -66,10 +95,26 @@
      *  fixed  = คอลัมน์ซ้ายสุดที่ตรึงไว้ ไม่มีหัวสองชั้น
      *  groups = กลุ่มที่มีหัวสองชั้น กลุ่มละสองคอลัมน์ (จำนวน / เป็นเงิน)
      *
-     *  ทุกกลุ่มหน้าตาเหมือนกันหมด ต่างแค่ชื่อกับที่มาของค่า จึงเก็บวิธี
-     *  หยิบค่าไว้ในตัวกลุ่มเลย (qtyOf / valOf) แล้วส่วนที่วาดไม่ต้องรู้ว่า
-     *  ค่านั้นมาจากคอลัมน์ตรง ๆ หรือมาจากหน่วยงานที่กางออกมา
+     *  แต่ละกลุ่มบอกเองว่ามีกี่ช่องและแต่ละช่องเอาค่ามาจากไหน (cols)
+     *  ส่วนที่วาดกับส่วนที่ส่งออก Excel จึงวนตามนั้นได้โดยไม่ต้องรู้ว่า
+     *  ค่ามาจากคอลัมน์ตรง ๆ จากหน่วยงานที่กางออกมา หรือจากล็อตราคา
+     *
+     *  ที่ต้องยืดหยุ่นเพราะกลุ่ม "ซื้อเข้า" มีสามช่อง (มีราคาแทรกกลาง)
+     *  ส่วนกลุ่มอื่นมีสองช่องตามเดิม
      */
+    /* รวม object เข้าด้วยกันแบบตื้น ๆ ใช้เติม cls ให้ช่องที่ตรึงไว้
+       (หน้านี้ไม่ได้โหลด grid-common.js เพราะไม่ได้ใช้ตาราง Tabulator) */
+    function G_col() {
+        var out = {}, i, k;
+        for (i = 0; i < arguments.length; i++) {
+            for (k in arguments[i]) {
+                if (arguments[i].hasOwnProperty(k)) { out[k] = arguments[i][k]; }
+            }
+        }
+        return out;
+    }
+    var G = { col: G_col };
+
     function buildCols(data) {
 
         var fixed = [
@@ -81,21 +126,68 @@
 
         var groups = [];
 
-        function plain(title, sub, tone, a, b) {
-            groups.push({
-                title: title, sub: sub, tone: tone,
-                qtyOf: function (r) { return Number(r[a] || 0); },
-                valOf: function (r) { return Number(r[b] || 0); }
-            });
+        /* ช่องมาตรฐานของทุกกลุ่ม: จำนวนกับเป็นเงิน
+           kind บอกวิธีแสดงและบอกว่ารวมท้ายตารางได้ไหม
+             qty / money  = ตัวเลข รวมได้
+             text         = ข้อความ รวมไม่ได้ (เช่นรายการราคา) */
+        /* lot = วิธีหยิบค่าตอนวาด "แถวย่อยรายราคา" ช่องไหนไม่มี lot
+           แปลว่าแตกตามราคาไม่ได้ (ยกมา / ปรับปรุง / คงเหลือ) แถวย่อยจะเว้นว่าง
+           เพราะของที่ยกมาจากเดือนก่อนไม่รู้แล้วว่าซื้อมาล็อตละเท่าไร */
+        function qtyCol(field, lotField) {
+            return { title: 'จำนวน', kind: 'qty',
+                     get: function (r) { return Number(r[field] || 0); },
+                     lot: lotField ? function (l) { return Number(l[lotField] || 0); } : null };
+        }
+        function moneyCol(field, lotField) {
+            return { title: 'เป็นเงิน', kind: 'money',
+                     get: function (r) { return Number(r[field] || 0); },
+                     lot: lotField ? function (l) { return Number(l[lotField] || 0); } : null };
         }
 
-        plain('คงเหลือยกมา', 'ณ ' + thaiShort(data.range.prev_end), 'open', 'open_qty', 'open_val');
-        plain('ซื้อเข้า',     'รับเข้าในเดือน',                      'buy',  'buy_qty',  'buy_val');
+        function plain(key, title, sub, tone, a, b) {
+            groups.push({ key: key, title: title, sub: sub, tone: tone,
+                          cols: [qtyCol(a), moneyCol(b)] });
+        }
+
+        /* ---------- สองกลุ่มแรกตรึงไว้ทางซ้ายเหมือนสี่คอลัมน์แรก ----------
+         * ตารางกว้างหลายสิบคอลัมน์ พอเลื่อนไปดูหน่วยงานที่อยู่ขวาสุด
+         * ก็ไม่เห็นแล้วว่าของตัวนี้ยกมาเท่าไรและเดือนนี้ซื้อเข้ามาเท่าไร
+         * ซึ่งเป็นสองตัวเลขที่ต้องเทียบด้วยตลอดเวลาที่ไล่อ่าน
+         *
+         * แลกมาด้วยพื้นที่ตรึงเกือบ 900px ซึ่งกินจอพอสมควร
+         * จอที่แคบกว่า 1280px จึงปลดการตรึงทั้งหมด (ดู app.css)
+         */
+        groups.push({
+            key: 'open', title: 'คงเหลือยกมา', sub: 'ณ ' + thaiShort(data.range.prev_end),
+            tone: 'open', fixCls: 'sp-fix-g-open',
+            cols: [
+                G.col(qtyCol('open_qty'),   { cls: 'sp-fix sp-fix-5' }),
+                G.col(moneyCol('open_val'), { cls: 'sp-fix sp-fix-6' })
+            ]
+        });
+
+        /* ---------- ซื้อเข้า มีช่องราคาแทรกกลาง ----------
+         * ของตัวเดียวกันในเดือนเดียวซื้อมาคนละราคาได้ ถ้าบอกแค่จำนวนรวม
+         * กับเงินรวม คนอ่านจะเอาสองค่านั้นมาหารกันเพื่อหาราคา แล้วได้เลข
+         * ที่ไม่เคยซื้อจริงสักครั้ง (100 ชิ้นที่ 10 กับ 100 ชิ้นที่ 20
+         * หารกันได้ 15) จึงกางราคาที่ซื้อจริงออกมาให้เห็นทุกล็อต
+         */
+        groups.push({
+            key: 'buy', title: 'ซื้อเข้า', sub: 'รับเข้าในเดือน', tone: 'buy', fixCls: 'sp-fix-g-buy',
+            cols: [
+                G.col(qtyCol('buy_qty', 'buy_qty'), { cls: 'sp-fix sp-fix-7' }),
+                { key: 'buyprice', title: 'ราคา/หน่วย', kind: 'text', cls: 'sp-lots sp-fix sp-fix-8',
+                  get:  function (r) { return lotsText(r.buy_lots); },
+                  html: function (r) { return lotsHtml(r); },
+                  lot:  function (l) { return money(l.price); } },
+                G.col(moneyCol('buy_val', 'buy_val'), { cls: 'sp-fix sp-fix-9' })
+            ]
+        });
 
         /* คอลัมน์ปรับปรุงยอดโผล่เฉพาะเดือนที่มีการปรับจริง
            เดือนปกติจะได้ตารางหน้าตาเหมือนใบที่ใช้กันอยู่เป๊ะ ๆ */
         if (data.hasAdjust) {
-            plain('ปรับปรุงยอด', 'เพิ่ม/ลดนอกเอกสาร', 'adj', 'adj_qty', 'adj_val');
+            plain('adj', 'ปรับปรุงยอด', 'เพิ่ม/ลดนอกเอกสาร', 'adj', 'adj_qty', 'adj_val');
         }
 
         /* หน่วยงานที่เบิกในเดือนนี้ กลุ่มละหน่วย
@@ -103,24 +195,121 @@
            ไม่งั้นทุกกลุ่มจะไปอ่านค่าของหน่วยงานสุดท้ายเหมือนกันหมด */
         function deptGroup(dep, index) {
             return {
+                key: 'd' + dep.id,
                 title: dep.name,
                 sub:   dep.company,
                 /* สลับสีทีละหน่วยงาน เพราะหน่วยงานหนึ่งกินสองคอลัมน์ติดกัน
                    ถ้าพื้นสีเดียวกันหมด ตาจะจับคู่ผิดทันทีที่เลื่อนไปไกล ๆ
                    แล้วอ่านจำนวนของหน่วยหนึ่งคู่กับเงินของอีกหน่วยหนึ่ง */
                 tone:  (index % 2 === 0) ? 'dept' : 'dept-alt',
-                qtyOf: function (r) { var c = r.dept['d' + dep.id]; return c ? Number(c.qty) : 0; },
-                valOf: function (r) { var c = r.dept['d' + dep.id]; return c ? Number(c.val) : 0; }
+                cols: [
+                    { title: 'จำนวน', kind: 'qty',
+                      get: function (r) { var c = r.dept['d' + dep.id]; return c ? Number(c.qty) : 0; },
+                      lot: function (l) { var c = l.dept['d' + dep.id]; return c ? Number(c.qty) : 0; } },
+                    { title: 'เป็นเงิน', kind: 'money',
+                      get: function (r) { var c = r.dept['d' + dep.id]; return c ? Number(c.val) : 0; },
+                      lot: function (l) { var c = l.dept['d' + dep.id]; return c ? Number(c.val) : 0; } }
+                ]
             };
         }
         for (var i = 0; i < data.departments.length; i++) {
             groups.push(deptGroup(data.departments[i], i));
         }
 
-        plain('รวมเบิกทั้งหมด',    'ทุกหน่วยงาน',      'out',   'out_qty',   'out_val');
-        plain('คงเหลือปลายเดือน', 'ยกไปเดือนถัดไป',  'close', 'close_qty', 'close_val');
+        groups.push({
+            key: 'out', title: 'รวมเบิกทั้งหมด', sub: 'ทุกหน่วยงาน', tone: 'out',
+            cols: [qtyCol('out_qty', 'out_qty'), moneyCol('out_val', 'out_val')]
+        });
+        plain('close', 'คงเหลือปลายเดือน', 'ยกไปเดือนถัดไป', 'close', 'close_qty', 'close_val');
 
-        return { fixed: fixed, groups: groups, width: fixed.length + groups.length * 2 };
+        /* ---------- ตัดกลุ่มและช่องที่ผู้ใช้ปิดไว้ออก ---------- */
+        var keep = [];
+        for (var g = 0; g < groups.length; g++) {
+            if (hiddenCols[groups[g].key]) { continue; }
+
+            var gc = [];
+            for (var e = 0; e < groups[g].cols.length; e++) {
+                var ck = groups[g].cols[e].key;
+                if (ck && hiddenCols[ck]) { continue; }
+                gc.push(groups[g].cols[e]);
+            }
+            if (gc.length === 0) { continue; }
+
+            groups[g].cols = gc;
+            keep.push(groups[g]);
+        }
+        groups = keep;
+
+        /* ---------- ตำแหน่งซ้ายของช่องที่ตรึง ----------
+         * ไล่บวกความกว้างของช่องที่ "เหลืออยู่จริง" ตามลำดับซ้ายไปขวา
+         * ปักไว้ใน CSS ไม่ได้ เพราะซ่อนคอลัมน์กลางแล้วตัวที่เหลือต้องเลื่อนมาแทน
+         */
+        var at = 0;
+        for (var f2 = 0; f2 < fixed.length; f2++) {
+            fixed[f2].left = at;
+            at += FIX_W[fixKey(fixed[f2].cls)] || 0;
+        }
+        for (var g2 = 0; g2 < groups.length; g2++) {
+            var head = null;
+            for (var e2 = 0; e2 < groups[g2].cols.length; e2++) {
+                var key = fixKey(groups[g2].cols[e2].cls);
+                if (!key) { continue; }
+                if (head === null) { head = at; }
+                groups[g2].cols[e2].left = at;
+                at += FIX_W[key];
+            }
+            groups[g2].left = head;      /* ใช้กับหัวกลุ่มชั้นบน */
+        }
+
+        var width = fixed.length;
+        for (var g3 = 0; g3 < groups.length; g3++) { width += groups[g3].cols.length; }
+
+        return { fixed: fixed, groups: groups, width: width };
+    }
+
+
+    /* ---------- ข้อความสรุปราคาที่ซื้อจริงในเดือนนั้น ----------
+     * ราคาเดียว        ->  "10.00"
+     * หลายราคา        ->  "10.00 x100 · 20.00 x100"
+     *
+     * ติดจำนวนไว้ด้วยเฉพาะตอนมีหลายราคา เพราะราคาเดียวจำนวนก็อยู่ในช่องข้าง ๆ
+     * อยู่แล้ว เขียนซ้ำมีแต่จะทำให้ตารางที่กว้างอยู่แล้วอ่านยากขึ้นเปล่า ๆ
+     */
+    function lotsText(lots) {
+        if (!lots || lots.length === 0) { return ''; }
+        if (lots.length === 1)          { return money(lots[0].price); }
+
+        var out = [];
+        for (var i = 0; i < lots.length; i++) {
+            out.push(money(lots[i].price) + ' x' + qty(lots[i].qty));
+        }
+        return out.join(' · ');
+    }
+
+
+    /* ---------- ช่องราคาบนจอ ----------
+     * ของตัวเดียวกันในเดือนเดียวมีได้หลายราคา ถ้าเขียนต่อกันในช่องเดียว
+     * ข้อความจะยาวกว่าช่องตัวเลขข้าง ๆ หลายเท่า ดันจนคอลัมน์อื่นอ่านยาก
+     * และยังตอบไม่ได้อยู่ดีว่าหน่วยงานไหนเบิกของราคาไหนไป
+     *
+     * จึงกางเป็น "แถวย่อยใต้สินค้า" แทน หนึ่งราคาหนึ่งแถว ตรงคอลัมน์กับ
+     * แถวหลักทุกช่อง อ่านลงมาตามแนวตั้งได้เลยว่าราคานั้นซื้อมาเท่าไร
+     * แล้วหน่วยงานไหนเบิกไปเท่าไร
+     *
+     * ราคาเดียวไม่ต้องมีปุ่ม เพราะแถวย่อยจะได้ตัวเลขชุดเดิมกับแถวหลักเป๊ะ ๆ
+     */
+    function lotsHtml(row) {
+        var lots = row.buy_lots;
+        var many = row.price_rows && row.price_rows.length > 1;
+
+        if (!many) {
+            if (!lots || lots.length === 0) { return '<span class="sp-zero">-</span>'; }
+            return esc(money(lots[0].price));
+        }
+
+        return '<button type="button" class="sp-lots-btn" aria-expanded="false"'
+             + ' data-pid="' + row.product_id + '" title="' + esc(lotsText(lots)) + '">'
+             + row.price_rows.length + ' ราคา</button>';
     }
 
 
@@ -153,6 +342,105 @@
         return isMoney ? money(value) : qty(value);
     }
 
+    /* ---------- แถวย่อยรายราคา ----------
+     * ซ่อนไว้ก่อน กดปุ่มในช่องราคาถึงจะโผล่ ทุกช่องตรงคอลัมน์กับแถวหลัก
+     * อ่านลงมาตามแนวตั้งได้ว่าราคานั้นซื้อมาเท่าไร หน่วยงานไหนเบิกไปเท่าไร
+     *
+     * ช่องที่แตกตามราคาไม่ได้ (ยกมา / ปรับปรุง / คงเหลือ) เว้นว่างไว้เฉย ๆ
+     * ไม่ใส่ขีด เพราะขีดแปลว่า "ศูนย์" ซึ่งคนละความหมายกับ "แยกไม่ได้"
+     * ของที่ยกมาจากเดือนก่อนไม่มีใครรู้แล้วว่าตอนนั้นซื้อมาล็อตละเท่าไร
+     */
+    function lotRows(cols, r) {
+        var lots = r.price_rows;
+        if (!lots || lots.length < 2) { return ''; }
+
+        var out = '';
+        for (var i = 0; i < lots.length; i++) {
+            var l = lots[i];
+
+            out += '<tr class="sp-lot-row" data-pid="' + r.product_id + '" hidden>'
+                +  '<td class="sp-fix sp-fix-1"' + fixStyle(cols.fixed[0]) + '></td>'
+                +  '<td class="sp-fix sp-fix-2"' + fixStyle(cols.fixed[1]) + '></td>'
+                +  '<td class="sp-fix sp-fix-3 sp-lot-label"' + fixStyle(cols.fixed[2]) + '>'
+                +  '&#8627; ราคา ' + esc(money(l.price)) + '</td>'
+                +  '<td class="sp-fix sp-fix-4"' + fixStyle(cols.fixed[3]) + '></td>';
+
+            for (var g = 0; g < cols.groups.length; g++) {
+                var gc = cols.groups[g].cols;
+                for (var e = 0; e < gc.length; e++) {
+
+                    var lcls = ' sp-g-' + cols.groups[g].tone + (gc[e].cls ? ' ' + gc[e].cls : '');
+
+                    if (!gc[e].lot) {
+                        out += '<td class="' + lcls.substr(1) + '"' + fixStyle(gc[e]) + '></td>';
+                        continue;
+                    }
+
+                    var v = gc[e].lot(l);
+                    if (gc[e].kind === 'text') {
+                        out += '<td class="' + lcls.substr(1) + '"' + fixStyle(gc[e]) + '>' + esc(v) + '</td>';
+                        continue;
+                    }
+
+                    out += '<td class="num' + (gc[e].kind === 'money' ? ' money' : '') + lcls + '"'
+                        +  fixStyle(gc[e]) + '>'
+                        +  cellNum(v, gc[e].kind === 'money') + '</td>';
+                }
+            }
+            out += '</tr>';
+        }
+        return out;
+    }
+
+    /* ---------- ช่องว่าง ๆ ของสี่คอลัมน์แรกในแถวย่อย ---------- */
+    function fixBlank(label) {
+        return '<td class="sp-fix sp-fix-1"></td>'
+             + '<td class="sp-fix sp-fix-2"></td>'
+             + '<td class="sp-fix sp-fix-3 sp-lot-label">' + label + '</td>'
+             + '<td class="sp-fix sp-fix-4"></td>';
+    }
+
+    /* ---------- ถังรวมยอด รูปร่างเดียวกับ cols.groups ---------- */
+    function zeros(cols) {
+        var out = [];
+        for (var g = 0; g < cols.groups.length; g++) {
+            var one = [];
+            for (var e = 0; e < cols.groups[g].cols.length; e++) { one.push(0); }
+            out.push(one);
+        }
+        return out;
+    }
+
+    /* ---------- แถวรวมของหมวด ----------
+     * ใช้ทั้งหมวดหมู่ย่อยและหมวดหมู่หลัก ต่างกันแค่ระดับสีกับคำนำหน้า
+     * ช่องที่เป็นข้อความ (ราคา/หน่วย) เว้นว่าง เพราะเอาราคามาบวกกันไม่มีความหมาย
+     */
+    function totalRow(cols, level, label, acc) {
+        var cls = (level === 'cat') ? 'sp-sum-cat' : 'sp-sum-sub';
+        /* ห่อป้ายด้วย span ที่ตรึงได้เหมือนป้ายหมวด ช่องนี้พาดสี่คอลัมน์
+           ซึ่งกว้างพอที่ข้อความยาว ๆ จะเลยขอบไปตอนเลื่อนตาราง */
+        var out = '<tr class="' + cls + '">'
+                + '<td colspan="' + cols.fixed.length + '" class="sp-fix sp-fix-all sp-sum-label">'
+                + '<span class="sp-cat-label">'
+                + esc((level === 'cat' ? 'รวมหมวดหมู่หลัก · ' : 'รวมหมวดหมู่ย่อย · ') + label)
+                + '</span></td>';
+
+        for (var g = 0; g < cols.groups.length; g++) {
+            var gc = cols.groups[g].cols;
+            for (var e = 0; e < gc.length; e++) {
+                var base = ' sp-g-' + cols.groups[g].tone + (gc[e].cls ? ' ' + gc[e].cls : '');
+                if (gc[e].kind === 'text') {
+                    out += '<td class="' + base.substr(1) + '"' + fixStyle(gc[e]) + '></td>';
+                    continue;
+                }
+                out += '<td class="num' + (gc[e].kind === 'money' ? ' money' : '') + base + '"'
+                    +  fixStyle(gc[e]) + '>'
+                    +  cellNum(acc[g][e], gc[e].kind === 'money') + '</td>';
+            }
+        }
+        return out + '</tr>';
+    }
+
     function draw(cols, rows) {
 
         var html = '';
@@ -160,12 +448,15 @@
         /* ---------- หัวสองชั้น ---------- */
         html += '<thead><tr>';
         for (var f = 0; f < cols.fixed.length; f++) {
-            html += '<th rowspan="2" class="' + cols.fixed[f].cls + '">'
+            html += '<th rowspan="2" class="' + cols.fixed[f].cls + '"'
+                 +  fixStyle(cols.fixed[f]) + '>'
                  +  esc(cols.fixed[f].title) + '</th>';
         }
         for (var g = 0; g < cols.groups.length; g++) {
             var grp = cols.groups[g];
-            html += '<th colspan="2" class="sp-g sp-g-' + grp.tone + '"'
+            html += '<th colspan="' + grp.cols.length + '" class="sp-g sp-g-' + grp.tone
+                 +  (grp.fixCls && typeof grp.left === 'number' ? ' sp-fix ' + grp.fixCls : '') + '"'
+                 +  (typeof grp.left === 'number' && grp.fixCls ? ' style="left:' + grp.left + 'rem"' : '')
                  +  (grp.sub ? ' title="' + esc(grp.sub) + '"' : '') + '>'
                  +  esc(grp.title)
                  +  (grp.sub ? '<small>' + esc(grp.sub) + '</small>' : '')
@@ -173,12 +464,15 @@
         }
         html += '</tr><tr>';
         for (var s = 0; s < cols.groups.length; s++) {
-            html += '<th class="num sp-sub sp-g-' + cols.groups[s].tone + '">จำนวน</th>'
-                 +  '<th class="num sp-sub sp-g-' + cols.groups[s].tone + '">เป็นเงิน</th>';
+            var sc = cols.groups[s].cols;
+            for (var k = 0; k < sc.length; k++) {
+                html += '<th class="num sp-sub sp-g-' + cols.groups[s].tone
+                     +  (sc[k].cls ? ' ' + sc[k].cls : '') + '"' + fixStyle(sc[k]) + '>'
+                     +  esc(sc[k].title) + '</th>';
+            }
         }
         html += '</tr></thead>';
 
-        /* ---------- เนื้อตาราง ---------- */
         if (rows.length === 0) {
             html += '<tbody><tr><td colspan="' + cols.width + '" class="rc-empty">'
                  +  'ไม่มีรายการที่ตรงกับตัวกรอง</td></tr></tbody>';
@@ -186,53 +480,103 @@
             return;
         }
 
-        var gsum = [];
-        for (var z = 0; z < cols.groups.length; z++) { gsum.push({ q: 0, v: 0 }); }
+        var gsum = zeros(cols);       /* ยอดรวมทั้งใบ */
+        var subAcc = null;            /* ยอดรวมหมวดหมู่ย่อยที่กำลังเปิดอยู่ */
+        var catAcc = null;            /* ยอดรวมหมวดหมู่หลักที่กำลังเปิดอยู่ */
 
-        var body   = '<tbody>';
+        var body    = '<tbody>';
         var lastCat = null;
+        var lastSub = null;
         var seq     = 0;
 
         for (var i = 0; i < rows.length; i++) {
             var r = rows[i];
 
-            /* หัวหมวดคั่นเมื่อหมวดเปลี่ยน — ข้อมูลเรียงตามหมวดมาจากฝั่ง SQL แล้ว
-               จึงเทียบกับหมวดของแถวก่อนหน้าพอ ไม่ต้องจัดกลุ่มใหม่ในหน้า */
+            /* ---------- เปลี่ยนหมวดหมู่หลัก : ปิดหมวดย่อยที่ค้างก่อน แล้วค่อยปิดหมวดหลัก ----------
+               ลำดับสำคัญ ถ้าปิดหมวดหลักก่อน ยอดรวมหมวดย่อยกลุ่มสุดท้ายจะหายไป */
             if (r.category_name !== lastCat) {
+                if (lastSub !== null) { body += totalRow(cols, 'sub', lastSub, subAcc); }
+                if (lastCat !== null) { body += totalRow(cols, 'cat', lastCat, catAcc); }
+
                 lastCat = r.category_name;
+                lastSub = null;
+                catAcc  = zeros(cols);
+
                 body += '<tr class="sp-cat"><td colspan="' + cols.width + '">'
-                     +  esc('รายการ' + lastCat) + '</td></tr>';
+                     +  '<span class="sp-cat-label">' + esc('รายการ' + lastCat) + '</span></td></tr>';
+            }
+
+            if (r.sub_category_name !== lastSub) {
+                if (lastSub !== null) { body += totalRow(cols, 'sub', lastSub, subAcc); }
+
+                lastSub = r.sub_category_name;
+                subAcc  = zeros(cols);
+
+                body += '<tr class="sp-subcat"><td colspan="' + cols.width + '">'
+                     +  '<span class="sp-cat-label">' + esc(lastSub) + '</span></td></tr>';
             }
 
             seq++;
             body += '<tr' + (r.moved ? ' class="is-moved"' : '') + '>'
-                 +  '<td class="sp-fix sp-fix-1 num">' + seq + '</td>'
-                 +  '<td class="sp-fix sp-fix-2 sp-code">' + esc(r.product_code) + '</td>'
-                 +  '<td class="sp-fix sp-fix-3" title="' + esc(r.product_name) + '">' + esc(r.product_name) + '</td>'
-                 +  '<td class="sp-fix sp-fix-4">' + esc(r.unit_name) + '</td>';
+                 +  '<td class="sp-fix sp-fix-1 num"' + fixStyle(cols.fixed[0]) + '>' + seq + '</td>'
+                 +  '<td class="sp-fix sp-fix-2 sp-code"' + fixStyle(cols.fixed[1]) + '>' + esc(r.product_code) + '</td>'
+                 +  '<td class="sp-fix sp-fix-3"' + fixStyle(cols.fixed[2])
+                 +  ' title="' + esc(r.product_name) + '">' + esc(r.product_name) + '</td>'
+                 +  '<td class="sp-fix sp-fix-4"' + fixStyle(cols.fixed[3]) + '>' + esc(r.unit_name) + '</td>';
 
             for (var c = 0; c < cols.groups.length; c++) {
-                var q = cols.groups[c].qtyOf(r);
-                var v = cols.groups[c].valOf(r);
-                gsum[c].q += q;
-                gsum[c].v += v;
+                var gc = cols.groups[c].cols;
+                for (var e = 0; e < gc.length; e++) {
+                    var val = gc[e].get(r);
+                    var cls = ' sp-g-' + cols.groups[c].tone + (gc[e].cls ? ' ' + gc[e].cls : '');
 
-                body += '<td class="num sp-g-' + cols.groups[c].tone + '">' + cellNum(q, false) + '</td>'
-                     +  '<td class="num money sp-g-' + cols.groups[c].tone + '">' + cellNum(v, true) + '</td>';
+                    if (gc[e].kind === 'text') {
+                        var inner = gc[e].html ? gc[e].html(r)
+                                  : (val === '' ? '<span class="sp-zero">-</span>' : esc(val));
+                        body += '<td class="' + cls.substr(1) + '"' + fixStyle(gc[e]) + '>' + inner + '</td>';
+                        continue;
+                    }
+
+                    var num = Number(val);
+                    gsum[c][e]   += num;
+                    catAcc[c][e] += num;
+                    subAcc[c][e] += num;
+
+                    body += '<td class="num' + (gc[e].kind === 'money' ? ' money' : '') + cls + '"'
+                         +  fixStyle(gc[e]) + '>'
+                         +  cellNum(num, gc[e].kind === 'money') + '</td>';
+                }
             }
             body += '</tr>';
+
+            body += lotRows(cols, r);
         }
+
+        /* ปิดหมวดสุดท้ายที่ยังค้างอยู่ */
+        if (lastSub !== null) { body += totalRow(cols, 'sub', lastSub, subAcc); }
+        if (lastCat !== null) { body += totalRow(cols, 'cat', lastCat, catAcc); }
         body += '</tbody>';
 
-        /* ---------- แถวรวม ----------
+        /* ---------- ยอดรวมทั้งใบ ----------
            รวมจากแถวที่แสดงอยู่จริง ไม่ใช่ยอดรวมทั้งเดือนที่ backend ส่งมา
            กรองอะไรไว้ ยอดท้ายตารางก็ตรงกับที่ตาเห็นเสมอ */
         var foot = '<tfoot><tr>'
                  + '<td colspan="' + cols.fixed.length + '" class="sp-fix sp-fix-all sp-sum-label">'
-                 + 'รวม ' + qty(rows.length) + ' รายการ</td>';
+                 + '<span class="sp-cat-label">รวมทั้งหมด ' + qty(rows.length) + ' รายการ</span></td>';
+
         for (var t = 0; t < gsum.length; t++) {
-            foot += '<td class="num sp-g-' + cols.groups[t].tone + '">' + cellNum(gsum[t].q, false) + '</td>'
-                 +  '<td class="num money sp-g-' + cols.groups[t].tone + '">' + cellNum(gsum[t].v, true) + '</td>';
+            var tc = cols.groups[t].cols;
+            for (var w = 0; w < tc.length; w++) {
+                var tcls = ' sp-g-' + cols.groups[t].tone + (tc[w].cls ? ' ' + tc[w].cls : '');
+                if (tc[w].kind === 'text') {
+                    /* ช่องราคาไม่มียอดรวม เอาราคาหลาย ๆ ตัวมาบวกกันไม่มีความหมาย */
+                    foot += '<td class="' + tcls.substr(1) + '"' + fixStyle(tc[w]) + '></td>';
+                    continue;
+                }
+                foot += '<td class="num' + (tc[w].kind === 'money' ? ' money' : '') + tcls + '"'
+                     +  fixStyle(tc[w]) + '>'
+                     +  cellNum(gsum[t][w], tc[w].kind === 'money') + '</td>';
+            }
         }
         foot += '</tr></tfoot>';
 
@@ -280,6 +624,88 @@
     }
 
 
+
+    /* ============================================================
+     *  ตัวเลือกคอลัมน์
+     * ============================================================
+     *  เดือนที่มีหน่วยงานเบิกสิบกว่าหน่วย ตารางกว้างสี่สิบกว่าคอลัมน์
+     *  คนที่เปิดมาดูแค่หน่วยงานตัวเองต้องเลื่อนผ่านของคนอื่นทั้งแถว
+     *
+     *  ให้ปิดคอลัมน์ที่ไม่ได้ดูได้เอง ตัวเลือกมีผลทั้งบนจอและในไฟล์ Excel
+     *  เพราะทั้งสองทางใช้โครงคอลัมน์ชุดเดียวกัน
+     *
+     *  เก็บเป็น "รายการที่ปิด" ไม่ใช่ "รายการที่เปิด" — เปลี่ยนเดือนแล้ว
+     *  หน่วยงานที่เพิ่งโผล่มาจะได้แสดงเองโดยไม่ต้องไปติ๊กเพิ่ม
+     */
+    function colChoices() {
+        var out = [];
+
+        out.push({ key: 'open',     label: 'คงเหลือยกมา' });
+        out.push({ key: 'buy',      label: 'ซื้อเข้า' });
+        out.push({ key: 'buyprice', label: 'ราคา/หน่วย (ในกลุ่มซื้อเข้า)', child: true });
+        if (DATA.hasAdjust) { out.push({ key: 'adj', label: 'ปรับปรุงยอด' }); }
+
+        for (var i = 0; i < DATA.departments.length; i++) {
+            var d = DATA.departments[i];
+            out.push({
+                key:   'd' + d.id,
+                label: trimText(d.name),
+                note:  d.company,
+                dept:  true
+            });
+        }
+
+        out.push({ key: 'out',   label: 'รวมเบิกทั้งหมด' });
+        out.push({ key: 'close', label: 'คงเหลือปลายเดือน' });
+        return out;
+    }
+
+    function trimText(v) { return String(v === null || v === undefined ? '' : v).replace(/^\s+|\s+$/g, ''); }
+
+    function renderCols() {
+        var box = el('spCols');
+        if (!box || !DATA) { return; }
+
+        var list = colChoices();
+        var html = '<div class="sp-cols-head">'
+                 + '<span>เลือกคอลัมน์ที่จะแสดง</span>'
+                 + '<button type="button" id="spColsAll" class="sp-cols-link">เลือกทั้งหมด</button>'
+                 + '<button type="button" id="spColsDept" class="sp-cols-link">เฉพาะหน่วยงาน</button>'
+                 + '</div><div class="sp-cols-list">';
+
+        var lastDept = false;
+        for (var i = 0; i < list.length; i++) {
+            var c = list[i];
+
+            if (c.dept && !lastDept) { html += '<div class="sp-cols-sep">หน่วยงานที่เบิกในเดือนนี้</div>'; }
+            lastDept = !!c.dept;
+
+            html += '<label class="sp-cols-item' + (c.child ? ' is-child' : '') + '">'
+                 +  '<input type="checkbox" data-col="' + esc(c.key) + '"'
+                 +  (hiddenCols[c.key] ? '' : ' checked') + '>'
+                 +  '<span>' + esc(c.label)
+                 +  (c.note ? '<small>' + esc(c.note) + '</small>' : '')
+                 +  '</span></label>';
+        }
+        box.innerHTML = html + '</div>';
+    }
+
+    /* จำนวนคอลัมน์ที่ปิดอยู่ ไว้ขึ้นตัวเลขบนปุ่มให้รู้ว่ากำลังซ่อนอะไรอยู่
+       ไม่งั้นคนเปิดหน้ามาเจอตารางไม่ครบแล้วนึกว่ารายงานพัง */
+    function colsHiddenCount() {
+        var n = 0;
+        for (var k in hiddenCols) { if (hiddenCols.hasOwnProperty(k) && hiddenCols[k]) { n++; } }
+        return n;
+    }
+
+    function updateColsBadge() {
+        var b = el('spColsCount');
+        if (!b) { return; }
+        var n = colsHiddenCount();
+        b.textContent = String(n);
+        setHidden(b, n === 0);
+    }
+
     /* ============================================================
      *  โหลดข้อมูล
      * ============================================================ */
@@ -310,6 +736,8 @@
             setHidden(el('spLoading'), true);
             setHidden(el('spBody'), false);
             renderHead();
+            renderCols();
+            updateColsBadge();
             render();
         };
         xhr.onerror = function () {
@@ -340,10 +768,25 @@
 
     function num0(v) { return v ? Number(v) : ''; }
 
-    function buildSheet(cols, rows) {
+    /* บรรทัดรวมของหมวด ในไฟล์ Excel */
+    function sheetTotal(cols, level, label, acc) {
+        var line = [(level === 'cat' ? 'รวมหมวดหมู่หลัก · ' : 'รวมหมวดหมู่ย่อย · ') + label, '', '', ''];
+        for (var g = 0; g < cols.groups.length; g++) {
+            var gc = cols.groups[g].cols;
+            for (var e = 0; e < gc.length; e++) {
+                line.push(gc[e].kind === 'text' ? '' : num0(acc[g][e]));
+            }
+        }
+        return line;
+    }
+
+    /* $withLots = ใส่แถวย่อยรายราคาลงไฟล์ด้วยไหม
+       ใส่แล้วจะตั้ง outline ให้ Excel โชว์ปุ่มยุบ/กางเองที่ขอบซ้าย */
+    function buildSheet(cols, rows, withLots) {
 
         var aoa    = [];
         var merges = [];
+        var levels = [];               /* ระดับ outline ของแต่ละแถว ไว้ทำกลุ่มยุบได้ */
         var width  = cols.width;
 
         /* แถวที่ 1 : ชื่อรายงาน พาดยาวทั้งใบ */
@@ -362,67 +805,156 @@
             col++;
         }
         for (i = 0; i < cols.groups.length; i++) {
-            var g = cols.groups[i];
+            var g  = cols.groups[i];
+            var gc = g.cols;
+
             h1.push(g.title + (g.sub ? ' (' + g.sub + ')' : ''));
-            h1.push('');
-            h2.push('จำนวน');
-            h2.push('เป็นเงิน');
-            merges.push({ s: { r: 1, c: col }, e: { r: 1, c: col + 1 } });
-            col += 2;
+            h2.push(gc[0].title);
+            for (var j = 1; j < gc.length; j++) {
+                h1.push('');
+                h2.push(gc[j].title);
+            }
+            merges.push({ s: { r: 1, c: col }, e: { r: 1, c: col + gc.length - 1 } });
+            col += gc.length;
         }
         aoa.push(h1);
         aoa.push(h2);
 
         /* ---------- เนื้อตาราง พร้อมหัวหมวดคั่นเหมือนบนจอ ---------- */
         var gsum = [];
-        for (i = 0; i < cols.groups.length; i++) { gsum.push({ q: 0, v: 0 }); }
+        for (i = 0; i < cols.groups.length; i++) {
+            var zz = [];
+            for (var y = 0; y < cols.groups[i].cols.length; y++) { zz.push(0); }
+            gsum.push(zz);
+        }
 
+        var subAcc  = null;
+        var catAcc  = null;
         var lastCat = null;
+        var lastSub = null;
         var seq     = 0;
 
         for (var r = 0; r < rows.length; r++) {
             var row = rows[r];
 
             if (row.category_name !== lastCat) {
+                if (lastSub !== null) { aoa.push(sheetTotal(cols, 'sub', lastSub, subAcc)); }
+                if (lastCat !== null) { aoa.push(sheetTotal(cols, 'cat', lastCat, catAcc)); }
+
                 lastCat = row.category_name;
+                lastSub = null;
+                catAcc  = zeros(cols);
+
                 var cat = ['รายการ' + lastCat];
                 while (cat.length < width) { cat.push(''); }
                 merges.push({ s: { r: aoa.length, c: 0 }, e: { r: aoa.length, c: width - 1 } });
                 aoa.push(cat);
             }
 
+            if (row.sub_category_name !== lastSub) {
+                if (lastSub !== null) { aoa.push(sheetTotal(cols, 'sub', lastSub, subAcc)); }
+
+                lastSub = row.sub_category_name;
+                subAcc  = zeros(cols);
+
+                var sub2 = ['  ' + lastSub];
+                while (sub2.length < width) { sub2.push(''); }
+                merges.push({ s: { r: aoa.length, c: 0 }, e: { r: aoa.length, c: width - 1 } });
+                aoa.push(sub2);
+            }
+
             seq++;
             var line = [seq, row.product_code, row.product_name, row.unit_name];
             for (i = 0; i < cols.groups.length; i++) {
-                var q = cols.groups[i].qtyOf(row);
-                var v = cols.groups[i].valOf(row);
-                gsum[i].q += q;
-                gsum[i].v += v;
-                line.push(num0(q));
-                line.push(num0(v));
+                var bc = cols.groups[i].cols;
+                for (var e = 0; e < bc.length; e++) {
+                    var val = bc[e].get(row);
+
+                    /* ช่องราคาส่งออกเป็นข้อความ เพราะหนึ่งช่องมีได้หลายราคา
+                       ("10.00 x100 · 20.00 x100") ยัดเป็นตัวเลขไม่ได้อยู่แล้ว */
+                    if (bc[e].kind === 'text') { line.push(val); continue; }
+
+                    var nv = Number(val);
+                    gsum[i][e]   += nv;
+                    catAcc[i][e] += nv;
+                    subAcc[i][e] += nv;
+                    line.push(num0(nv));
+                }
             }
             aoa.push(line);
+
+            /* ---------- แถวย่อยรายราคา ----------
+               ในไฟล์กางเสมอ ไม่มีปุ่มให้กด และคนที่เปิดไฟล์มักเปิดมาเพื่อ
+               ไล่ดูรายละเอียดพอดี ยอดรวมท้ายตารางไม่นับแถวพวกนี้
+               เพราะมันถูกนับไปแล้วในแถวหลัก */
+            var plots = withLots ? row.price_rows : null;
+            if (plots && plots.length > 1) {
+                for (var pl = 0; pl < plots.length; pl++) {
+                    var lot  = plots[pl];
+                    var sub  = ['', '', '    ราคา ' + money(lot.price), ''];
+
+                    for (var gi = 0; gi < cols.groups.length; gi++) {
+                        var lc = cols.groups[gi].cols;
+                        for (var li = 0; li < lc.length; li++) {
+                            if (!lc[li].lot)              { sub.push(''); continue; }
+                            var lv = lc[li].lot(lot);
+                            sub.push(lc[li].kind === 'text' ? lv : num0(lv));
+                        }
+                    }
+                    /* ระดับ 1 = ลูกของแถวสินค้าข้างบน Excel จะวาดปุ่มยุบให้เอง */
+                    levels[aoa.length] = 1;
+                    aoa.push(sub);
+                }
+            }
         }
+
+        /* ปิดหมวดสุดท้ายที่ยังค้างอยู่ */
+        if (lastSub !== null) { aoa.push(sheetTotal(cols, 'sub', lastSub, subAcc)); }
+        if (lastCat !== null) { aoa.push(sheetTotal(cols, 'cat', lastCat, catAcc)); }
 
         /* ---------- แถวรวม ---------- */
         /* ป้าย "รวม" พาดสี่ช่องแรกให้เท่ากับที่ทำบนจอ ถ้าปล่อยให้อยู่ช่องเดียว
            มันจะไปชนกับตัวเลขคอลัมน์แรกจนอ่านไม่ออกว่าอันไหนเป็นป้ายอันไหนเป็นยอด */
-        var sum = ['รวม ' + rows.length + ' รายการ', '', '', ''];
+        var sum = ['รวมทั้งหมด ' + rows.length + ' รายการ', '', '', ''];
         merges.push({ s: { r: aoa.length, c: 0 }, e: { r: aoa.length, c: 3 } });
         for (i = 0; i < gsum.length; i++) {
-            sum.push(num0(gsum[i].q));
-            sum.push(num0(gsum[i].v));
+            var sc = cols.groups[i].cols;
+            for (var w = 0; w < sc.length; w++) {
+                sum.push(sc[w].kind === 'text' ? '' : num0(gsum[i][w]));
+            }
         }
         aoa.push(sum);
 
         var ws = XLSX.utils.aoa_to_sheet(aoa);
         ws['!merges'] = merges;
 
+        /* ---------- กลุ่มยุบได้ใน Excel ----------
+         * ตั้ง level ให้แถวย่อยรายราคา แล้ว Excel จะวาดปุ่ม +/- ที่ขอบซ้ายให้เอง
+         * คนเปิดไฟล์ยุบดูเฉพาะยอดรวมของสินค้า หรือกางดูรายราคาก็ได้
+         * เหมือนที่ทำบนหน้าจอ
+         *
+         * summaryBelow = 0 บอก Excel ว่าแถวสรุปอยู่ "ข้างบน" กลุ่ม
+         * (แถวสินค้าอยู่เหนือแถวย่อยของมัน) ถ้าไม่บอก ปุ่มยุบจะไปโผล่ผิดแถว
+         */
+        var rowsMeta = [];
+        var any = false;
+        for (var lv = 0; lv < aoa.length; lv++) {
+            if (levels[lv]) { rowsMeta[lv] = { level: levels[lv] }; any = true; }
+        }
+        if (any) {
+            ws['!rows']    = rowsMeta;
+            ws['!outline'] = { above: true };
+        }
+
         /* ความกว้างคอลัมน์: ชื่อสินค้ากว้างสุด ที่เหลือพอให้ตัวเลขไม่ขึ้น #### */
         var widths = [{ wch: 6 }, { wch: 14 }, { wch: 46 }, { wch: 9 }];
         for (i = 0; i < cols.groups.length; i++) {
-            widths.push({ wch: 10 });
-            widths.push({ wch: 13 });
+            var wc = cols.groups[i].cols;
+            for (var q2 = 0; q2 < wc.length; q2++) {
+                /* ช่องราคาที่มีหลายล็อตยาวกว่าช่องตัวเลขปกติมาก ต้องกว้างพิเศษ */
+                widths.push({ wch: wc[q2].kind === 'text' ? 24
+                                  : (wc[q2].kind === 'money' ? 13 : 10) });
+            }
         }
         ws['!cols'] = widths;
 
@@ -441,7 +973,8 @@
             var cols = buildCols(DATA);
             var wb   = XLSX.utils.book_new();
 
-            XLSX.utils.book_append_sheet(wb, buildSheet(cols, visibleRows()), 'สั่งซื้อ-เบิกใช้');
+            var withLots = el('spExportLots') ? el('spExportLots').checked : true;
+            XLSX.utils.book_append_sheet(wb, buildSheet(cols, visibleRows(), withLots), 'สั่งซื้อ-เบิกใช้');
             XLSX.writeFile(wb, 'สั่งซื้อ-เบิกใช้_' + DATA.range.month + '.xlsx');
             busy(false);
         };
@@ -505,44 +1038,72 @@
     function demoData() {
         var month = (DATA && DATA.range) ? DATA.range.month : CFG.month;
 
-        /* แถวแรกใช้ตัวเลขชุดเดียวกับใบที่ใช้กันอยู่จริง (67 + 70 - 98 = 39)
-           คนที่เคยเห็นใบนั้นจะจับทางได้ทันทีว่ารายงานนี้คือใบเดียวกัน */
+        /* ---------- แถวแรกคือตัวชูโรง ----------
+           ซื้อมาสองราคาในเดือนเดียว จะได้เห็นทั้งปุ่ม "2 ราคา" และแถวย่อย
+           ตัวเลขทุกชั้นบวกกันลงตัวจริง: ล็อตรวมกันได้เท่ายอดซื้อ
+           แถวย่อยของแต่ละหน่วยงานรวมกันได้เท่ายอดเบิกของหน่วยงานนั้น
+           และ ยกมา + ซื้อ - เบิก = คงเหลือ */
         var rows = [
             { product_id: -101, product_code: 'EX-PPR-001',
               product_name: 'กระดาษถ่ายเอกสาร A4 80 แกรม (500 แผ่น/รีม)', unit_name: 'รีม',
-              category_id: -1, category_name: 'ตัวอย่าง: วัสดุสำนักงานและเครื่องเขียน',
+              category_id: -1, category_name: 'ตัวอย่าง: วัสดุสำนักงานและเครื่องเขียน', sub_category_name: 'ตัวอย่าง: กระดาษ',
               open_qty: 67, open_val: 5561, buy_qty: 70, buy_val: 5810, adj_qty: 0, adj_val: 0,
-              dept: { 'd-1': { qty: 20, val: 1660 }, 'd-2': { qty: 48, val: 3984 }, 'd-3': { qty: 30, val: 2490 } },
-              out_qty: 98, out_val: 8134, close_qty: 39, close_val: 3237, moved: true },
+              buy_lots: [{ price: 80, qty: 40, val: 3200 }, { price: 87, qty: 30, val: 2610 }],
+              price_rows: [
+                  { price: 80, buy_qty: 40, buy_val: 3200, out_qty: 30, out_val: 2400,
+                    dept: { 'd-1': { qty: 10, val: 800 }, 'd-2': { qty: 20, val: 1600 } } },
+                  { price: 87, buy_qty: 30, buy_val: 2610, out_qty: 58, out_val: 5046,
+                    dept: { 'd-2': { qty: 28, val: 2436 }, 'd-3': { qty: 30, val: 2610 } } }
+              ],
+              dept: { 'd-1': { qty: 10, val: 800 }, 'd-2': { qty: 48, val: 4036 }, 'd-3': { qty: 30, val: 2610 } },
+              out_qty: 88, out_val: 7446, close_qty: 49, close_val: 3925, moved: true },
 
             { product_id: -102, product_code: 'EX-PEN-002',
               product_name: 'ปากกาลูกลื่น สีน้ำเงิน 0.5 มม.', unit_name: 'ด้าม',
-              category_id: -1, category_name: 'ตัวอย่าง: วัสดุสำนักงานและเครื่องเขียน',
+              category_id: -1, category_name: 'ตัวอย่าง: วัสดุสำนักงานและเครื่องเขียน', sub_category_name: 'ตัวอย่าง: เครื่องเขียน',
               open_qty: 60, open_val: 330, buy_qty: 0, buy_val: 0, adj_qty: 0, adj_val: 0,
+              buy_lots: [], price_rows: [],
               dept: { 'd-1': { qty: 12, val: 66 } },
               out_qty: 12, out_val: 66, close_qty: 48, close_val: 264, moved: true },
 
             /* แถวที่ไม่มีอะไรเกิดขึ้นเลย มีไว้ให้ขั้น "ดูเฉพาะรายการที่ขยับ" มีของหายจริง */
             { product_id: -103, product_code: 'EX-CLP-003',
               product_name: 'คลิปหนีบกระดาษ เบอร์ 111', unit_name: 'กล่อง',
-              category_id: -1, category_name: 'ตัวอย่าง: วัสดุสำนักงานและเครื่องเขียน',
+              category_id: -1, category_name: 'ตัวอย่าง: วัสดุสำนักงานและเครื่องเขียน', sub_category_name: 'ตัวอย่าง: เครื่องเขียน',
               open_qty: 24, open_val: 432, buy_qty: 0, buy_val: 0, adj_qty: 0, adj_val: 0,
+              buy_lots: [], price_rows: [],
               dept: {}, out_qty: 0, out_val: 0, close_qty: 24, close_val: 432, moved: false },
 
             { product_id: -104, product_code: 'EX-INK-004',
               product_name: 'หมึกเติม สีดำ 500 ml', unit_name: 'ขวด',
-              category_id: -2, category_name: 'ตัวอย่าง: วัสดุสิ้นเปลือง',
+              category_id: -2, category_name: 'ตัวอย่าง: วัสดุสิ้นเปลือง', sub_category_name: 'ตัวอย่าง: หมึกพิมพ์',
               open_qty: 4, open_val: 1200, buy_qty: 10, buy_val: 3000, adj_qty: 0, adj_val: 0,
+              buy_lots: [{ price: 300, qty: 10, val: 3000 }], price_rows: [],
               dept: { 'd-2': { qty: 3, val: 900 } },
               out_qty: 3, out_val: 900, close_qty: 11, close_val: 3300, moved: true },
 
             { product_id: -105, product_code: 'EX-CLN-005',
               product_name: 'น้ำยาถูพื้น 3.8 ลิตร', unit_name: 'แกลลอน',
-              category_id: -2, category_name: 'ตัวอย่าง: วัสดุสิ้นเปลือง',
+              category_id: -2, category_name: 'ตัวอย่าง: วัสดุสิ้นเปลือง', sub_category_name: 'ตัวอย่าง: น้ำยาทำความสะอาด',
               open_qty: 8, open_val: 760, buy_qty: 12, buy_val: 1140, adj_qty: 0, adj_val: 0,
+              buy_lots: [{ price: 95, qty: 12, val: 1140 }], price_rows: [],
               dept: { 'd-3': { qty: 15, val: 1425 } },
               out_qty: 15, out_val: 1425, close_qty: 5, close_val: 475, moved: true }
         ];
+
+        /* ยอดสรุปบวกจากแถวจริง ไม่เขียนตัวเลขไว้เอง
+           เคยเขียนมือแล้วต้องมาไล่แก้ทุกครั้งที่ปรับตัวเลขสาธิต
+           ซึ่งเป็นจังหวะที่ลืมง่ายที่สุด แล้วคู่มือจะสอนเลขที่ไม่ลงตัว */
+        var sum = { open_qty: 0, open_val: 0, buy_qty: 0, buy_val: 0,
+                    adj_qty: 0, adj_val: 0, out_qty: 0, out_val: 0,
+                    close_qty: 0, close_val: 0, moved: 0 };
+
+        for (var i = 0; i < rows.length; i++) {
+            for (var k in sum) {
+                if (k !== 'moved' && sum.hasOwnProperty(k)) { sum[k] += Number(rows[i][k] || 0); }
+            }
+            if (rows[i].moved) { sum.moved++; }
+        }
 
         return {
             range: { month: month, from: month + '-01', to: '', prev_end: prevMonthEnd(month) },
@@ -553,11 +1114,7 @@
             ],
             hasAdjust: false,
             rows: rows,
-            summary: {
-                open_qty: 163, open_val: 8283, buy_qty: 92, buy_val: 9950,
-                adj_qty: 0, adj_val: 0, out_qty: 128, out_val: 10525,
-                close_qty: 127, close_val: 7708, moved: 4
-            }
+            summary: sum
         };
     }
 
@@ -661,6 +1218,73 @@
             if (timer) { clearTimeout(timer); }
             timer = setTimeout(render, 150);
         });
+
+        /* ---------- กดกาง/ยุบรายละเอียดราคา ----------
+         * ผูกไว้ที่ตัวตารางจุดเดียว ไม่ผูกทีละปุ่ม เพราะตารางถูกวาดใหม่ทั้งก้อน
+         * ทุกครั้งที่เปลี่ยนเดือนหรือพิมพ์ค้นหา ถ้าผูกรายปุ่มจะต้องผูกใหม่ทุกรอบ
+         * และ listener เก่าจะค้างอยู่กับ DOM ที่ถูกทิ้งไปแล้ว
+         */
+        el('spTable').addEventListener('click', function (ev) {
+            var btn = ev.target.closest ? ev.target.closest('.sp-lots-btn') : null;
+            if (!btn) { return; }
+
+            var pid  = btn.getAttribute('data-pid');
+            var open = btn.getAttribute('aria-expanded') === 'true';
+            var kids = el('spTable').querySelectorAll('tr.sp-lot-row[data-pid="' + pid + '"]');
+
+            for (var i = 0; i < kids.length; i++) {
+                if (open) { kids[i].setAttribute('hidden', ''); }
+                else      { kids[i].removeAttribute('hidden'); }
+            }
+            btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+        });
+
+        /* ---------- ตัวเลือกคอลัมน์ ---------- */
+        if (el('btnCols')) {
+            el('btnCols').addEventListener('click', function () {
+                var box = el('spCols');
+                setHidden(box, !box.hasAttribute('hidden') ? true : false);
+            });
+        }
+
+        /* ปิดแผงเมื่อคลิกที่อื่น — แผงบังตารางอยู่ ถ้าไม่ปิดให้จะต้องกดปุ่มซ้ำทุกครั้ง */
+        document.addEventListener('click', function (ev) {
+            var box = el('spCols');
+            if (!box || box.hasAttribute('hidden')) { return; }
+            if (box.contains(ev.target)) { return; }
+            if (el('btnCols') && el('btnCols').contains(ev.target)) { return; }
+            setHidden(box, true);
+        });
+
+        if (el('spCols')) {
+            el('spCols').addEventListener('change', function (ev) {
+                var key = ev.target.getAttribute ? ev.target.getAttribute('data-col') : null;
+                if (!key) { return; }
+
+                if (ev.target.checked) { delete hiddenCols[key]; }
+                else                   { hiddenCols[key] = true; }
+
+                updateColsBadge();
+                render();
+            });
+
+            el('spCols').addEventListener('click', function (ev) {
+                var id = ev.target.id;
+                if (id !== 'spColsAll' && id !== 'spColsDept') { return; }
+
+                hiddenCols = {};
+                if (id === 'spColsDept') {
+                    /* เหลือเฉพาะคอลัมน์หน่วยงาน — ใช้ตอนอยากดูว่าใครเบิกอะไรล้วน ๆ */
+                    var list = colChoices();
+                    for (var i = 0; i < list.length; i++) {
+                        if (!list[i].dept) { hiddenCols[list[i].key] = true; }
+                    }
+                }
+                renderCols();
+                updateColsBadge();
+                render();
+            });
+        }
 
         el('btnPrint').addEventListener('click', function () { window.print(); });
         el('btnExport').addEventListener('click', exportExcel);

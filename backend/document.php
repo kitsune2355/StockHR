@@ -457,7 +457,7 @@ function doc_items($doc_id)
         "SELECT i.`item_id`, i.`line_no`, i.`product_id`, i.`qty`, i.`qty_issued`, i.`note`,
                 i.`unit_cost`, i.`total_cost`,
                 p.`product_code`, p.`product_name`, u.`unit_name`,
-                COALESCE(b.`qty`, 0), COALESCE(b.`avg_cost`, 0)
+                COALESCE(b.`qty`, 0), p.`unit_cost`
          FROM `tb_doc_item` i
          INNER JOIN `tb_product` p ON p.`product_id` = i.`product_id`
          LEFT  JOIN `tb_unit`    u ON u.`unit_id`    = p.`unit_id`
@@ -471,20 +471,20 @@ function doc_items($doc_id)
     mysqli_stmt_bind_result($stmt,
         $item_id, $line_no, $product_id, $qty, $qty_issued, $note,
         $unit_cost, $total_cost,
-        $product_code, $product_name, $unit_name, $balance, $avg_cost);
+        $product_code, $product_name, $unit_name, $balance, $last_price);
 
     $rows = array();
     while (mysqli_stmt_fetch($stmt)) {
 
         /* ---------- ราคาที่เอาไปแสดงบนเอกสารที่พิมพ์ ----------
          * ใบจ่ายมี unit_cost แช่แข็งไว้ในบรรทัดตั้งแต่วินาทีที่ตัดสต๊อก จึงใช้ค่านั้น
-         * ส่วนใบเบิกยังไม่เคยแตะสต๊อก บรรทัดจึงเป็น 0 เสมอ — ใช้ต้นทุนเฉลี่ย
-         * ปัจจุบันของสินค้าแทน เพื่อให้ผู้อนุมัติเห็นว่าใบนี้มีมูลค่าประมาณเท่าไร
+         * ส่วนใบเบิกยังไม่เคยแตะสต๊อก บรรทัดจึงเป็น 0 เสมอ — ใช้ราคาซื้อล่าสุด
+         * ของสินค้าแทน เพื่อให้ผู้อนุมัติเห็นว่าใบนี้มีมูลค่าประมาณเท่าไร
          *
          * เป็น "ราคาประมาณการ" ไม่ใช่ยอดที่ลงบัญชี ตัวเลขจริงจะถูกยืนยัน
          * อีกครั้งตอนจ่ายของ (หน้าพิมพ์เขียนกำกับไว้ให้ผู้อ่านรู้)
          */
-        $price = ((float)$unit_cost > 0) ? (float)$unit_cost : (float)$avg_cost;
+        $price = ((float)$unit_cost > 0) ? (float)$unit_cost : (float)$last_price;
 
         $rows[] = array(
             'item_id'      => (int)$item_id,
@@ -500,7 +500,7 @@ function doc_items($doc_id)
             'unit_cost'    => (float)$unit_cost,
             'total_cost'   => (float)$total_cost,
             'balance'      => (float)$balance,
-            'avg_cost'     => (float)$avg_cost,
+            'last_price'   => (float)$last_price,
             'price'        => $price,
             'amount'       => $price * (float)$qty
         );
@@ -611,7 +611,7 @@ function doc_insert($doc_type, $data, $status, $actor)
     /* ---------- รายการสินค้า ---------- */
     /* ราคาต่อหน่วยเก็บตั้งแต่ตอนสร้างบรรทัด
        ใบรับเข้า = ราคาที่ซื้อจริงซึ่งผู้ใช้กรอกมา
-       ใบจ่าย    = ยังไม่รู้ตอนนี้ (ต้องรอต้นทุนเฉลี่ยจาก stock_apply)
+       ใบจ่าย    = ยังไม่รู้ตอนนี้ (ต้องรอราคาที่ใช้ตัดสต๊อกจริงจาก stock_apply)
                    จึงใส่ 0 ไปก่อนแล้วให้ issue_save เขียนทับทีหลัง */
     $items = $data['items'];
     $stmt  = mysqli_prepare($connect,

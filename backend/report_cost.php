@@ -364,8 +364,9 @@ function cost_report($month)
        บอกไว้ให้ชัดในหน้าจอ เพราะระบบไม่ได้เก็บภาพย้อนหลังของมูลค่าคงคลัง */
     $connect = db_connect();
     $res = mysqli_query($connect,
-        "SELECT COALESCE(SUM(`qty` * `avg_cost`), 0), COALESCE(SUM(`qty`), 0)
-         FROM `tb_stock_balance`");
+        "SELECT COALESCE(SUM(b.`qty` * p.`unit_cost`), 0), COALESCE(SUM(b.`qty`), 0)
+         FROM `tb_stock_balance` b
+         INNER JOIN `tb_product` p ON p.`product_id` = b.`product_id`");
     $stock_value = 0; $stock_qty = 0;
     if ($res) {
         $r = mysqli_fetch_row($res);

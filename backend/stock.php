@@ -263,6 +263,36 @@ function stock_low_count()
 }
 
 
+/* ---------- ราคาซื้อล่าสุดของสินค้า ----------
+ * ใช้ตอนตัดสต๊อกออกโดยที่ผู้เรียกไม่ได้ระบุราคามาเอง ซึ่งก็คือการเบิกใช้
+ *
+ * ค่านี้ถูกเขียนใหม่ทุกครั้งที่บันทึกหรือยกเลิกใบรับเข้า ให้เท่ากับใบที่ใหม่ที่สุด
+ * (ดู receive_reprice ใน backend/receive.php) และแก้เองได้ที่หน้ารายการสินค้า
+ * สำหรับของที่ยังไม่เคยซื้อผ่านระบบ
+ *
+ * ยังไม่ตั้งราคาไว้เลยจะได้ 0 ซึ่งแปลว่า "ยังไม่รู้ราคา" ไม่ใช่ "ของแจก"
+ * ปล่อยเป็น 0 ตรง ๆ ดีกว่าเดาราคาให้ เพราะรายงานจะได้เห็นว่ามีของที่ยังไม่ได้
+ * ตั้งราคาหลุดออกไป แล้วตามแก้ที่ต้นทางได้ (หน้าภาพรวมมีตัวนับไว้ให้แล้ว)
+ */
+function stock_last_price($product_id)
+{
+    $connect = db_connect();
+
+    $stmt = mysqli_prepare($connect,
+        "SELECT `unit_cost` FROM `tb_product` WHERE `product_id` = ?");
+    if (!$stmt) { return 0; }
+
+    $pid = (int)$product_id;
+    mysqli_stmt_bind_param($stmt, 'i', $pid);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $cost);
+    $found = mysqli_stmt_fetch($stmt);
+    mysqli_stmt_close($stmt);
+
+    return $found ? (float)$cost : 0;
+}
+
+
 /* ============================================================
  *  เปลี่ยนยอดคงเหลือ — ทางเดียวที่ระบบยอมให้แก้ตัวเลขสต๊อก
  *
@@ -292,20 +322,19 @@ function stock_apply($product_id, $delta, $move_type, $doc, $actor, $note = '', 
        จนกว่า transaction นี้จะ COMMIT หรือ ROLLBACK
        ถ้าไม่ล็อก สองคนจะอ่านยอดเดิมค่าเดียวกันแล้วเขียนทับกัน */
     $stmt = mysqli_prepare($connect,
-        "SELECT `qty`, `avg_cost` FROM `tb_stock_balance` WHERE `product_id` = ? FOR UPDATE");
+        "SELECT `qty` FROM `tb_stock_balance` WHERE `product_id` = ? FOR UPDATE");
     if (!$stmt) { return db_fail('อ่านยอดคงเหลือไม่สำเร็จ'); }
 
     mysqli_stmt_bind_param($stmt, 'i', $product_id);
     mysqli_stmt_execute($stmt);
-    mysqli_stmt_bind_result($stmt, $current, $avg_cost);
+    mysqli_stmt_bind_result($stmt, $current);
     $found = mysqli_stmt_fetch($stmt);
     mysqli_stmt_close($stmt);
 
     /* สินค้าที่เพิ่มเข้าทะเบียนหลังจากรันไฟล์ 008 จะยังไม่มีแถว สร้างให้ตรงนี้
        INSERT จะล็อกแถวใหม่ให้เองอยู่แล้ว จึงปลอดภัยเท่ากับกรณีมีแถวอยู่ก่อน */
     if (!$found) {
-        $current  = 0;
-        $avg_cost = 0;
+        $current = 0;
 
         $stmt = mysqli_prepare($connect,
             "INSERT INTO `tb_stock_balance` (`product_id`, `qty`, `created_at`, `created_by`)
@@ -337,42 +366,31 @@ function stock_apply($product_id, $delta, $move_type, $doc, $actor, $note = '', 
                      . ' แต่ต้องการ ' . stock_format(abs($delta)));
     }
 
-    /* ---------- 3) คิดต้นทุนถัวเฉลี่ยเคลื่อนที่ ----------
-     * ทำงานกับ "มูลค่ารวม" ไม่ใช่ค่าเฉลี่ยโดยตรง เพราะการบวกลบค่าเฉลี่ยตรง ๆ
-     * จะเพี้ยนทุกครั้งที่จำนวนไม่เท่ากัน ต้องแปลงกลับเป็นมูลค่าก่อนเสมอ
+    /* ---------- 3) ราคาต่อหน่วยของรายการนี้ ----------
+     * ระบบใช้ "ราคา ณ วันทำรายการ" ไม่ได้ถัวเฉลี่ยของที่กองอยู่ในคลัง
      *
-     *   รับเข้า         มูลค่าเพิ่มตามราคาที่ซื้อจริง แล้วหารจำนวนใหม่ = เฉลี่ยใหม่
-     *   จ่ายออก         มูลค่าลดตามต้นทุนเฉลี่ยปัจจุบัน ค่าเฉลี่ยไม่ขยับ
-     *   ยกเลิกรับเข้า   ถอนมูลค่าออกด้วย "ราคาที่รับเข้ามา" ไม่ใช่ค่าเฉลี่ยวันนี้
-     *                   ไม่งั้นถ้าราคาระหว่างนั้นเปลี่ยน มูลค่าจะค้างเป็นเศษ
-     *   ยกเลิกจ่ายออก   ของกลับเข้าคลังด้วยต้นทุนที่จ่ายออกไป (ผู้เรียกส่งมาให้)
+     *   รับเข้า         ราคาที่ซื้อจริงของครั้งนั้น (ผู้เรียกส่งมา)
+     *   ยกเลิกรับเข้า   ราคาของใบเดิม เพื่อถอนออกเท่าที่ใส่เข้าไป (ผู้เรียกส่งมา)
+     *   ยกเลิกจ่ายออก   ราคาที่จ่ายออกไปตอนนั้น (ผู้เรียกส่งมา)
+     *   จ่ายออก         ไม่มีใครส่งราคามา ใช้ราคาซื้อล่าสุดของสินค้าตัวนั้น ณ วินาทีนี้
+     *
+     * เคยคิดแบบถัวเฉลี่ยเคลื่อนที่มาก่อน แต่เลิกใช้แล้ว เพราะของตัวเดียวกัน
+     * ที่ซื้อมาคนละราคาจะถูกเกลี่ยเป็นราคากลางที่ไม่ตรงกับใบเสร็จใบไหนเลย
+     * (ซื้อ 7 ที่ 300 แล้วซื้อเพิ่ม 1 ที่ 100 จะได้ 275 ซึ่งอธิบายกับคนอ่านยาก)
+     *
+     * ราคาที่ใช้จะถูกแช่แข็งลงประวัติทันที เปิดรายงานเดือนเก่ากี่ครั้งก็ได้เท่าเดิม
+     * ต่อให้ราคาซื้อล่าสุดของสินค้าขยับไปแล้วก็ตาม
      */
-    $avg_cost     = (float)$avg_cost;
-    $value_before = $current * $avg_cost;
-
-    if ($delta > 0) {
-        $line_cost   = ($unit_cost !== null) ? (float)$unit_cost : $avg_cost;
-        $value_after = $value_before + ($delta * $line_cost);
-    } else {
-        $line_cost   = ($unit_cost !== null) ? (float)$unit_cost : $avg_cost;
-        $value_after = $value_before - (abs($delta) * $line_cost);
-
-        /* มูลค่าติดลบเกิดได้ถ้าราคาที่ถอนสูงกว่ามูลค่าที่เหลือจริง
-           (เช่นยกเลิกใบรับเข้าเก่าหลังราคาตกลงมามาก) ปัดเป็น 0 แทนที่จะปล่อยติดลบ
-           เพราะมูลค่าสินค้าคงเหลือติดลบไม่มีความหมายทางบัญชี */
-        if ($value_after < 0) { $value_after = 0; }
-    }
-
-    $avg_after  = ($after > 0) ? ($value_after / $after) : 0;
+    $line_cost  = ($unit_cost !== null) ? (float)$unit_cost : stock_last_price($product_id);
     $line_total = abs($delta) * $line_cost;
 
     /* ---------- 4) เขียนยอดใหม่ ---------- */
     $stmt = mysqli_prepare($connect,
-        "UPDATE `tb_stock_balance` SET `qty` = ?, `avg_cost` = ?, `updated_by` = ?
+        "UPDATE `tb_stock_balance` SET `qty` = ?, `updated_by` = ?
          WHERE `product_id` = ?");
     if (!$stmt) { return db_fail('บันทึกยอดคงเหลือไม่สำเร็จ'); }
 
-    mysqli_stmt_bind_param($stmt, 'ddsi', $after, $avg_after, $actor, $product_id);
+    mysqli_stmt_bind_param($stmt, 'dsi', $after, $actor, $product_id);
     if (!mysqli_stmt_execute($stmt)) {
         $errno = mysqli_stmt_errno($stmt);
         mysqli_stmt_close($stmt);
@@ -395,14 +413,14 @@ function stock_apply($product_id, $delta, $move_type, $doc, $actor, $note = '', 
          SET `product_id` = ?, `move_date` = ?, `move_type` = ?,
              `doc_id` = ?, `doc_no` = ?,
              `qty_in` = ?, `qty_out` = ?, `unit_cost` = ?, `total_cost` = ?,
-             `balance_after` = ?, `avg_cost_after` = ?, `note` = ?,
+             `balance_after` = ?, `note` = ?,
              `created_at` = NOW(), `created_by` = ?");
     if (!$stmt) { return db_fail('บันทึกประวัติไม่สำเร็จ'); }
 
-    mysqli_stmt_bind_param($stmt, 'issisddddddss',
+    mysqli_stmt_bind_param($stmt, 'issisdddddss',
         $product_id, $move_date, $move_type, $doc_id, $doc_no,
         $qty_in, $qty_out, $line_cost, $line_total,
-        $after, $avg_after, $note, $actor);
+        $after, $note, $actor);
 
     if (!mysqli_stmt_execute($stmt)) {
         $errno = mysqli_stmt_errno($stmt);
@@ -412,13 +430,12 @@ function stock_apply($product_id, $delta, $move_type, $doc, $actor, $note = '', 
     $move_id = mysqli_stmt_insert_id($stmt);
     mysqli_stmt_close($stmt);
 
-    /* คืนต้นทุนที่ใช้จริงกลับไปด้วย ผู้เรียกเอาไปแช่แข็งไว้ในบรรทัดเอกสาร
-       (ใบจ่ายต้องรู้ว่าตอนนั้นเฉลี่ยเท่าไร ไม่ใช่ไปอ่านค่าเฉลี่ยวันที่เปิดรายงาน) */
+    /* คืนราคาที่ใช้จริงกลับไปด้วย ผู้เรียกเอาไปแช่แข็งไว้ในบรรทัดเอกสาร
+       (ใบจ่ายต้องรู้ว่าตอนนั้นตัดที่ราคาเท่าไร ไม่ใช่ไปอ่านราคาวันที่เปิดรายงาน) */
     $res = db_ok('ปรับยอดเรียบร้อย', $move_id);
     $res['qty']        = $after;
     $res['unit_cost']  = $line_cost;
     $res['total_cost'] = $line_total;
-    $res['avg_cost']   = $avg_after;
     return $res;
 }
 
@@ -477,8 +494,11 @@ function stock_movements($options = array())
         $values[] = $like;
     }
 
+    /* unit_cost / total_cost คือราคาที่ใช้จริง ณ วันทำรายการ แช่แข็งไว้แล้ว
+       ไม่ได้คำนวณสดจากราคาสินค้าวันนี้ ตัวเลขของรายการเก่าจึงไม่มีวันขยับ */
     $sql = "SELECT m.`move_id`, m.`move_date`, m.`move_type`, m.`doc_no`,
-                   m.`qty_in`, m.`qty_out`, m.`balance_after`, m.`note`, m.`created_by`,
+                   m.`qty_in`, m.`qty_out`, m.`unit_cost`, m.`total_cost`,
+                   m.`balance_after`, m.`note`, m.`created_by`,
                    p.`product_code`, p.`product_name`, u.`unit_name`,
                    d.`department_id`, dp.`department_name`
             FROM `tb_stock_movement` m
@@ -509,7 +529,8 @@ function stock_movements($options = array())
 
     mysqli_stmt_execute($stmt);
     mysqli_stmt_bind_result($stmt,
-        $move_id, $move_date, $mtype, $doc_no, $qty_in, $qty_out, $balance_after,
+        $move_id, $move_date, $mtype, $doc_no, $qty_in, $qty_out,
+        $unit_cost, $total_cost, $balance_after,
         $note, $created_by, $product_code, $product_name, $unit_name,
         $department_id, $department_name);
 
@@ -523,6 +544,8 @@ function stock_movements($options = array())
             'doc_no'          => $doc_no,
             'qty_in'          => (float)$qty_in,
             'qty_out'         => (float)$qty_out,
+            'unit_cost'       => (float)$unit_cost,
+            'total_cost'      => (float)$total_cost,
             'balance_after'   => (float)$balance_after,
             'note'            => $note,
             'created_by'      => ($created_by === null) ? '' : $created_by,

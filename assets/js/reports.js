@@ -36,6 +36,14 @@
         return (Math.round(n * 100) / 100).toLocaleString('en-US');
     }
 
+    /* เงินแสดงสองตำแหน่งเสมอ แม้ลงท้ายด้วย .00 คอลัมน์ตัวเลขจะได้เรียง
+       จุดทศนิยมตรงกันทุกบรรทัด เหมือนตารางเงินที่อื่นในระบบ */
+    function money(v) {
+        var n = Number(v);
+        if (isNaN(n)) { n = 0; }
+        return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
 
     function post(payload, done, fail) {
         var xhr = new XMLHttpRequest();
@@ -333,6 +341,35 @@
                                  : '<span class="grid-empty">—</span>';
                 }
             },
+
+            /* ---------- ราคาที่ใช้จริงในรายการนั้น ----------
+             * เป็นราคา ณ วันที่ทำรายการที่ถูกแช่แข็งไว้ ไม่ใช่ราคาสินค้าวันนี้
+             * เปิดรายการของเดือนที่แล้วกี่ครั้งก็ได้ตัวเลขเดิมเสมอ
+             *
+             * ทั้งคู่โผล่เฉพาะสิทธิ์ที่ดูตัวเลขเงินได้ (ฝั่งเซิร์ฟเวอร์ตัดข้อมูล
+             * ไม่ส่งมาให้อยู่แล้ว ตรงนี้แค่ไม่สร้างคอลัมน์เปล่าค้างไว้)
+             */
+            G.col({ visible: !!(res && res.showCost) }, {
+                title: 'ราคา/หน่วย', field: 'unit_cost', width: 118,
+                hozAlign: 'right', responsive: 4,
+                download: true, clipboard: true, cssClass: 'num',
+                formatter: function (cell) {
+                    var v = Number(cell.getValue());
+                    if (!v) { return '<span class="grid-empty">—</span>'; }
+                    return '<span class="doc-money">' + money(v) + '</span>';
+                }
+            }),
+
+            G.col({ visible: !!(res && res.showCost) }, {
+                title: 'เป็นเงิน', field: 'total_cost', width: 124,
+                hozAlign: 'right', responsive: 4,
+                download: true, clipboard: true, cssClass: 'num',
+                formatter: function (cell) {
+                    var v = Number(cell.getValue());
+                    if (!v) { return '<span class="grid-empty">—</span>'; }
+                    return '<b class="doc-money">' + money(v) + '</b>';
+                }
+            }),
 
             {
                 title: 'คงเหลือหลังรายการ', field: 'balance_after', width: 150,

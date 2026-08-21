@@ -61,7 +61,29 @@ $input    = 'input-control h-11 rounded-xl border border-slate-200 bg-white px-4
       <span>เฉพาะรายการที่มีความเคลื่อนไหว</span>
     </label>
 
+    <?php /* ตัวเลือกตอนส่งออก — บางคนเอาไฟล์ไปทำ pivot ต่อ แถวย่อยรายราคา
+             จะกลายเป็นแถวขยะที่ต้องมานั่งลบทิ้ง จึงให้เลือกได้ว่าจะเอาหรือไม่ */ ?>
+    <label class="sp-export-opt no-print" title="ใส่แถวย่อยรายราคาใต้สินค้าในไฟล์ Excel และตั้งให้ยุบ/กางได้ใน Excel">
+      <input type="checkbox" id="spExportLots" checked>
+      <span>ไฟล์ Excel ใส่รายละเอียดราคา (ยุบได้)</span>
+    </label>
+
     <div class="rc-bar-actions">
+      <?php /* ตัวเลือกคอลัมน์ — เดือนที่มีหน่วยงานเบิกสิบกว่าหน่วย ตารางกว้าง
+               สี่สิบกว่าคอลัมน์ คนที่ดูแค่หน่วยงานตัวเองต้องเลื่อนผ่านของคนอื่นทั้งแถว
+
+               วางแผงไว้ใน .rc-bar ซึ่งเป็น position: relative อยู่แล้ว
+               แผงจึงลอยใต้ปุ่มพอดีโดยไม่ต้องคำนวณตำแหน่งเอง */ ?>
+      <div class="sp-cols-wrap no-print">
+        <button type="button" id="btnCols" class="<?php echo $btn_soft; ?> btn-compact"
+                title="เลือกว่าจะแสดงคอลัมน์ไหนบ้าง มีผลทั้งบนจอและในไฟล์ Excel">
+          <i data-lucide="columns-3" class="h-4 w-4" aria-hidden="true"></i>
+          <span class="btn-label">คอลัมน์</span>
+          <span id="spColsCount" class="fp-count num" hidden>0</span>
+        </button>
+        <div id="spCols" hidden class="sp-cols"></div>
+      </div>
+
       <button type="button" id="btnPrint" class="<?php echo $btn_soft; ?> btn-compact">
         <i data-lucide="printer" class="h-4 w-4" aria-hidden="true"></i>
         <span class="btn-label">พิมพ์</span>

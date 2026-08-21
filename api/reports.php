@@ -72,17 +72,35 @@ if ($action === 'movement') {
         'limit'      => 2000
     ));
 
+    /* ---------- ราคาเห็นได้เฉพาะผู้ดูแลระบบ ----------
+     * หน้านี้เปิดให้ทุกสิทธิ์ เพราะทุกแผนกต้องดูได้ว่าของเข้าออกไปเท่าไร
+     * แต่ "ราคา" เป็นตัวเลขเงินของทั้งองค์กร ซึ่งระบบจำกัดไว้ที่ผู้ดูแลระบบ
+     * มาตลอด (ดูรายงานค่าใช้จ่ายรายเดือน) ถ้าปล่อยหลุดมาทางนี้
+     * การจำกัดสิทธิ์ที่นั่นก็ไม่มีความหมาย
+     *
+     * ตัดทิ้งที่ฝั่งเซิร์ฟเวอร์ ไม่ใช่แค่ซ่อนคอลัมน์ที่หน้าจอ
+     * เพราะการซ่อนที่หน้าจอคือความสวยงาม ไม่ใช่การป้องกัน
+     */
+    $role      = isset($_SESSION['sess_role']) ? $_SESSION['sess_role'] : '';
+    $show_cost = in_array($role, array('super_admin', 'admin'));
+
     $sum_in  = 0;
     $sum_out = 0;
     for ($i = 0; $i < count($rows); $i++) {
         $sum_in  += $rows[$i]['qty_in'];
         $sum_out += $rows[$i]['qty_out'];
+
+        if (!$show_cost) {
+            unset($rows[$i]['unit_cost']);
+            unset($rows[$i]['total_cost']);
+        }
     }
 
     api_ok(array(
         'rows'      => $rows,
         'moveTypes' => stock_move_types(),
         'range'     => array('from' => $from, 'to' => $to),
+        'showCost'  => $show_cost,
         'summary'   => array(
             'lines'   => count($rows),
             'qty_in'  => $sum_in,

@@ -103,7 +103,7 @@ function issue_save($data, $actor)
             return db_fail($names[$pid] . ': ' . $applied['message']);
         }
 
-        /* แช่แข็งต้นทุนเฉลี่ย ณ วินาทีที่จ่าย ลงบรรทัดของใบจ่าย
+        /* แช่แข็งราคาที่ใช้ตัดสต๊อก ณ วินาทีที่จ่าย ลงบรรทัดของใบจ่าย
            รายงานย้อนหลังจะได้ตัวเลขเดิมเสมอ ไม่เปลี่ยนตามราคาที่ซื้อทีหลัง */
         if (!issue_set_line_cost($doc_id, $pid, $applied['unit_cost'], $actor)) {
             db_rollback();

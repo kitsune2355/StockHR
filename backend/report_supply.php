@@ -99,13 +99,16 @@ function supply_products()
                    COALESCE(u.`unit_name`, '')            AS `unit_name`,
                    COALESCE(c.`category_id`, 0)           AS `category_id`,
                    COALESCE(c.`category_name`, '(ไม่ระบุหมวดหมู่)') AS `category_name`,
-                   COALESCE(s.`sub_category_name`, '')    AS `sub_category_name`
+                   COALESCE(s.`sub_category_id`, 0)       AS `sub_category_id`,
+                   COALESCE(s.`sub_category_name`, '(ไม่ระบุหมวดหมู่ย่อย)') AS `sub_category_name`
             FROM `tb_product` p
             LEFT JOIN `tb_unit`         u ON u.`unit_id`         = p.`unit_id`
             LEFT JOIN `tb_sub_category` s ON s.`sub_category_id` = p.`sub_category_id`
             LEFT JOIN `tb_category`     c ON c.`category_id`     = s.`category_id`
             WHERE p.`is_active` = 1
-            ORDER BY (c.`category_id` IS NULL), c.`category_id`, p.`product_code`";
+            ORDER BY (c.`category_id` IS NULL), c.`category_id`,
+                     (s.`sub_category_id` IS NULL), s.`sub_category_name`,
+                     p.`product_code`";
 
     return supply_rows($sql, '', array());
 }
@@ -147,6 +150,33 @@ function supply_purchases($from, $to)
 }
 
 
+/* ---------- ของที่ซื้อเข้ามาในเดือน แยกตามราคาที่ซื้อ ----------
+ * ตารางหลักบอกได้แค่ "เดือนนี้ซื้อเข้ามา 200 ชิ้น 3,000 บาท" ซึ่งกลบความจริงว่า
+ * ของล็อตแรก 100 ชิ้นซื้อมาชิ้นละ 10 ส่วนล็อตหลังซื้อมาชิ้นละ 20
+ * คนอ่านที่เอา 3,000 หาร 200 จะได้ 15 ซึ่งเป็นราคาที่ไม่เคยซื้อจริงสักครั้ง
+ *
+ * จัดกลุ่มด้วย unit_cost ตรง ๆ ไม่ปัดเศษก่อน เพราะราคาเก็บเป็นทศนิยม 4 ตำแหน่ง
+ * ถ้าปัดก่อนจัดกลุ่ม ราคา 10.0001 กับ 10.0002 จะถูกยุบรวมทั้งที่เป็นคนละล็อต
+ *
+ * ยกเลิกรับเข้าหักออกจากล็อตราคาเดียวกัน (ตอนยกเลิกใช้ราคาของใบเดิมเสมอ)
+ * ล็อตที่ถูกยกเลิกจนหมดจะเหลือจำนวนศูนย์ แล้วถูกตัดทิ้งตอนประกอบแถว
+ */
+function supply_purchase_lots($from, $to)
+{
+    $sql = "SELECT m.`product_id`, m.`unit_cost`,
+                   SUM(m.`qty_in` - m.`qty_out`) AS `qty`,
+                   SUM(CASE WHEN m.`move_type` = 'receive' THEN m.`total_cost`
+                            ELSE -m.`total_cost` END)  AS `val`
+            FROM `tb_stock_movement` m
+            WHERE m.`move_date` >= ? AND m.`move_date` <= ?
+              AND m.`move_type` IN ('receive', 'cancel_receive')
+            GROUP BY m.`product_id`, m.`unit_cost`
+            ORDER BY m.`product_id`, m.`unit_cost`";
+
+    return supply_rows($sql, 'ss', array($from, $to));
+}
+
+
 /* ---------- ของที่เบิกออกในเดือน แยกตามหน่วยงาน ----------
  * หน่วยงานอยู่ที่หัวเอกสาร ไม่ได้เก็บซ้ำใน movement จึง join กลับไปเอา
  * ใบจ่ายทุกใบมี department_id เสมอ (คัดลอกมาจากใบเบิกตอนบันทึก)
@@ -167,6 +197,69 @@ function supply_issues($from, $to)
             GROUP BY m.`product_id`, h.`department_id`";
 
     return supply_rows($sql, 'ss', array($from, $to));
+}
+
+
+/* ---------- ของที่เบิกออกในเดือน แยกตามหน่วยงาน "และราคา" ----------
+ * ใช้ทำแถวย่อยใต้สินค้า ตอบว่าหน่วยงานนั้นเบิกของราคาไหนไปเท่าไร
+ *
+ * ของกองเดียวกันถูกตัดคนละราคาได้ในเดือนเดียว เพราะราคาที่ใช้ตัดคือราคา
+ * ซื้อล่าสุด ณ วินาทีที่เบิก ซื้อของเข้ามาใหม่ราคาสูงขึ้นกลางเดือน
+ * การเบิกหลังจากนั้นก็ตัดที่ราคาใหม่ ทั้งที่เป็นสินค้าตัวเดียวกัน
+ *
+ * ตัวเลขรวมของแถวหลักมาจาก supply_issues() เหมือนเดิม ตรงนี้เป็นการกาง
+ * รายละเอียดเฉย ๆ ไม่ได้เอามาบวกซ้ำ ยอดสองที่จึงไม่มีทางขัดกัน
+ */
+function supply_issue_lots($from, $to)
+{
+    $sql = "SELECT m.`product_id`,
+                   COALESCE(h.`department_id`, 0) AS `department_id`,
+                   m.`unit_cost`,
+                   SUM(m.`qty_out` - m.`qty_in`) AS `qty`,
+                   SUM(CASE WHEN m.`move_type` = 'issue' THEN m.`total_cost`
+                            ELSE -m.`total_cost` END)  AS `val`
+            FROM `tb_stock_movement` m
+            LEFT JOIN `tb_doc_header` h ON h.`doc_id` = m.`doc_id`
+            WHERE m.`move_date` >= ? AND m.`move_date` <= ?
+              AND m.`move_type` IN ('issue', 'cancel_issue')
+            GROUP BY m.`product_id`, h.`department_id`, m.`unit_cost`
+            ORDER BY m.`product_id`, m.`unit_cost`";
+
+    return supply_rows($sql, 'ss', array($from, $to));
+}
+
+
+/* ---------- กุญแจของราคา ----------
+ * ใช้ทศนิยมสี่ตำแหน่งเท่าที่ตารางเก็บจริง จะได้ไม่เกิดกรณีที่ 100 กับ 100.0000
+ * กลายเป็นคนละล็อตเพราะรูปแบบตัวเลขที่ PHP แปลงมาไม่เหมือนกัน
+ */
+function supply_price_key($price)
+{
+    return number_format((float)$price, 4, '.', '');
+}
+
+
+/* ---------- ช่องเก็บของราคาหนึ่งราคา ----------
+ * สร้างให้ถ้ายังไม่มี แล้วคืนกุญแจกลับไปให้ผู้เรียกเติมตัวเลขต่อ
+ * ใช้ร่วมกันทั้งฝั่งซื้อและฝั่งเบิก แถวย่อยหนึ่งแถวจึงมีครบทั้งสองด้าน
+ *
+ * ต้องประกาศไว้ระดับไฟล์ ไม่ใช่ซ้อนอยู่ในฟังก์ชันที่เรียกใช้
+ * เพราะ PHP ประกาศฟังก์ชันซ้ำไม่ได้ พอเรียกรายงานสองเดือนติดกัน
+ * (เช่นสคริปต์ที่วนหลายเดือน) ครั้งที่สองจะตายทันที
+ */
+function supply_lot_slot(&$lots, $pid, $price)
+{
+    $k = supply_price_key($price);
+    if (!isset($lots[$pid]))     { $lots[$pid] = array(); }
+    if (!isset($lots[$pid][$k])) {
+        $lots[$pid][$k] = array(
+            'price'   => (float)$price,
+            'buy_qty' => 0, 'buy_val' => 0,
+            'out_qty' => 0, 'out_val' => 0,
+            'dept'    => array()
+        );
+    }
+    return $k;
 }
 
 
@@ -243,6 +336,44 @@ function supply_report($month)
     $rows = supply_purchases($from, $to);
     for ($i = 0; $i < count($rows); $i++) {
         $buy[(int)$rows[$i]['product_id']] = $rows[$i];
+    }
+
+    /* ---------- ล็อตราคา : สินค้า -> ราคา -> รายละเอียด ----------
+       รวมทั้งฝั่งซื้อและฝั่งเบิกไว้ในตารางเดียว เพราะแถวย่อยบนหน้าจอ
+       หนึ่งแถวคือ "หนึ่งราคา" ซึ่งต้องบอกได้ทั้งว่าซื้อมาเท่าไร
+       และหน่วยงานไหนเบิกของราคานั้นไปเท่าไร */
+    $lots = array();
+
+    $rows = supply_purchase_lots($from, $to);
+    for ($i = 0; $i < count($rows); $i++) {
+        $pid = (int)$rows[$i]['product_id'];
+        $q   = (float)$rows[$i]['qty'];
+        $v   = (float)$rows[$i]['val'];
+        if ($q == 0 && $v == 0) { continue; }      /* ล็อตที่ถูกยกเลิกจนหมด */
+
+        $k = supply_lot_slot($lots, $pid, $rows[$i]['unit_cost']);
+        $lots[$pid][$k]['buy_qty'] += $q;
+        $lots[$pid][$k]['buy_val'] += $v;
+    }
+
+    $rows = supply_issue_lots($from, $to);
+    for ($i = 0; $i < count($rows); $i++) {
+        $pid = (int)$rows[$i]['product_id'];
+        $did = (int)$rows[$i]['department_id'];
+        $q   = (float)$rows[$i]['qty'];
+        $v   = (float)$rows[$i]['val'];
+        if ($q == 0 && $v == 0) { continue; }
+
+        $k = supply_lot_slot($lots, $pid, $rows[$i]['unit_cost']);
+        $lots[$pid][$k]['out_qty'] += $q;
+        $lots[$pid][$k]['out_val'] += $v;
+
+        $dk = 'd' . $did;
+        if (!isset($lots[$pid][$k]['dept'][$dk])) {
+            $lots[$pid][$k]['dept'][$dk] = array('qty' => 0, 'val' => 0);
+        }
+        $lots[$pid][$k]['dept'][$dk]['qty'] += $q;
+        $lots[$pid][$k]['dept'][$dk]['val'] += $v;
     }
 
     $adj  = array();
@@ -337,6 +468,35 @@ function supply_report($month)
             }
         }
 
+        /* ---------- แถวย่อยรายราคา ----------
+         * เรียงจากถูกไปแพง คนอ่านจะได้เห็นทันทีว่าราคาขยับไปทางไหน
+         *
+         * ราคาเดียวไม่ต้องมีแถวย่อย เพราะจะได้ตัวเลขชุดเดิมกับแถวหลักเป๊ะ ๆ
+         * กางออกมาก็ไม่ได้ข้อมูลอะไรเพิ่ม มีแต่จะทำให้ตารางยาวขึ้นเปล่า ๆ
+         */
+        $price_rows = array();
+        if (isset($lots[$pid]) && count($lots[$pid]) > 1) {
+            $keys = array_keys($lots[$pid]);
+            sort($keys, SORT_NUMERIC);
+            for ($k = 0; $k < count($keys); $k++) {
+                $price_rows[] = $lots[$pid][$keys[$k]];
+            }
+        }
+
+        /* รายการราคาที่ซื้อจริง ใช้กับช่อง "ราคา/หน่วย" ของแถวหลัก */
+        $buy_lots = array();
+        if (isset($lots[$pid])) {
+            $keys = array_keys($lots[$pid]);
+            sort($keys, SORT_NUMERIC);
+            for ($k = 0; $k < count($keys); $k++) {
+                $one = $lots[$pid][$keys[$k]];
+                if ($one['buy_qty'] == 0 && $one['buy_val'] == 0) { continue; }
+                $buy_lots[] = array('price' => $one['price'],
+                                    'qty'   => $one['buy_qty'],
+                                    'val'   => $one['buy_val']);
+            }
+        }
+
         $moved = ($buy_qty != 0 || $out_qty != 0 || $adj_qty != 0);
 
         $list[] = array(
@@ -344,10 +504,14 @@ function supply_report($month)
             'product_code'  => $p['product_code'],
             'product_name'  => $p['product_name'],
             'unit_name'     => $p['unit_name'],
-            'category_id'   => (int)$p['category_id'],
-            'category_name' => $p['category_name'],
+            'category_id'       => (int)$p['category_id'],
+            'category_name'     => $p['category_name'],
+            'sub_category_id'   => (int)$p['sub_category_id'],
+            'sub_category_name' => $p['sub_category_name'],
             'open_qty'  => $open_qty,  'open_val'  => $open_val,
             'buy_qty'   => $buy_qty,   'buy_val'   => $buy_val,
+            'buy_lots'  => $buy_lots,
+            'price_rows' => $price_rows,
             'adj_qty'   => $adj_qty,   'adj_val'   => $adj_val,
             'dept'      => $cells,
             'out_qty'   => $out_qty,   'out_val'   => $out_val,

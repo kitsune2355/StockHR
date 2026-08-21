@@ -3027,36 +3027,125 @@ button.fp-toggle { display: none; }
 
 /* ---------- คอลัมน์ที่ตรึงไว้ทางซ้าย ----------
    ความกว้างต้องคงที่ ไม่งั้นค่า left ของคอลัมน์ถัดไปจะคำนวณไม่ได้
-   ตัวเลขชุดนี้จึงต้องแก้พร้อมกันทั้งบล็อกเสมอ */
+   ตัวเลขชุดนี้จึงต้องแก้พร้อมกันทั้งบล็อกเสมอ
+
+   ตรึงถึงกลุ่ม "ซื้อเข้า" เพราะยกมากับซื้อเข้าคือสองตัวเลขที่ต้องเทียบด้วย
+   ตลอดเวลาที่ไล่อ่านหน่วยงานทางขวา รวมแล้วกินพื้นที่ 55.75rem
+   จอที่แคบกว่านั้นมากจะปลดการตรึงทิ้ง (ดูท้ายบล็อกนี้)
+
+   หน่วยต้องเป็น rem ไม่ใช่ px เพราะหน้า "ขนาดตัวอักษร" ตั้ง font-size ให้ <html>
+   เป็นเปอร์เซ็นต์ ถ้าตรึงด้วย px ตัวหนังสือจะโตขึ้นแต่คอลัมน์กว้างเท่าเดิม
+   หัวคอลัมน์กับชื่อสินค้าจะถูกตัดทิ้ง และตำแหน่ง left ของคอลัมน์ถัดไป
+   จะเลื่อนไม่ตรงกับความกว้างจริง (1rem = 16px ที่ขนาดปกติ) */
 .sp-table .sp-fix { position: sticky; z-index: 2; text-align: left; }
 .sp-table thead .sp-fix { z-index: 5; }
 
-.sp-table .sp-fix-1 { left: 0;     width: 46px;  min-width: 46px;  text-align: right; color: #94a3b8; }
-.sp-table .sp-fix-2 { left: 46px;  width: 104px; min-width: 104px; }
-.sp-table .sp-fix-3 { left: 150px; width: 260px; min-width: 260px;
-                      max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
-.sp-table .sp-fix-4 { left: 410px; width: 62px;  min-width: 62px;  color: #64748b; }
+/* ค่า left ไม่ได้อยู่ที่นี่ — report-supply.js คำนวณแล้วใส่เป็น style ให้ทีละช่อง
+   เพราะผู้ใช้ซ่อนคอลัมน์เองได้ ตำแหน่งของคอลัมน์ที่เหลือจึงเปลี่ยนทุกครั้ง
+   ความกว้างในนี้ต้องตรงกับตาราง FIX_W ใน report-supply.js เสมอ */
+.sp-table .sp-fix-1 { width: 2.75rem;   min-width: 2.75rem;  text-align: right; color: #94a3b8; }
+.sp-table .sp-fix-2 { width: 6.25rem;   min-width: 6.25rem; }
+.sp-table .sp-fix-3 { width: 14.375rem; min-width: 14.375rem;
+                      max-width: 14.375rem; overflow: hidden; text-overflow: ellipsis; }
+.sp-table .sp-fix-4 { width: 3.625rem;  min-width: 3.625rem; color: #64748b; }
+
+/* ยกมา : จำนวน / เป็นเงิน */
+.sp-table .sp-fix-5 { width: 4.75rem;   min-width: 4.75rem; }
+.sp-table .sp-fix-6 { width: 6.25rem;   min-width: 6.25rem; }
+
+/* ซื้อเข้า : จำนวน / ราคา/หน่วย / เป็นเงิน */
+.sp-table .sp-fix-7 { width: 4.75rem;   min-width: 4.75rem; }
+.sp-table .sp-fix-8 { width: 6.5rem;    min-width: 6.5rem; }
+.sp-table .sp-fix-9 { width: 6.5rem;    min-width: 6.5rem; }
+
 .sp-table .sp-fix-all { left: 0; }
 
-/* เงาบอกขอบของส่วนที่ตรึงไว้ ไม่งั้นตอนเลื่อนจะดูเหมือนตัวเลขทับชื่อสินค้า */
-.sp-table .sp-fix-4::after {
-    content: ''; position: absolute; top: 0; right: -6px; bottom: -1px; width: 6px;
-    background: linear-gradient(to right, rgba(15,23,42,.08), transparent);
+/* เงาบอกขอบของส่วนที่ตรึงไว้ ไม่งั้นตอนเลื่อนจะดูเหมือนตัวเลขทับกัน */
+.sp-table .sp-fix-9::after {
+    content: ''; position: absolute; top: 0; right: -.375rem; bottom: -1px; width: .375rem;
+    background: linear-gradient(to right, rgba(15,23,42,.10), transparent);
     pointer-events: none;
 }
 
 .sp-code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; color: #0f766e; }
+/* ช่องแจกแจงราคาที่ซื้อจริง อยู่กลางกลุ่ม "ซื้อเข้า"
+   ชิดขวาให้เรียงกับตัวเลขข้าง ๆ และย่อขนาดลง เพราะเดือนที่ซื้อหลายล็อต
+   ข้อความจะยาวกว่าช่องตัวเลขปกติหลายเท่า */
+.sp-table .sp-lots {
+    text-align: right;
+    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
+    color: #475569;
+}
+.dark .sp-table .sp-lots { color: #94a3b8; }
+/* ---------- ปุ่มกาง/ยุบรายละเอียดราคา ----------
+   ยุบไว้ก่อนเพราะเดือนที่ซื้อหลายล็อต ข้อความจะยาวจนดันคอลัมน์อื่นจนอ่านยาก
+   ทั้งที่คนส่วนใหญ่เปิดมาดูยอด ไม่ได้มาดูว่าซื้อมากี่ราคา */
+.sp-lots-btn {
+    display: inline-flex; align-items: center; gap: .1875rem;
+    padding: 0 .3125rem; border: 1px dashed #93c5fd; border-radius: .375rem;
+    background: transparent; color: #1d4ed8;
+    font: inherit; font-size: 0.6875rem; line-height: 1.5;
+    cursor: pointer; white-space: nowrap;
+}
+.sp-lots-btn::after { content: '\25BE'; font-size: .5625rem; }
+.sp-lots-btn:hover  { background: #dbeafe; }
+.sp-lots-btn:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
+
+.sp-lots-btn[aria-expanded="true"]::after { content: '\25B4'; }
+
+/* ---------- แถวย่อยรายราคา ----------
+   ตัวอักษรเล็กลงและพื้นจางลง เพื่อให้สายตาแยกออกทันทีว่าเป็นรายละเอียด
+   ของแถวข้างบน ไม่ใช่สินค้าอีกตัว */
+.sp-table .sp-lot-row td {
+    font-size: 0.6875rem;
+    background: #f8fafc;
+    color: #475569;
+    border-bottom: 1px dashed #e2e8f0;
+}
+.sp-table .sp-lot-row .sp-lot-label {
+    color: #1d4ed8; font-weight: 600; padding-left: 1.25rem;
+}
+.sp-table .sp-lot-row:hover td { background: #f1f5f9; }
+
+.dark .sp-table .sp-lot-row td { background: #16202f; color: #94a3b8; border-bottom-color: #1e293b; }
+.dark .sp-table .sp-lot-row .sp-lot-label { color: #93c5fd; }
+.dark .sp-table .sp-lot-row:hover td { background: #1e293b; }
+
+.dark .sp-lots-btn { border-color: #1e40af; color: #93c5fd; }
+.dark .sp-lots-btn:hover { background: rgba(30,58,138,.45); }
+
+
 
 .sp-table .num   { text-align: right; font-variant-numeric: tabular-nums; }
 .sp-table .money { font-weight: 500; }
 .sp-zero { color: #cbd5e1; }
 
-/* ---------- แถวหัวหมวด ---------- */
+/* ---------- แถวหัวหมวด ----------
+   ช่องกินความกว้างทั้งตาราง การตั้ง sticky ที่ตัวช่องจึงไม่ช่วยอะไร
+   เพราะช่องเองกว้างเท่าตาราง เลื่อนไปทางขวาแล้วข้อความก็หลุดออกนอกจอ
+
+   ต้องตรึงที่ "ข้อความข้างใน" แทน — span ที่เป็น sticky ในช่องกว้าง ๆ
+   จะไถลตามไปติดขอบซ้ายของกรอบที่เลื่อนอยู่ อ่านได้ตลอดไม่ว่าเลื่อนไปไกลแค่ไหน */
 .sp-table .sp-cat td {
-    position: sticky; left: 0;
+    /* ตรึงแนวตั้งด้วย เลื่อนลงไปกลางหมวดแล้วยังรู้ว่าอยู่หมวดไหน
+       4.5rem = ความสูงหัวตารางสองชั้น (2.75 + 1.75) ที่ตรึงอยู่ข้างบน
+       ถ้าหัวตารางเปลี่ยนความสูง ต้องแก้ตัวเลขนี้ตามด้วย
+
+       z-index 3 อยู่เหนือช่องที่ตรึงทางซ้าย (2) แต่ต่ำกว่าหัวตาราง (5)
+       ลำดับการทับกันจึงถูกทั้งตอนเลื่อนขึ้นลงและเลื่อนซ้ายขวา */
+    position: sticky; top: 4.5rem; z-index: 3;
+    height: 2rem;                    /* ตายตัวไว้ เพราะหัวหมวดย่อยต้องรู้ว่าจะเกาะที่ไหน */
     padding: .4375rem .75rem;
     background: #fdf2f8; color: #9d174d;
     font-weight: 700; border-bottom: 1px solid #fbcfe8;
+}
+
+/* ป้ายที่ตรึงติดขอบซ้ายของกรอบที่เลื่อนอยู่
+   ใช้ทั้งหัวหมวด หัวหมวดย่อย และแถวรวมทุกชั้น */
+.sp-cat-label {
+    position: sticky; left: .75rem;
+    display: inline-block; max-width: 100%;
 }
 
 /* แถวที่มีความเคลื่อนไหวในเดือนนี้ เน้นให้เห็นในกองที่ว่างเปล่าเป็นส่วนใหญ่ */
@@ -3076,15 +3165,16 @@ button.fp-toggle { display: none; }
     background: #f1f5f9; font-weight: 700; color: #0f172a;
     border-top: 2px solid #cbd5e1;
 }
-.sp-table tfoot .sp-fix-all { z-index: 6; }
+.sp-table tfoot .sp-fix     { z-index: 6; }
+.sp-table tfoot .sp-fix-all { z-index: 7; }
 .sp-sum-label { text-align: left; }
 
 /* จอแคบตรึงคอลัมน์ไม่ไหว — 472px คือเกือบทั้งจอ เหลือที่ให้ตัวเลขไม่พอ
    ปล่อยให้เลื่อนทั้งตารางตามปกติ ดีกว่าเห็นแต่ชื่อสินค้ากับขอบจอ */
-@media (max-width: 900px) {
+@media (max-width: 1280px) {
     .sp-table .sp-fix { position: static; }
     .sp-table .sp-fix-3 { max-width: 14rem; }
-    .sp-table .sp-fix-4::after { display: none; }
+    .sp-table .sp-fix-9::after { display: none; }
 }
 
 /* ---------- โหมดมืด ---------- */
@@ -3116,6 +3206,105 @@ button.fp-toggle { display: none; }
 .dark .sp-code  { color: #5eead4; }
 .dark .sp-zero  { color: #334155; }
 .dark .sp-table .sp-cat td { background: rgba(131,24,67,.35); color: #fbcfe8; border-bottom-color: #831843; }
+/* ---------- แถวหัวหมวดหมู่ย่อย ----------
+   จางกว่าหมวดหลักหนึ่งระดับ และเยื้องเข้ามา เพื่อให้เห็นชั้นของการจัดกลุ่ม
+   โดยไม่ต้องอ่านข้อความ */
+.sp-table .sp-subcat td {
+    /* เกาะใต้หัวหมวดหลักพอดี : 4.5rem (หัวตาราง) + 2rem (หัวหมวดหลัก) */
+    position: sticky; top: 6.5rem; z-index: 3;
+    height: 1.75rem;
+    padding: .3125rem .75rem .3125rem 1.75rem;
+    background: #fff7fb; color: #be185d;
+    font-weight: 600; font-size: 0.6875rem;
+    border-bottom: 1px solid #fce7f3;
+}
+
+/* ---------- แถวรวมของหมวด ----------
+   หมวดย่อยจางกว่า หมวดหลักเข้มกว่า ไล่ระดับให้ตรงกับความสำคัญ
+   ท้ายตารางยังเป็นยอดรวมทั้งใบซึ่งเข้มที่สุด */
+.sp-table .sp-sum-sub td {
+    background: #f8fafc; color: #334155; font-weight: 600;
+    border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;
+}
+.sp-table .sp-sum-cat td {
+    background: #eef2f7; color: #0f172a; font-weight: 700;
+    border-top: 2px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;
+}
+.sp-table .sp-sum-sub .sp-sum-label,
+.sp-table .sp-sum-cat .sp-sum-label { text-align: left; padding-left: 1.75rem; }
+.sp-table .sp-sum-cat .sp-sum-label { padding-left: .75rem; }
+
+/* ช่องป้ายมี padding อยู่แล้ว span ข้างในจึงเกาะที่ 0 ไม่ใช่ .75rem
+   ไม่งั้นตอนเลื่อนข้อความจะขยับเข้าไปอีกชั้นจนดูไม่ตรงกับแถวอื่น */
+.sp-table .sp-sum-label .sp-cat-label,
+.sp-table tfoot .sp-sum-label .sp-cat-label { left: 0; }
+
+.dark .sp-table .sp-subcat td { background: rgba(131,24,67,.18); color: #f9a8d4; border-bottom-color: #500724; }
+.dark .sp-table .sp-sum-sub td { background: #16202f; color: #cbd5e1; border-top-color: #1e293b; border-bottom-color: #1e293b; }
+.dark .sp-table .sp-sum-cat td { background: #1e293b; color: #f1f5f9; border-top-color: #475569; border-bottom-color: #334155; }
+
+/* ---------- ตัวเลือกตอนส่งออก ---------- */
+.sp-export-opt {
+    display: inline-flex; align-items: center; gap: .5rem;
+    font-size: 0.8125rem; color: #475569; cursor: pointer; user-select: none;
+}
+.sp-export-opt input { width: 1rem; height: 1rem; accent-color: #0f766e; cursor: pointer; }
+.dark .sp-export-opt { color: #cbd5e1; }
+
+/* ---------- แผงเลือกคอลัมน์ ----------
+   ลอยใต้ปุ่ม ไม่ดันแถบเครื่องมือให้สูงขึ้น เพราะแถบนี้อยู่บนสุดของหน้า
+   ถ้าดันลง ตารางจะกระโดดทุกครั้งที่เปิดแผง */
+.sp-cols-wrap { position: relative; }
+
+.sp-cols {
+    position: absolute; top: calc(100% + .375rem); right: 0; z-index: 40;
+    width: 20rem; max-height: 26rem; overflow: auto;
+    padding: .625rem;
+    border: 1px solid #e2e8f0; border-radius: .875rem; background: #fff;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, .16);
+}
+
+.sp-cols-head {
+    display: flex; align-items: center; gap: .5rem;
+    padding: 0 .25rem .5rem;
+    font-size: 0.75rem; font-weight: 600; color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+}
+.sp-cols-head span { flex: 1; }
+
+.sp-cols-link {
+    padding: .125rem .375rem; border: 0; border-radius: .375rem;
+    background: transparent; color: #0f766e;
+    font: inherit; font-size: 0.6875rem; font-weight: 500; cursor: pointer;
+}
+.sp-cols-link:hover { background: #f0fdfa; }
+
+.sp-cols-list { padding-top: .375rem; }
+
+.sp-cols-item {
+    display: flex; align-items: flex-start; gap: .5rem;
+    padding: .3125rem .25rem; border-radius: .375rem;
+    font-size: 0.8125rem; color: #334155; cursor: pointer;
+}
+.sp-cols-item:hover { background: #f8fafc; }
+.sp-cols-item.is-child { padding-left: 1.5rem; }
+.sp-cols-item input { margin-top: .1875rem; width: .9375rem; height: .9375rem; accent-color: #0f766e; cursor: pointer; }
+.sp-cols-item small { display: block; font-size: 0.625rem; color: #94a3b8; }
+
+.sp-cols-sep {
+    margin: .5rem .25rem .25rem;
+    font-size: 0.6875rem; font-weight: 600; color: #94a3b8;
+}
+
+.dark .sp-cols { background: #0f172a; border-color: #1e293b; box-shadow: 0 12px 32px rgba(0,0,0,.5); }
+.dark .sp-cols-head { color: #cbd5e1; border-bottom-color: #1e293b; }
+.dark .sp-cols-link { color: #5eead4; }
+.dark .sp-cols-link:hover { background: rgba(2,148,136,.16); }
+.dark .sp-cols-item { color: #cbd5e1; }
+.dark .sp-cols-item:hover { background: #1e293b; }
+.dark .sp-cols-item small { color: #64748b; }
+.dark .sp-cols-sep { color: #64748b; }
+
 .dark .sp-table tbody tr.is-moved .sp-fix-2,
 .dark .sp-table tbody tr.is-moved .sp-fix-3 { color: #f1f5f9; }
 .dark .sp-table tbody tr:hover td:not(.sp-cat) { background: #1e293b; }
@@ -3705,8 +3894,17 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     .sp-table thead th,
     .sp-table tfoot td,
     .sp-table .sp-fix,
-    .sp-table .sp-cat td { position: static !important; }
+    .sp-table .sp-cat td,
+    .sp-table .sp-subcat td { position: static !important; }
     .sp-table .sp-fix-4::after { display: none !important; }
+
+    /* กระดาษไม่มีปุ่มให้กด รายละเอียดราคาจึงต้องกางเองเสมอ
+       ไม่งั้นใบที่พิมพ์ออกมาจะบอกแค่ "2 ราคา" ซึ่งไม่มีประโยชน์กับคนอ่าน */
+    .sp-lots-btn { display: none !important; }
+
+    /* แถวย่อยรายราคาต้องกางเองเสมอบนกระดาษ ไม่งั้นใบที่พิมพ์ออกมา
+       จะบอกแค่ "2 ราคา" ซึ่งไม่มีประโยชน์กับคนอ่าน */
+    .sp-table .sp-lot-row[hidden] { display: table-row !important; }
 
     /* หัวตารางซ้ำทุกหน้ากระดาษ ไม่งั้นหน้าที่สองเป็นต้นไปจะเป็นตัวเลขล้วน
        ไม่มีอะไรบอกว่าคอลัมน์ไหนคือหน่วยงานใด */

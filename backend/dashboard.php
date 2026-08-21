@@ -356,7 +356,9 @@ function dashboard_money($role)
 
     $connect = db_connect();
     $res = mysqli_query($connect,
-        "SELECT COALESCE(SUM(`qty` * `avg_cost`), 0) FROM `tb_stock_balance`");
+        "SELECT COALESCE(SUM(b.`qty` * p.`unit_cost`), 0)
+         FROM `tb_stock_balance` b
+         INNER JOIN `tb_product` p ON p.`product_id` = b.`product_id`");
     $stock_value = 0;
     if ($res) {
         $r = mysqli_fetch_row($res);

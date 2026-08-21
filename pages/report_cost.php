@@ -74,7 +74,7 @@ $input    = 'input-control h-11 rounded-xl border border-slate-200 bg-white px-4
         <span class="rc-dot">·</span> โดย <?php echo htmlspecialchars($sess_full_name !== '' ? $sess_full_name : $sess_username, ENT_QUOTES, 'UTF-8'); ?>
       </p>
       <p class="rc-method">
-        คิดต้นทุนแบบถัวเฉลี่ยเคลื่อนที่ (moving average) — ราคาที่ใช้คือราคา ณ วันที่ทำรายการจริง
+        ราคาที่ใช้คือราคา ณ วันที่ทำรายการจริง — รับเข้าใช้ราคาที่ซื้อ เบิกออกใช้ราคาซื้อล่าสุดของวันนั้น
       </p>
     </header>
 
