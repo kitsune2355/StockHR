@@ -212,7 +212,7 @@
         approved: "is-ok",
         rejected: "is-bad",
         issued: "is-info",
-        received: "is-done",
+        received: "is-ok",
         cancelled: "is-off",
       }[status] || "";
 
