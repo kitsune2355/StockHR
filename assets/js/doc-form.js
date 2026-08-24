@@ -306,20 +306,39 @@
             el('receiverName').value = picked.requester_name || picked.requester || '';
         }
 
-        var rows = [];
+        /* ---------- เติมจำนวนตั้งต้นให้เท่าที่จ่ายได้จริง ----------
+           เดิมเติมยอดค้างมาเต็มทุกบรรทัดโดยไม่ดูว่ามีของหรือเปล่า
+           ใบเบิกที่ขอของหมดสต๊อกมาด้วยจึงกดบันทึกไม่ผ่านทั้งใบ
+           ทั้งที่บรรทัดแรกมีของพร้อมจ่ายอยู่แล้ว
+
+           เติมเท่าที่มีแทน บรรทัดที่ของหมดจะได้ศูนย์ แล้วถูกข้ามตอนบันทึก
+           ยอดค้างของมันยังอยู่ในใบเบิกครบ ทำใบจ่ายใบใหม่ได้หลังของเข้า */
+        var rows  = [];
+        var short = 0;
         for (var j = 0; j < picked.items.length; j++) {
             var it = picked.items[j];
             if (it.qty_pending <= 0) { continue; }        // บรรทัดนี้จ่ายครบแล้ว
 
+            var have = byId[it.product_id] ? num(byId[it.product_id].qty) : 0;
+            var give = (have < num(it.qty_pending)) ? have : num(it.qty_pending);
+            if (give < 0) { give = 0; }
+            if (give < num(it.qty_pending)) { short++; }
+
             rows.push({
                 _id:          ++seq,
                 product_id:   it.product_id,
-                qty:          it.qty_pending,
+                qty:          give,
                 max_qty:      it.qty_pending,
                 note:         ''
             });
         }
         items.setRows(rows);
+
+        /* บอกไปเลยว่ารอบนี้จ่ายไม่ครบ ไม่ต้องให้ผู้ใช้ไล่หาเองว่าทำไมบางช่องเป็นศูนย์ */
+        if (short > 0) {
+            el('reqInfoText').textContent += ' · ของไม่พอจ่าย ' + fmt(short)
+                + ' รายการ จะค้างไว้ในใบเบิกให้จ่ายรอบหน้า';
+        }
     }
 
 
@@ -339,15 +358,19 @@
         return out;
     }
 
-    /* จำนวนสูงสุดที่บรรทัดนี้กรอกได้ — 0 = ไม่จำกัด */
+    /* จำนวนสูงสุดที่บรรทัดนี้กรอกได้ — ติดลบ = ไม่จำกัด
+
+       เดิมใช้ 0 เป็นค่า "ไม่จำกัด" ซึ่งชนกับกรณีของหมดจริง ๆ ที่เพดานก็เป็น 0
+       ทุกที่ที่เช็ค cap > 0 จึงข้ามการตรวจไปเงียบ ๆ เมื่อของหมด
+       แล้วปล่อยให้ไปล้มที่ฝั่งเซิร์ฟเวอร์ ซึ่งย้อนทั้งใบทิ้งรวมบรรทัดที่จ่ายได้
+       ใช้ -1 เป็นค่าไม่จำกัดแทน เพดานจะได้เป็นจำนวนจริงเสมอ */
     function ceilingOf(row) {
-        if (TYPE === 'issue') {
-            var stock = byId[row.product_id] ? byId[row.product_id].qty : 0;
-            var asked = num(row.max_qty);
-            /* จ่ายได้ไม่เกินทั้งของที่ขอ และของที่มีอยู่จริง เอาค่าน้อยกว่า */
-            return (asked > 0 && asked < stock) ? asked : stock;
-        }
-        return 0;
+        if (TYPE !== 'issue') { return -1; }
+
+        var stock = byId[row.product_id] ? num(byId[row.product_id].qty) : 0;
+        var asked = num(row.max_qty);
+        /* จ่ายได้ไม่เกินทั้งของที่ขอ และของที่มีอยู่จริง เอาค่าน้อยกว่า */
+        return (asked > 0 && asked < stock) ? asked : stock;
     }
 
     /* Tabulator 6 สั่ง addRow / setData ก่อน tableBuilt ไม่ได้ จะพังตอนคำนวณความสูง
@@ -564,10 +587,19 @@
                 formatter: function (cell) {
                     var row = cell.getRow().getData();
                     var v   = num(cell.getValue());
-                    if (v <= 0) { return '<span class="grid-empty">0</span>'; }
+                    if (v <= 0) {
+                        /* ในใบจ่าย ศูนย์คือ "รอบนี้ไม่จ่ายบรรทัดนี้" ซึ่งเป็นการตัดสินใจ
+                           ไม่ใช่ช่องที่ลืมกรอก เลข 0 จาง ๆ สื่อความต่างนี้ไม่ได้ */
+                        if (TYPE === 'issue') {
+                            return '<span class="grid-empty" title="รอบนี้ยังไม่จ่ายบรรทัดนี้'
+                                 + ' ยอดจะค้างอยู่ในใบเบิก ทำใบจ่ายใหม่ได้หลังรับของเข้ามา">'
+                                 + 'ค้างไว้</span>';
+                        }
+                        return '<span class="grid-empty">0</span>';
+                    }
 
                     var cap = ceilingOf(row);
-                    var bad = (cap > 0 && v > cap + 0.00001);
+                    var bad = (cap >= 0 && v > cap + 0.00001);
 
                     /* ใบเบิกขอเกินของที่มีได้ แต่ต้องเห็นว่ากำลังขอเกิน */
                     if (!bad && TYPE === 'request') {
@@ -811,10 +843,12 @@
             var ceiling = ceilingOf(d);
             var now = num(d.qty);
 
-            if (ceiling > 0 && now >= ceiling) {
+            if (ceiling >= 0 && now >= ceiling) {
                 flashRow(rows[i]);
                 scanSay(false, product.product_code + ' ' + product.product_name +
-                               ' — หยิบครบ ' + fmt(ceiling) + ' ' + product.unit_name + ' แล้ว ไม่ต้องหยิบเพิ่ม');
+                               (ceiling <= 0
+                                  ? ' — ของหมดคลัง จ่ายบรรทัดนี้ไม่ได้ ต้องรับของเข้ามาก่อน'
+                                  : ' — หยิบครบ ' + fmt(ceiling) + ' ' + product.unit_name + ' แล้ว ไม่ต้องหยิบเพิ่ม'));
                 return;
             }
 
@@ -1026,7 +1060,14 @@
             if (pid <= 0 && qty <= 0) { continue; }        // บรรทัดว่าง ข้ามไปเงียบ ๆ
 
             if (pid <= 0) { return { error: 'บรรทัดที่ ' + (i + 1) + ': ยังไม่ได้เลือกสินค้า' }; }
-            if (qty <= 0) { return { error: 'บรรทัดที่ ' + (i + 1) + ': กรุณากรอกจำนวนที่มากกว่า 0' }; }
+
+            /* ใบจ่ายรองรับการจ่ายบางส่วนอยู่แล้ว (ดู issue_save ใน backend/issue.php)
+               บรรทัดที่เป็นศูนย์จึงไม่ใช่ข้อผิดพลาด แต่แปลว่ารอบนี้ไม่จ่ายตัวนี้
+               ไม่ส่งไป ยอดค้างของมันในใบเบิกจะไม่ถูกแตะ และใบเบิกไม่ถูกปิด */
+            if (qty <= 0) {
+                if (TYPE === 'issue') { continue; }
+                return { error: 'บรรทัดที่ ' + (i + 1) + ': กรุณากรอกจำนวนที่มากกว่า 0' };
+            }
 
             if (seen[pid]) {
                 return { error: 'บรรทัดที่ ' + (i + 1) + ': สินค้าซ้ำกับบรรทัดที่ ' + seen[pid] };
@@ -1034,10 +1075,12 @@
             seen[pid] = i + 1;
 
             var cap = ceilingOf(r);
-            if (cap > 0 && qty > cap + 0.00001) {
+            if (cap >= 0 && qty > cap + 0.00001) {
                 var p = byId[pid];
-                return { error: (p ? p.product_code + ' ' + p.product_name : 'บรรทัดที่ ' + (i + 1))
-                              + ': จ่ายได้ไม่เกิน ' + fmt(cap) };
+                var who = p ? p.product_code + ' ' + p.product_name : 'บรรทัดที่ ' + (i + 1);
+                return { error: (cap <= 0)
+                    ? who + ': ของหมดคลัง จ่ายไม่ได้ — ตั้งจำนวนเป็น 0 เพื่อค้างไว้จ่ายรอบหน้า'
+                    : who + ': จ่ายได้ไม่เกิน ' + fmt(cap) };
             }
 
             var line = { product_id: pid, qty: qty, note: r.note || '' };
@@ -1053,7 +1096,11 @@
             out.push(line);
         }
 
-        if (out.length === 0) { return { error: 'กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ' }; }
+        if (out.length === 0) {
+            return { error: (TYPE === 'issue')
+                ? 'ยังไม่มีรายการไหนที่จ่ายได้ — ของในใบเบิกนี้หมดคลังทั้งหมด ต้องรับของเข้ามาก่อน'
+                : 'กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ' };
+        }
         return { items: out };
     }
 
