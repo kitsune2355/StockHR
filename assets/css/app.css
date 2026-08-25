@@ -2928,6 +2928,8 @@ button.fp-toggle { display: none; }
 .rc-table-wrap {
     overflow-x: auto;
     border: 1px solid #e2e8f0; border-radius: .75rem; background: #fff;
+    max-height: 500px;
+    overflow: auto;
 }
 .rc-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
 .rc-table th, .rc-table td { padding: .5rem .75rem; text-align: left; }
@@ -2936,6 +2938,8 @@ button.fp-toggle { display: none; }
 .rc-table thead th {
     background: #f8fafc; color: #475569; font-weight: 600; font-size: 0.75rem;
     border-bottom: 1px solid #e2e8f0;
+    position: sticky;
+    top: 0;
 }
 .rc-table tbody tr + tr td { border-top: 1px solid #f1f5f9; }
 .rc-table tbody tr:hover { background: #f8fafc; }
@@ -2947,6 +2951,8 @@ button.fp-toggle { display: none; }
 .rc-table tfoot td {
     border-top: 2px solid #cbd5e1;
     background: #f8fafc; font-weight: 700; color: #0f172a;
+    position: sticky;
+    bottom: 0;
 }
 .rc-sum-label { font-weight: 700; }
 
@@ -3301,8 +3307,8 @@ button.fp-toggle { display: none; }
 .dark .sp-table .sp-g, .dark .sp-table th.sp-sub:nth-child(odd) { border-left-color: #1e293b; }
 .dark .sp-table td.num:nth-child(odd) { border-left-color: #16202f; }
 
-.dark .sp-table .sp-g-open  { background: rgba(124,45,18,.28); }
-.dark .sp-table .sp-g-buy   { background: rgba(30,58,138,.28); }
+.dark .sp-table .sp-g-open  { background: rgba(45,29,34,1); }
+.dark .sp-table .sp-g-buy   { background: rgba(23,33,68,1); }
 .dark .sp-table .sp-g-adj   { background: rgba(113,63,18,.28); }
 .dark .sp-table .sp-g-dept-alt { background: #16202f; }
 .dark .sp-table .sp-g-out   { background: rgba(146,64,14,.32); }
@@ -3318,7 +3324,7 @@ button.fp-toggle { display: none; }
 .dark .sp-table .sp-fix-4 { color: #94a3b8; }
 .dark .sp-code  { color: #5eead4; }
 .dark .sp-zero  { color: #334155; }
-.dark .sp-table .sp-cat td { background: rgba(131,24,67,.35); color: #fbcfe8; border-bottom-color: #831843; }
+.dark .sp-table .sp-cat td { background: rgba(54,21,50,1); color: #fbcfe8; border-bottom-color: #831843; }
 /* ---------- แถวหัวหมวดหมู่ย่อย ----------
    จางกว่าหมวดหลักหนึ่งระดับ และเยื้องเข้ามา เพื่อให้เห็นชั้นของการจัดกลุ่ม
    โดยไม่ต้องอ่านข้อความ */
@@ -3352,7 +3358,7 @@ button.fp-toggle { display: none; }
 .sp-table .sp-sum-label .sp-cat-label,
 .sp-table tfoot .sp-sum-label .sp-cat-label { left: 0; }
 
-.dark .sp-table .sp-subcat td { background: rgba(131,24,67,.18); color: #f9a8d4; border-bottom-color: #500724; }
+.dark .sp-table .sp-subcat td { background: rgba(36,22,46,1); color: #f9a8d4; border-bottom-color: #500724; }
 .dark .sp-table .sp-sum-sub td { background: #16202f; color: #cbd5e1; border-top-color: #1e293b; border-bottom-color: #1e293b; }
 .dark .sp-table .sp-sum-cat td { background: #1e293b; color: #f1f5f9; border-top-color: #475569; border-bottom-color: #334155; }
 
