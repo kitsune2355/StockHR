@@ -95,7 +95,7 @@
 
             if (!el || !isVisible(el)) { continue; }
 
-            out.push({ element: el, popover: popover });
+            out.push({ element: guideHighlightElement(el), popover: popover });
         }
         return out;
     }
@@ -118,6 +118,20 @@
 
         var style = window.getComputedStyle(el);
         return !(style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0');
+    }
+
+    /* ตารางในรายงานต้นทุนอยู่ภายใน .rc-table-wrap ซึ่งเป็นพื้นที่แสดงผล
+       ที่จำกัดความสูงไว้ 500px จึงให้ Driver.js ชี้ที่กรอบนี้เสมอ ไม่ชี้
+       ที่ <table> ด้านในซึ่งมีความสูงตามจำนวนแถวทั้งหมด */
+    function guideHighlightElement(el) {
+        var node = el;
+        while (node && node !== document.body) {
+            if ((' ' + (node.className || '') + ' ').indexOf(' rc-table-wrap ') >= 0) {
+                return node;
+            }
+            node = node.parentElement;
+        }
+        return el;
     }
 
 

@@ -180,7 +180,7 @@
             cols.push(deptCol(cd.departments[i]));
         }
 
-        cols.push({ key: 'out', title: 'รวมเบิกทั้งหมด', align: 'num',
+        cols.push({ key: 'out', title: 'รวมเบิกทั้งหมด', align: 'num', fix: 'right',
                     fmt: function (v) { return v ? '<b>' + money(v) + '</b>'
                                                  : '<span class="grid-empty">-</span>'; } });
         return cols;
@@ -246,7 +246,7 @@
                 { title: '', span: 1, fix: 1 },
                 { title: '', span: 1, fix: 2 },
                 { title: 'ยอดรวมการเบิกใช้ของแต่ละหน่วยงาน', span: cd.departments.length },
-                { title: '', span: 1 }
+                { title: '', span: 1, fix: 'right' }
             ]
         });
 

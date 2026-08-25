@@ -3009,9 +3009,12 @@ button.fp-toggle { display: none; }
    ค่า left ของ .rc-fix-2 = ความกว้างของ .rc-fix-1 พอดี ผูกกันอยู่ */
 .rc-table-wide .rc-fix-1 { left: 0; }
 .rc-table-wide .rc-fix-2 { left: 14rem; box-shadow: 1px 0 0 #e2e8f0; }
+/* ยอดรวมเบิกเป็นปลายทางของการเทียบยอด จึงตรึงไว้ฝั่งขวาเสมอขณะเลื่อน */
+.rc-table-wide .rc-fix-right { right: 0; box-shadow: -1px 0 0 #e2e8f0; }
 
 .rc-table-wide th.rc-fix-1, .rc-table-wide td.rc-fix-1 { width: 14rem;   min-width: 14rem; }
 .rc-table-wide th.rc-fix-2, .rc-table-wide td.rc-fix-2 { width: 10.5rem; min-width: 10.5rem; }
+.rc-table-wide th.rc-fix-right, .rc-table-wide td.rc-fix-right { width: 11rem; min-width: 11rem; }
 
 /* ชื่อหมวดยาวกว่าช่องได้ ให้ตัดบรรทัดแทนที่จะล้นไปทับคอลัมน์ถัดไป
    (ตารางนี้ตั้ง nowrap ไว้ทั้งใบเพื่อไม่ให้คอลัมน์หน่วยงานหักบรรทัด) */
@@ -3030,6 +3033,7 @@ button.fp-toggle { display: none; }
 .dark .rc-table-wide tfoot td          { border-top-color: #475569; }
 .dark .rc-table-wide .rc-fix           { background: #0f172a; }
 .dark .rc-table-wide .rc-fix-2         { box-shadow: 1px 0 0 #1e293b; }
+.dark .rc-table-wide .rc-fix-right     { box-shadow: -1px 0 0 #1e293b; }
 .dark .rc-table-wide thead th.rc-fix,
 .dark .rc-table-wide tfoot td.rc-fix   { background: #1e293b; }
 .dark .rc-table-wide tbody tr:hover td.rc-fix { background: #1e293b; }
@@ -3041,6 +3045,11 @@ button.fp-toggle { display: none; }
     .rc-table-wide .rc-fix-2 { box-shadow: none; }
     .rc-table-wide th.rc-fix-1, .rc-table-wide td.rc-fix-1 { width: auto; min-width: 9rem; }
     .rc-table-wide th.rc-fix-2, .rc-table-wide td.rc-fix-2 { width: auto; min-width: 8rem; }
+
+    /* ยอดรวมเป็นค่าที่ต้องเทียบกับทุกหน่วยงาน จึงยังคงตรึงในจอเล็ก */
+    .rc-table-wide .rc-fix-right { position: sticky; right: 0; box-shadow: -1px 0 0 #e2e8f0; }
+    .rc-table-wide th.rc-fix-right, .rc-table-wide td.rc-fix-right { width: 9rem; min-width: 9rem; }
+    .dark .rc-table-wide .rc-fix-right { box-shadow: -1px 0 0 #1e293b; }
 }
 
 
