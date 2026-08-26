@@ -15,6 +15,7 @@
     if (!CFG) { return; }
 
     var DATA = null;
+    var DRILL = null;
 
     function el(id) { return document.getElementById(id); }
 
@@ -322,6 +323,9 @@
         var panel = el('rcDrill');
         if (!panel) { return; }
 
+        DRILL = null;
+        setDrillExportBusy(false);
+        el('rcDrillExport').disabled = true;
         el('rcDrillTitle').textContent = filter.label || 'รายละเอียด';
         el('rcDrillBody').innerHTML =
             '<p class="rc-drill-empty">กำลังโหลด…</p>';
@@ -348,6 +352,16 @@
 
     function renderDrill(res) {
         var rows = res.rows || [];
+
+        DRILL = {
+            label: el('rcDrillTitle').textContent || 'รายละเอียด',
+            month: (DATA && DATA.range) ? DATA.range.month : CFG.month,
+            rows: rows,
+            total: Number(res.total || 0),
+            qty: Number(res.qty || 0),
+            capped: !!res.capped
+        };
+        el('rcDrillExport').disabled = rows.length === 0;
 
         el('rcDrillSum').textContent =
             money(res.total) + ' บาท · ' + qty(res.qty) + ' หน่วย · ' + rows.length + ' รายการ';
@@ -405,6 +419,64 @@
     function closeDrill() {
         setHidden(el('rcDrill'), true);
         setHidden(el('rcDrillBackdrop'), true);
+    }
+
+    function setDrillExportBusy(on) {
+        var btn = el('rcDrillExport');
+        if (!btn) { return; }
+        btn.disabled = on;
+        setHidden(btn.querySelector('.rc-drill-export-icon'), on);
+        setHidden(btn.querySelector('.rc-drill-export-spinner'), !on);
+    }
+
+    function exportDrillExcel() {
+        if (!DRILL || !DRILL.rows || DRILL.rows.length === 0) { return; }
+
+        setDrillExportBusy(true);
+        var go = function () {
+            try {
+                var aoa = [
+                    [DRILL.label],
+                    ['เดือน', DRILL.month],
+                    ['รวมเงิน', DRILL.total],
+                    ['รวมจำนวน', DRILL.qty],
+                    []
+                ];
+                aoa.push(['วันที่', 'เลขที่ใบจ่าย', 'หน่วยงาน', 'รหัสสินค้า', 'สินค้า', 'หน่วย', 'จำนวน', 'ราคา/หน่วย', 'เป็นเงิน', 'ผู้ขอเบิก', 'สถานะ']);
+
+                for (var i = 0; i < DRILL.rows.length; i++) {
+                    var r = DRILL.rows[i];
+                    aoa.push([
+                        dateTime(r.move_date), r.doc_no || '', r.dept || '', r.code || '', r.name || '', r.unit || '',
+                        Number(r.qty || 0), Number(r.price || 0), Number(r.amount || 0), r.requester || '',
+                        r.is_cancel ? 'ยกเลิกใบจ่าย' : 'ปกติ'
+                    ]);
+                }
+                if (DRILL.capped) { aoa.push([]); aoa.push(['หมายเหตุ: ไฟล์นี้มีเฉพาะ 500 รายการที่แสดงในหน้าต่างรายละเอียด']); }
+
+                var ws = XLSX.utils.aoa_to_sheet(aoa);
+                ws['!cols'] = [{ wch: 18 }, { wch: 18 }, { wch: 24 }, { wch: 16 }, { wch: 38 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 24 }, { wch: 18 }];
+                var wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'รายละเอียด');
+                XLSX.writeFile(wb, 'รายละเอียดค่าใช้จ่าย_' + DRILL.month + '.xlsx');
+                if (typeof window.appSuccess === 'function') { window.appSuccess('ส่งออกรายละเอียด ' + DRILL.rows.length + ' รายการเป็น Excel เรียบร้อย'); }
+            } catch (err) {
+                if (typeof window.appError === 'function') { window.appError('สร้างไฟล์ Excel ไม่สำเร็จ'); }
+            }
+            setDrillExportBusy(false);
+            if (DRILL && DRILL.rows.length > 0) { el('rcDrillExport').disabled = false; }
+        };
+
+        if (window.XLSX) { go(); return; }
+        var s = document.createElement('script');
+        s.src = (window.APP_LIB && window.APP_LIB.xlsx) ? window.APP_LIB.xlsx : 'assets/js/xlsx.mini.min.js';
+        s.onload = go;
+        s.onerror = function () {
+            setDrillExportBusy(false);
+            if (DRILL && DRILL.rows.length > 0) { el('rcDrillExport').disabled = false; }
+            if (typeof window.appError === 'function') { window.appError('โหลดตัวช่วยสร้างไฟล์ Excel ไม่สำเร็จ'); }
+        };
+        document.head.appendChild(s);
     }
 
 
@@ -650,6 +722,7 @@
         });
 
         if (el('rcDrillClose'))    { el('rcDrillClose').addEventListener('click', closeDrill); }
+        if (el('rcDrillExport'))   { el('rcDrillExport').addEventListener('click', exportDrillExcel); }
         if (el('rcDrillBackdrop')) { el('rcDrillBackdrop').addEventListener('click', closeDrill); }
 
         load(CFG.month);

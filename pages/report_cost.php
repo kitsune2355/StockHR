@@ -182,10 +182,18 @@ $input    = 'input-control h-11 rounded-xl border border-slate-200 bg-white px-4
       <h2 id="rcDrillTitle" class="truncate text-sm font-bold text-slate-800 dark:text-slate-100">รายละเอียด</h2>
       <p id="rcDrillSum" class="mt-0.5 text-xs text-slate-500 dark:text-slate-400"></p>
     </div>
-    <button type="button" id="rcDrillClose" aria-label="ปิด"
-            class="flex h-8 w-8 flex-none items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-200 dark:hover:bg-slate-800">
-      <i data-lucide="x" class="h-4 w-4" aria-hidden="true"></i>
-    </button>
+    <div class="flex flex-none items-center gap-1">
+      <button type="button" id="rcDrillExport" disabled title="ส่งออกรายการที่แสดงอยู่เป็นไฟล์ Excel"
+              class="flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-brand-200 dark:text-slate-400 dark:hover:bg-slate-800">
+        <i data-lucide="file-spreadsheet" class="rc-drill-export-icon h-4 w-4" aria-hidden="true"></i>
+        <i data-lucide="loader-circle" class="rc-drill-export-spinner h-4 w-4 animate-spin" aria-hidden="true" hidden></i>
+        <span>ส่งออก Excel</span>
+      </button>
+      <button type="button" id="rcDrillClose" aria-label="ปิด"
+              class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-200 dark:hover:bg-slate-800">
+        <i data-lucide="x" class="h-4 w-4" aria-hidden="true"></i>
+      </button>
+    </div>
   </div>
 
   <div id="rcDrillBody" class="nav-scroll flex-1 overflow-auto px-5 py-4"></div>
