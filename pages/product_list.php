@@ -20,6 +20,7 @@
 if (!isset($sess_username)) { exit('ไม่มีสิทธิ์เข้าถึง'); }
 
 require_once dirname(dirname(__FILE__)) . '/backend/product.php';
+require_once dirname(dirname(__FILE__)) . '/backend/category.php';
 require_once dirname(dirname(__FILE__)) . '/backend/sub_category.php';
 
 if (empty($_SESSION['csrf_token'])) {
@@ -29,6 +30,7 @@ $csrf_token = $_SESSION['csrf_token'];
 
 /* ---------- ข้อมูลตั้งต้น ---------- */
 $products     = product_list();
+$cat_options  = category_options();
 $sub_options  = sub_category_options();
 $unit_options = unit_options();
 
@@ -121,9 +123,9 @@ window.CATALOG = {
     products:      <?php echo pl_json($products); ?>,
     subOptions:    <?php echo pl_json($sub_options); ?>,
     unitOptions:   <?php echo pl_json($unit_options); ?>,
-    categories:    [],
+    categories:    <?php echo pl_json($cat_options); ?>,
     subCategories: [],
-    catOptions:    []
+    catOptions:    <?php echo pl_json($cat_options); ?>
 };
 </script>
 <script src="<?php echo asset_url('assets/js/tabulator.min.js', $ASSET_BASE); ?>"></script>

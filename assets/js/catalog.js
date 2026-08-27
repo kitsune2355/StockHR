@@ -75,6 +75,7 @@
       fields: [
         "old_code",
         "product_name",
+        "category_id",
         "sub_category_id",
         "unit_id",
         "unit_cost",
@@ -152,33 +153,27 @@
   );
   var unitLookup = lookupOf(CFG.unitOptions || [], "unit_id", "unit_name");
 
-  /* หมวดหมู่ย่อยมีสองชุดชื่อ ใช้คนละที่กัน
-       subLookup  ชื่อสั้น ใช้แสดงในช่อง เพราะหมวดหมู่หลักมีคอลัมน์ของตัวเองแล้ว
-       subPicker  ชื่อเต็ม "หมวดหลัก › หมวดย่อย" ใช้ในรายการให้เลือก
-                  เพราะชื่อหมวดย่อยซ้ำกันข้ามหมวดหลัก เช่น "รายการอื่นๆ เบิ้มเบิม"
-                  มีทั้งใน CS และ OF ถ้าไม่บอกหมวดแม่จะเลือกผิดตัว */
+  /* หมวดหมู่ย่อยใช้ชื่อสั้นทั้งในช่องและรายการตัวเลือก */
   var subLookup = lookupOf(
     CFG.subOptions || [],
     "sub_category_id",
     "sub_category_name",
   );
-  var subPicker = lookupOf(CFG.subOptions || [], "sub_category_id", "label");
+  var subPicker = lookupOf(
+    CFG.subOptions || [],
+    "sub_category_id",
+    "sub_category_name",
+  );
 
-  /* หมวดหมู่ย่อย -> ชื่อหมวดหมู่หลักที่สังกัด
-       สินค้าเก็บแค่ sub_category_id ตัวเดียว หมวดหมู่หลักเป็นค่าที่คำนวณตามมา
-       จึงไม่เก็บซ้ำในฐานข้อมูล แต่ดึงจากตารางนี้ทุกครั้งที่วาด
-       ผลคือพอเปลี่ยนหมวดย่อย ช่องหมวดหลักเปลี่ยนตามทันทีโดยไม่ต้องบันทึกก่อน */
-  var subToCat = (function () {
-    var map = {};
+  function subPickerFor(categoryId) {
+    var values = {};
     var list = CFG.subOptions || [];
     for (var i = 0; i < list.length; i++) {
-      map[list[i].sub_category_id] = list[i].category_name;
+      if (Number(list[i].category_id) === Number(categoryId)) {
+        values[list[i].sub_category_id] = list[i].sub_category_name;
+      }
     }
-    return map;
-  })();
-
-  function categoryOf(row) {
-    return subToCat[row.sub_category_id] || "";
+    return values;
   }
 
   /* ---------- เตรียมข้อมูลตั้งต้น ---------- */
@@ -204,10 +199,10 @@
       row[f] = src[f];
     }
 
-    /* คอลัมน์ที่แสดงอย่างเดียว ไม่ได้อยู่ในชุดที่เทียบการแก้ไข */
+    /* คอลัมน์เสริมของสินค้า */
     if (TAB === "product") {
       row.product_code = src.product_code;
-      row._category = categoryOf(row);
+      row.category_id = Number(src.category_id || 0);
 
       /* รูปสินค้าถูกบันทึกทันทีตอนอัปโหลด จึงต้องอยู่นอกชุดที่ snapshotOf() เทียบ
          ไม่งั้นแค่เพิ่มรูปจะทำให้แถวขึ้นว่า "แก้แล้วยังไม่บันทึก" ทั้งที่บันทึกไปแล้ว */
@@ -225,18 +220,21 @@
     }
   }
 
-  /* ค่าที่คำนวณจากช่องอื่น ต้องอัปเดตทุกครั้งที่ช่องต้นทางเปลี่ยน
-       ไม่งั้นเปลี่ยนหมวดย่อยแล้วช่องหมวดหลักยังค้างของเดิม */
-  function syncDerived(row) {
+  function syncProductCategory(row) {
     if (TAB !== "product") {
       return;
     }
 
     var data = row.getData();
-    var now = categoryOf(data);
-    if (data._category !== now) {
-      data._category = now;
-      row.getCell("_category").setValue(now);
+    var list = CFG.subOptions || [];
+    for (var i = 0; i < list.length; i++) {
+      if (Number(list[i].sub_category_id) === Number(data.sub_category_id)) {
+        if (Number(data.category_id) !== Number(list[i].category_id)) {
+          data.sub_category_id = 0;
+          row.getCell("sub_category_id").setValue(0);
+        }
+        return;
+      }
     }
   }
 
@@ -453,7 +451,9 @@
         /* กดย้อนคืน */
         if (d._state === "removed") {
           d._state =
-            snapshot(d) === JSON.stringify(original[d._key]) ? "clean" : "edited";
+            snapshot(d) === JSON.stringify(original[d._key])
+              ? "clean"
+              : "edited";
           row.reformat();
           applyRowClass(row);
           refreshPending();
@@ -503,23 +503,25 @@
    *
    *  วิธีเดียวกับโลโก้บริษัทในหน้าหน่วยงาน (assets/js/agencies.js)
    * ============================================================ */
-  var PIMG_MAX   = 3;
+  var PIMG_MAX = 3;
   var PIMG_BYTES = 3 * 1024 * 1024;
 
   var pimgInput = null;
-  var pimgRow   = null;
+  var pimgRow = null;
 
   function ensureImageInput() {
-    if (pimgInput) { return pimgInput; }
+    if (pimgInput) {
+      return pimgInput;
+    }
 
     pimgInput = document.createElement("input");
-    pimgInput.type   = "file";
+    pimgInput.type = "file";
     pimgInput.accept = "image/png,image/jpeg,image/gif";
 
     /* เลือกได้ทีละหลายไฟล์ คนที่ถ่ายรูปสินค้ามาสามมุมจะได้ไม่ต้องกดเพิ่มทีละรูป
        ส่วนที่เกินช่องว่างที่เหลือจะถูกตัดทิ้งพร้อมบอกผู้ใช้ (ดู uploadImages) */
     pimgInput.multiple = true;
-    pimgInput.hidden   = true;
+    pimgInput.hidden = true;
     document.body.appendChild(pimgInput);
 
     pimgInput.addEventListener("change", function () {
@@ -594,8 +596,10 @@
 
         if (res === null) {
           fail(
-            "เซิร์ฟเวอร์ตอบกลับมาไม่ใช่ JSON (สถานะ " + status + ") — " +
-            String(text).replace(/\s+/g, " ").slice(0, 200),
+            "เซิร์ฟเวอร์ตอบกลับมาไม่ใช่ JSON (สถานะ " +
+              status +
+              ") — " +
+              String(text).replace(/\s+/g, " ").slice(0, 200),
           );
           return;
         }
@@ -610,16 +614,19 @@
         try {
           done(res);
         } catch (err) {
-          fail("บันทึกขึ้นเซิร์ฟเวอร์แล้ว แต่หน้าจอแสดงผลต่อไม่ได้: " +
-               (err && err.message ? err.message : String(err)));
+          fail(
+            "บันทึกขึ้นเซิร์ฟเวอร์แล้ว แต่หน้าจอแสดงผลต่อไม่ได้: " +
+              (err && err.message ? err.message : String(err)),
+          );
         }
       })
       .catch(function (err) {
-        fail("ติดต่อเซิร์ฟเวอร์ไม่ได้" +
-             (err && err.message ? " (" + err.message + ")" : ""));
+        fail(
+          "ติดต่อเซิร์ฟเวอร์ไม่ได้" +
+            (err && err.message ? " (" + err.message + ")" : ""),
+        );
       });
   }
-
 
   /* ---------- อัปโหลดรูปทีละชุด ----------
    * เลือกได้หลายไฟล์ แต่ใส่ได้เท่าที่ยังมีช่องว่างเหลือเท่านั้น
@@ -636,7 +643,9 @@
 
     if (free <= 0) {
       if (window.appError) {
-        window.appError("สินค้านี้มีรูปครบ " + PIMG_MAX + " รูปแล้ว กรุณาลบรูปเดิมออกก่อน");
+        window.appError(
+          "สินค้านี้มีรูปครบ " + PIMG_MAX + " รูปแล้ว กรุณาลบรูปเดิมออกก่อน",
+        );
       }
       return;
     }
@@ -649,7 +658,10 @@
     var tooBig = 0;
 
     for (var i = 0; i < fileList.length && use.length < free; i++) {
-      if (fileList[i].size > PIMG_BYTES) { tooBig++; continue; }
+      if (fileList[i].size > PIMG_BYTES) {
+        tooBig++;
+        continue;
+      }
       use.push(fileList[i]);
     }
 
@@ -657,7 +669,9 @@
 
     if (use.length === 0) {
       if (window.appError) {
-        window.appError("ไฟล์ที่เลือกใหญ่เกิน 3 MB ทั้งหมด กรุณาย่อรูปก่อนอัปโหลด");
+        window.appError(
+          "ไฟล์ที่เลือกใหญ่เกิน 3 MB ทั้งหมด กรุณาย่อรูปก่อนอัปโหลด",
+        );
       }
       return;
     }
@@ -694,18 +708,29 @@
       }
 
       var note = [];
-      if (skipped > 0) { note.push("ข้าม " + skipped + " รูป เพราะครบ " + PIMG_MAX + " รูปแล้ว"); }
-      if (tooBig > 0)  { note.push("ข้าม " + tooBig + " รูป เพราะไฟล์ใหญ่เกิน 3 MB"); }
-      if (lastErr !== "") { note.push("บางรูปไม่สำเร็จ: " + lastErr); }
+      if (skipped > 0) {
+        note.push("ข้าม " + skipped + " รูป เพราะครบ " + PIMG_MAX + " รูปแล้ว");
+      }
+      if (tooBig > 0) {
+        note.push("ข้าม " + tooBig + " รูป เพราะไฟล์ใหญ่เกิน 3 MB");
+      }
+      if (lastErr !== "") {
+        note.push("บางรูปไม่สำเร็จ: " + lastErr);
+      }
 
       var msg = "เพิ่มรูปแล้ว " + okCount + " รูป";
-      if (note.length > 0) { msg += " · " + note.join(" · "); }
+      if (note.length > 0) {
+        msg += " · " + note.join(" · ");
+      }
 
       openImageBox(row, msg);
     }
 
     function sendNext(n) {
-      if (n >= use.length) { finish(); return; }
+      if (n >= use.length) {
+        finish();
+        return;
+      }
 
       if (window.appLoading) {
         window.appLoading("กำลังอัปโหลด " + (n + 1) + "/" + use.length + "…");
@@ -739,39 +764,50 @@
     form.append("action", "remove");
     form.append("image_id", imageId);
 
-    if (window.appLoading) { window.appLoading("กำลังลบรูป…"); }
+    if (window.appLoading) {
+      window.appLoading("กำลังลบรูป…");
+    }
 
     pimgPost(
       form,
       function (res) {
-        if (window.appClose) { window.appClose(); }
+        if (window.appClose) {
+          window.appClose();
+        }
         setImages(row, res.images);
         openImageBox(row);
       },
       function (message) {
-        if (window.appClose) { window.appClose(); }
-        if (window.appError) { window.appError(message); }
+        if (window.appClose) {
+          window.appClose();
+        }
+        if (window.appError) {
+          window.appError(message);
+        }
       },
     );
   }
-
 
   /* ---------- กล่องจัดการรูปของสินค้าหนึ่งรายการ ----------
    * แสดงช่องว่างครบ 3 ช่องเสมอ ไม่ใช่โชว์เฉพาะรูปที่มี
    * ผู้ใช้จะได้เห็นทันทีว่าใส่ได้อีกกี่รูป โดยไม่ต้องนับเอง
    */
   function openImageBox(row, note) {
-    if (!window.Swal) { return; }
+    if (!window.Swal) {
+      return;
+    }
 
     var data = row.getData();
     var imgs = imagesOf(row);
 
     /* สรุปผลของรอบที่เพิ่งทำ แปะไว้ในกล่องเดียวกัน ไม่แยกไปเป็นอีกกล่อง
        เพราะ SweetAlert มีกล่องเดียวทั้งหน้า เปิดซ้อนแล้วกล่องหลังจะกลบกล่องแรก */
-    var html = note ? ('<p class="pimg-note">' + escapeHtml(note) + "</p>") : "";
+    var html = note ? '<p class="pimg-note">' + escapeHtml(note) + "</p>" : "";
 
     html +=
-      '<p class="pimg-lead">ใส่ได้สูงสุด ' + PIMG_MAX + " รูป " +
+      '<p class="pimg-lead">ใส่ได้สูงสุด ' +
+      PIMG_MAX +
+      " รูป " +
       "รูปแรกคือรูปที่เอาไปแสดงในหน้าทำรายการเบิก<br>" +
       "รองรับ JPG, PNG และ GIF ไฟล์ละไม่เกิน 3 MB</p>" +
       '<div class="pimg-slots">';
@@ -783,11 +819,17 @@
            ผู้ใช้ต้องลบทิ้งแล้วอัปโหลดใหม่เพื่อดูว่าใช่รูปที่ต้องการหรือเปล่า */
         html +=
           '<div class="pimg-slot has-img">' +
-          '<button type="button" class="pimg-zoom" data-pimg-zoom="' + i + '"' +
+          '<button type="button" class="pimg-zoom" data-pimg-zoom="' +
+          i +
+          '"' +
           ' title="กดเพื่อดูรูปใหญ่" aria-label="ดูรูปใหญ่">' +
-          '<img src="' + escapeHtml(imgs[i].url) + '" alt=""></button>' +
+          '<img src="' +
+          escapeHtml(imgs[i].url) +
+          '" alt=""></button>' +
           (i === 0 ? '<span class="pimg-badge">รูปหลัก</span>' : "") +
-          '<button type="button" class="pimg-del" data-pimg-del="' + imgs[i].image_id + '"' +
+          '<button type="button" class="pimg-del" data-pimg-del="' +
+          imgs[i].image_id +
+          '"' +
           ' title="ลบรูปนี้" aria-label="ลบรูปนี้">&#10005;</button>' +
           "</div>";
       } else {
@@ -810,7 +852,9 @@
       customClass: { popup: "app-swal", confirmButton: "app-swal-confirm" },
       didOpen: function () {
         var popup = window.Swal.getPopup();
-        if (!popup) { return; }
+        if (!popup) {
+          return;
+        }
 
         if (typeof window.renderIcons === "function") {
           window.renderIcons(popup);
@@ -849,13 +893,17 @@
 
               /* ลบรูปย้อนคืนไม่ได้ ไฟล์ถูกลบออกจากดิสก์ทันที จึงต้องถามก่อน */
               if (typeof window.appConfirm === "function") {
-                window.appConfirm({
-                  title: "ลบรูปนี้",
-                  text: "ลบแล้วเอากลับคืนไม่ได้ ต้องอัปโหลดใหม่",
-                  confirmText: "ลบรูป",
-                }).then(function (ok) {
-                  if (ok) { removeImage(row, id); }
-                });
+                window
+                  .appConfirm({
+                    title: "ลบรูปนี้",
+                    text: "ลบแล้วเอากลับคืนไม่ได้ ต้องอัปโหลดใหม่",
+                    confirmText: "ลบรูป",
+                  })
+                  .then(function (ok) {
+                    if (ok) {
+                      removeImage(row, id);
+                    }
+                  });
               } else {
                 removeImage(row, id);
               }
@@ -865,7 +913,6 @@
       },
     });
   }
-
 
   /* ============================================================
    *  คอลัมน์ของแต่ละตาราง
@@ -1095,7 +1142,7 @@
               '<button type="button" class="pimg-cell is-empty" data-pimg="open"' +
               ' title="กดเพื่อเพิ่มรูป (ใส่ได้สูงสุด 3 รูป)">' +
               '<span class="pimg-ico is-add" aria-hidden="true"></span>' +
-              '</button>'
+              "</button>"
             );
           }
 
@@ -1103,8 +1150,12 @@
              เรียงรูปเล็กสามรูปในช่องกว้าง 116px จะเล็กจนดูไม่ออกว่าเป็นอะไร */
           return (
             '<button type="button" class="pimg-cell has-img" data-pimg="open"' +
-            ' title="กดเพื่อจัดการรูป (มี ' + imgs.length + ' รูป)">' +
-            '<img src="' + escapeHtml(imgs[0].url) + '" alt="" loading="lazy">' +
+            ' title="กดเพื่อจัดการรูป (มี ' +
+            imgs.length +
+            ' รูป)">' +
+            '<img src="' +
+            escapeHtml(imgs[0].url) +
+            '" alt="" loading="lazy">' +
             (imgs.length > 1
               ? '<span class="pimg-more num">' + imgs.length + "</span>"
               : "") +
@@ -1151,25 +1202,29 @@
         clipboard: true,
         formatter: textCell("— ยังไม่ได้กรอก —"),
       },
-      /* หมวดหมู่หลักเป็นค่าที่มาจากหมวดหมู่ย่อย ไม่ใช่ค่าที่เก็บแยก
-               จึงแสดงอย่างเดียว แก้ได้ทางเดียวคือเปลี่ยนหมวดหมู่ย่อย
-               ถ้าให้แก้ตรงนี้ได้ด้วย ค่าสองช่องจะขัดกันเองเมื่อเลือกไม่ตรงคู่ */
-      G.col(G.control, {
-        title: "หมวดหมู่หลัก",
-        field: "_category",
-        ...G.filterOwn(),
-        minWidth: 150,
-        responsive: 5,
-        download: true,
-        clipboard: true,
-        formatter: function (cell) {
-          var name = cell.getValue();
-          if (!name) {
-            return '<span class="grid-empty">— ยังไม่ได้เลือก —</span>';
-          }
-          return '<span class="grid-pill">' + escapeHtml(name) + "</span>";
+      G.col(
+        G.labelled(function (v) {
+          return catLookup[v] || "";
+        }),
+        {
+          title: "หมวดหมู่หลัก",
+          field: "category_id",
+          ...G.filterPick(catLookup),
+          minWidth: 165,
+          responsive: 5,
+          download: true,
+          clipboard: true,
+          editor: "list",
+          editorParams: G.pickerParams(G.pickerValues(catLookup, true)),
+          formatter: function (cell) {
+            var name = catLookup[cell.getValue()];
+            if (!name) {
+              return '<span class="grid-empty">— ยังไม่ได้เลือก —</span>';
+            }
+            return '<span class="grid-pill">' + escapeHtml(name) + "</span>";
+          },
         },
-      }),
+      ),
       G.col(
         G.labelled(function (v) {
           return subLookup[v] || "";
@@ -1183,7 +1238,14 @@
           download: true,
           clipboard: true,
           editor: "list",
-          editorParams: G.pickerParams(G.pickerValues(subPicker, true)),
+          editorParams: function (cell) {
+            return G.pickerParams(
+              G.pickerValues(
+                subPickerFor(cell.getRow().getData().category_id),
+                true,
+              ),
+            );
+          },
           formatter: function (cell) {
             var name = subLookup[cell.getValue()];
             if (!name) {
@@ -1367,7 +1429,7 @@
       table,
       function (rows) {
         for (var i = 0; i < rows.length; i++) {
-          syncDerived(rows[i]);
+          syncProductCategory(rows[i]);
           markChanged(rows[i]);
         }
         refreshPending();
@@ -1381,7 +1443,7 @@
     );
 
     table.on("cellEdited", function (cell) {
-      syncDerived(cell.getRow());
+      syncProductCategory(cell.getRow());
       markChanged(cell.getRow());
       refreshPending();
     });
@@ -1396,10 +1458,14 @@
         var btn = e.target.closest
           ? e.target.closest('[data-pimg="open"]')
           : null;
-        if (!btn) { return; }
+        if (!btn) {
+          return;
+        }
 
         var rowEl = btn.closest(".tabulator-row");
-        if (!rowEl) { return; }
+        if (!rowEl) {
+          return;
+        }
 
         e.preventDefault();
         e.stopPropagation();
@@ -1427,7 +1493,7 @@
           }
           applyRowClass(rows[i]);
         }
-        syncDerived(rows[i]);
+        syncProductCategory(rows[i]);
       }
       table.redraw(true);
       refreshPending();
@@ -1556,7 +1622,7 @@
       " " +
       String(data.product_name || "") +
       " " +
-      String(data._category || "") +
+      String(catLookup[data.category_id] || "") +
       " " +
       String(subLookup[data.sub_category_id] || "") +
       " " +
@@ -1612,18 +1678,28 @@
       row.product_code = "";
       row.old_code = "";
       row.product_name = "";
-      row.sub_category_id = firstKey(CFG.subOptions, "sub_category_id");
+      row.category_id = firstKey(CFG.catOptions, "category_id");
+      row.sub_category_id = firstSubKey(row.category_id);
       row.unit_id = firstKey(CFG.unitOptions, "unit_id");
       row.unit_cost = 0;
       row.min_qty = 0;
       row.max_qty = 0;
-      row._category = categoryOf(row);
     }
     return row;
   }
 
   function firstKey(list, field) {
     return list && list.length ? Number(list[0][field]) : 0;
+  }
+
+  function firstSubKey(categoryId) {
+    var list = CFG.subOptions || [];
+    for (var i = 0; i < list.length; i++) {
+      if (Number(list[i].category_id) === Number(categoryId)) {
+        return Number(list[i].sub_category_id);
+      }
+    }
+    return 0;
   }
 
   /* ============================================================
@@ -1728,18 +1804,31 @@
     function codeRule(field, label) {
       return function (v, d) {
         var s = String(v || "").trim();
-        if (s === "") { return "กรุณากรอก" + label; }
+        if (s === "") {
+          return "กรุณากรอก" + label;
+        }
         if (!/^[A-Za-z0-9\-]+$/.test(s)) {
           return label + "ใช้ได้เฉพาะ A-Z, 0-9 และขีดกลาง";
         }
-        if (s.length > 20) { return label + "ยาวเกิน 20 ตัวอักษร"; }
+        if (s.length > 20) {
+          return label + "ยาวเกิน 20 ตัวอักษร";
+        }
 
         /* ซ้ำกับแถวอื่นในตารางเดียวกัน จับตั้งแต่ตอนนี้ดีกว่าไปโดนปฏิเสธทีละใบ */
-        var rows = table.getData(), same = 0;
+        var rows = table.getData(),
+          same = 0;
         for (var i = 0; i < rows.length; i++) {
-          if (String(rows[i][field] || "").trim().toUpperCase() === s.toUpperCase()) { same++; }
+          if (
+            String(rows[i][field] || "")
+              .trim()
+              .toUpperCase() === s.toUpperCase()
+          ) {
+            same++;
+          }
         }
-        if (same > 1) { return label + ' "' + s + '" ซ้ำกับอีกแถวในตารางนี้'; }
+        if (same > 1) {
+          return label + ' "' + s + '" ซ้ำกับอีกแถวในตารางนี้';
+        }
         return "";
       };
     }
@@ -1747,8 +1836,12 @@
     function nameRule(label, max) {
       return function (v) {
         var s = String(v || "").trim();
-        if (s === "") { return "กรุณากรอก" + label; }
-        if (s.length > max) { return label + "ยาวเกิน " + max + " ตัวอักษร"; }
+        if (s === "") {
+          return "กรุณากรอก" + label;
+        }
+        if (s.length > max) {
+          return label + "ยาวเกิน " + max + " ตัวอักษร";
+        }
         return "";
       };
     }
@@ -1756,9 +1849,15 @@
     /* ตัวเลขที่เป็นจำนวนหรือเงิน ต้องไม่ติดลบและต้องเป็นตัวเลขจริง */
     function numRule(label) {
       return function (v) {
-        if (v === "" || v === null || v === undefined) { return ""; }
-        if (isNaN(Number(v))) { return label + "ต้องเป็นตัวเลข"; }
-        if (Number(v) < 0) { return label + "ต้องไม่ติดลบ"; }
+        if (v === "" || v === null || v === undefined) {
+          return "";
+        }
+        if (isNaN(Number(v))) {
+          return label + "ต้องเป็นตัวเลข";
+        }
+        if (Number(v) < 0) {
+          return label + "ต้องไม่ติดลบ";
+        }
         return "";
       };
     }
@@ -1766,7 +1865,7 @@
     if (TAB === "category") {
       return {
         category_code: codeRule("category_code", "รหัสหมวดหมู่หลัก"),
-        category_name: nameRule("ชื่อหมวดหมู่หลัก", 150)
+        category_name: nameRule("ชื่อหมวดหมู่หลัก", 150),
       };
     }
 
@@ -1776,7 +1875,7 @@
         sub_category_name: nameRule("ชื่อหมวดหมู่ย่อย", 150),
         category_id: function (v) {
           return Number(v) > 0 ? "" : "กรุณาเลือกหมวดหมู่หลัก";
-        }
+        },
       };
     }
 
@@ -1784,34 +1883,56 @@
       return {
         unit_name: function (v) {
           var bad = nameRule("ชื่อหน่วยนับ", 50)(v);
-          if (bad) { return bad; }
+          if (bad) {
+            return bad;
+          }
 
           /* ชื่อหน่วยมี unique index อยู่ ถ้าปล่อยไปจะโดนปฏิเสธทีละแถวจากฝั่งเซิร์ฟเวอร์
              จับตรงนี้ก่อนได้ผลดีกว่า เพราะชี้ได้ว่าซ้ำกันตรงช่องไหน
              เทียบแบบยุบช่องว่างเหมือน unit_validate() ไม่งั้น "ชิ้น " จะดูเหมือนไม่ซ้ำ
              แต่พอบันทึกจริงกลับชนกับ "ชิ้น" ที่มีอยู่แล้ว */
           var key = String(v).trim().replace(/\s+/g, " ");
-          var rows = table.getData(), same = 0;
+          var rows = table.getData(),
+            same = 0;
           for (var i = 0; i < rows.length; i++) {
-            if (rows[i]._state === "removed") { continue; }
-            if (String(rows[i].unit_name || "").trim().replace(/\s+/g, " ") === key) { same++; }
+            if (rows[i]._state === "removed") {
+              continue;
+            }
+            if (
+              String(rows[i].unit_name || "")
+                .trim()
+                .replace(/\s+/g, " ") === key
+            ) {
+              same++;
+            }
           }
-          if (same > 1) { return 'ชื่อหน่วยนับ "' + key + '" ซ้ำกับอีกแถวในตารางนี้'; }
+          if (same > 1) {
+            return 'ชื่อหน่วยนับ "' + key + '" ซ้ำกับอีกแถวในตารางนี้';
+          }
           return "";
-        }
+        },
       };
     }
 
     /* ---------- สินค้า ---------- */
     return {
-      product_name:    nameRule("ชื่อสินค้า", 300),
-      sub_category_id: function (v) { return Number(v) > 0 ? "" : "กรุณาเลือกหมวดหมู่ย่อย"; },
-      unit_id:         function (v) { return Number(v) > 0 ? "" : "กรุณาเลือกหน่วยนับ"; },
-      unit_cost:       numRule("ราคาซื้อ"),
-      min_qty:         numRule("จุดสั่งซื้อ"),
+      product_name: nameRule("ชื่อสินค้า", 300),
+      category_id: function (v) {
+        return Number(v) > 0 ? "" : "กรุณาเลือกหมวดหมู่หลัก";
+      },
+      sub_category_id: function (v) {
+        return Number(v) > 0 ? "" : "กรุณาเลือกหมวดหมู่ย่อย";
+      },
+      unit_id: function (v) {
+        return Number(v) > 0 ? "" : "กรุณาเลือกหน่วยนับ";
+      },
+      unit_cost: numRule("ราคาซื้อ"),
+      min_qty: numRule("จุดสั่งซื้อ"),
       max_qty: function (v, d) {
         var bad = numRule("จำนวนสูงสุด")(v);
-        if (bad) { return bad; }
+        if (bad) {
+          return bad;
+        }
         /* max = 0 แปลว่ายังไม่กำหนดเพดาน จึงไม่ต้องเทียบกับจุดสั่งซื้อ */
         if (Number(v) > 0 && Number(v) < Number(d.min_qty || 0)) {
           return "จำนวนสูงสุดต้องไม่น้อยกว่าจุดสั่งซื้อ";
@@ -1820,11 +1941,10 @@
       },
       old_code: function (v) {
         var s = String(v || "").trim();
-        return (s.length > 30) ? "รหัสเดิมยาวเกิน 30 ตัวอักษร" : "";
-      }
+        return s.length > 30 ? "รหัสเดิมยาวเกิน 30 ตัวอักษร" : "";
+      },
     };
   }
-
 
   /* ตรวจเฉพาะข้อที่บอกได้ตั้งแต่หน้าจอ ที่เหลือปล่อยให้ backend ตัดสิน
      (ยังเก็บไว้เผื่อที่อื่นเรียกใช้ ตัวหลักตอนนี้คือ validationRules) */
@@ -1860,7 +1980,11 @@
         if (String(r.product_name || "").trim() === "") {
           blankName++;
         }
-        if (!Number(r.sub_category_id) || !Number(r.unit_id)) {
+        if (
+          !Number(r.category_id) ||
+          !Number(r.sub_category_id) ||
+          !Number(r.unit_id)
+        ) {
           noPick++;
         }
       }
