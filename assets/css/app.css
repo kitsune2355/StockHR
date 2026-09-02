@@ -98,6 +98,16 @@ body.no-bg-image #appMain::before {
     display: none;
 }
 
+/* ---------- ซ่อน element ที่มี Tailwind classes ----------
+   #reqInfo, #noRequest, #formError มี class .flex ซึ่ง specificity
+   สูงกว่า [hidden][hidden] ต้องเพิ่ม rule เฉพาะสำหรับพวกมัน */
+#reqInfo[hidden],
+#noRequest[hidden],
+#formError[hidden] {
+    display: none !important;
+}
+
+
 
 /* ============================================================
  *  ขนาดตัวอักษรที่ผู้ใช้เลือกเองได้
@@ -2179,7 +2189,39 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 input[type="date"].input-control { min-height: 2.75rem; }
 
 /* ---------- ส่วนหัวเอกสารบนจอเล็ก ----------
-   ปุ่มบันทึกต้องอยู่ในระยะนิ้วโป้งเสมอ ไม่ต้องเลื่อนขึ้นไปหา */
+   ปุ่มบันทึกต้องอยู่ในระยะนิ้วโป้งเสมอ ไม่ต้องเลื่อนขึ้นไปหา
+   
+   ช่องอินพุตต้องพอดีกับหน้าจอมือถือ ไม่ให้หลุด flex */
+@media (max-width: 639px) {
+    #docForm {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    #docForm > div {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+    #docForm .input-control,
+    #docForm select {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+    #docForm > div {
+        min-width: 0;
+    }
+    #docForm .input-control,
+    #docForm select {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+/* ---------- ช่องอินพุตบนจอเล็กต้องย่อได้ ---------- */
 @media (max-width: 767px) {
     .grid-toolbar > div.ml-auto,
     .grid-toolbar > div:last-child:not(.grid-toolbar-actions) > #btnSave { width: 100%; }
@@ -5624,6 +5666,7 @@ button.bc-side-toggle { display: none; }
 
 .doc-scan {
     display: flex; align-items: center; gap: .25rem;
+    flex: 1 1 15rem; min-width: 0;
     height: 2.5rem; padding: 0 .25rem 0 .625rem;
     border: 1px solid #cbd5e1; border-radius: .75rem;
     background: #fff;
@@ -5639,13 +5682,21 @@ button.bc-side-toggle { display: none; }
 .doc-scan:focus-within .doc-scan-icon { color: #029488; }
 
 .doc-scan-input {
-    width: 15rem; height: 100%;
+    flex: 1 1 auto; width: 100%; min-width: 0; height: 100%;
     border: 0; background: transparent; outline: none;
     font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
     font-size: 0.8125rem; letter-spacing: .5px; color: #0f172a;
 }
 .doc-scan-input::placeholder {
     font-family: 'Prompt', sans-serif; letter-spacing: 0; color: #94a3b8;
+}
+
+@media (max-width: 640px) {
+    .doc-scan {
+        flex-basis: 100%;
+        width: 100%;
+    }
+    .doc-scan-input { width: 100%; }
 }
 
 .doc-scan-cam {
