@@ -25,6 +25,7 @@ if (!isset($sess_username)) { exit('ไม่มีสิทธิ์เข้�
 
 require_once dirname(dirname(__FILE__)) . '/backend/stock.php';
 require_once dirname(dirname(__FILE__)) . '/backend/category.php';
+require_once dirname(dirname(__FILE__)) . '/backend/sub_category.php';
 
 function rp_json($value)
 {
@@ -34,11 +35,12 @@ function rp_json($value)
 $panel    = 'flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900';
 $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800';
 
-$move_types  = stock_move_types();
-$categories  = ($mode === 'movement') ? array() : category_options();
-$filter_hint = ($mode === 'movement')
-             ? 'ช่วงวันที่และประเภทจะดึงข้อมูลใหม่'
-             : 'กรองจากข้อมูลที่แสดงอยู่';
+$move_types    = stock_move_types();
+$categories    = ($mode === 'movement') ? array() : category_options();
+$sub_categories = ($mode === 'movement') ? array() : sub_category_options();
+$filter_hint   = ($mode === 'movement')
+               ? 'ช่วงวันที่และประเภทจะดึงข้อมูลใหม่'
+               : 'กรองจากข้อมูลที่แสดงอยู่';
 
 include dirname(__FILE__) . '/_filter_head.php';
 ?>
@@ -154,6 +156,17 @@ include dirname(__FILE__) . '/_filter_head.php';
       </div>
 
       <div class="fp-field">
+        <label for="repSubCategory" class="<?php echo $fp_label; ?>">หมวดหมู่ย่อย</label>
+        <select id="repSubCategory" class="<?php echo $fp_input; ?>"
+                data-search data-search-placeholder="พิมพ์ชื่อหมวดหมู่ย่อย">
+          <option value="">ทุกหมวดหมู่ย่อย</option>
+          <?php foreach ($sub_categories as $sub) { ?>
+          <option value="<?php echo (int)$sub['sub_category_id']; ?>"><?php echo htmlspecialchars($sub['label'], ENT_QUOTES, 'UTF-8'); ?></option>
+          <?php } ?>
+        </select>
+      </div>
+
+      <div class="fp-field">
         <label for="repState" class="<?php echo $fp_label; ?>">สถานะสต๊อก</label>
         <select id="repState" class="<?php echo $fp_input; ?>"
                 data-search data-search-placeholder="พิมพ์ชื่อสถานะ">
@@ -171,9 +184,11 @@ include dirname(__FILE__) . '/_filter_head.php';
 
 <script>
 window.REPORT = {
-    mode:       <?php echo rp_json($mode); ?>,
-    endpoint:   'api/reports.php',
-    exportName: <?php echo rp_json($export_name); ?>
+    mode:        <?php echo rp_json($mode); ?>,
+    endpoint:    'api/reports.php',
+    exportName:  <?php echo rp_json($export_name); ?>,
+    categories:  <?php echo rp_json($categories); ?>,
+    subCategories: <?php echo rp_json($sub_categories); ?>
 };
 </script>
 <script src="<?php echo asset_url('assets/js/select-search.js', $ASSET_BASE); ?>"></script>

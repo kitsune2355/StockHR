@@ -26,10 +26,11 @@ $action = isset($input['action']) ? $input['action'] : '';
 if ($action === 'stock' || $action === 'low') {
 
     $rows = stock_list(array(
-        'only_active' => true,
-        'low_only'    => ($action === 'low'),
-        'search'      => isset($input['search'])      ? $input['search']           : '',
-        'category_id' => isset($input['category_id']) ? (int)$input['category_id'] : 0
+        'only_active'    => true,
+        'low_only'       => ($action === 'low'),
+        'search'         => isset($input['search'])         ? $input['search']              : '',
+        'category_id'    => isset($input['category_id'])    ? (int)$input['category_id']    : 0,
+        'sub_category_id'=> isset($input['sub_category_id']) ? (int)$input['sub_category_id'] : 0
     ));
 
     /* สรุปหัวรายงาน คำนวณจากชุดข้อมูลเดียวกับที่ส่งไป ตัวเลขจึงตรงกับตารางเสมอ */
