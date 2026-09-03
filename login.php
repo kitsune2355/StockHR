@@ -73,20 +73,20 @@ unset($_SESSION['login_error']);
       </div>
 
       <ul class="relative mt-8 hidden space-y-4 text-sm lg:block">
-        <li class="animate-slide-in-left flex items-start gap-3 [animation-delay:300ms]">
-          <span class="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-full bg-white/20">
+        <li class="animate-slide-in-left flex items-center gap-3 [animation-delay:300ms]">
+          <span class="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-white/20">
             <i data-lucide="package-search" class="h-3.5 w-3.5" stroke-width="2.2" aria-hidden="true"></i>
           </span>
           <span class="text-white/90">ตรวจสอบยอดคงเหลือได้ทันที</span>
         </li>
-        <li class="animate-slide-in-left flex items-start gap-3 [animation-delay:380ms]">
-          <span class="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-full bg-white/20">
+        <li class="animate-slide-in-left flex items-center gap-3 [animation-delay:380ms]">
+          <span class="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-white/20">
             <i data-lucide="arrow-down-up" class="h-3.5 w-3.5" stroke-width="2.2" aria-hidden="true"></i>
           </span>
           <span class="text-white/90">บันทึกรับเข้า–จ่ายออก ตรวจย้อนหลังได้</span>
         </li>
-        <li class="animate-slide-in-left flex items-start gap-3 [animation-delay:460ms]">
-          <span class="mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-full bg-white/20">
+        <li class="animate-slide-in-left flex items-center gap-3 [animation-delay:460ms]">
+          <span class="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-white/20">
             <i data-lucide="bell-ring" class="h-3.5 w-3.5" stroke-width="2.2" aria-hidden="true"></i>
           </span>
           <span class="text-white/90">แจ้งเตือนสินค้าต่ำกว่าจุดสั่งซื้อ</span>
@@ -182,7 +182,7 @@ unset($_SESSION['login_error']);
       </form>
 
       <p class="animate-fade-in mt-6 flex items-start gap-2 border-t border-slate-100 pt-5 text-sm text-slate-500 [animation-delay:480ms]">
-        <i data-lucide="life-buoy" class="mt-0.5 h-4 w-4 flex-none text-slate-400" aria-hidden="true"></i>
+        <i data-lucide="info" class="mt-0.5 h-4 w-4 flex-none text-slate-400" aria-hidden="true"></i>
         <span>ลืมรหัสผ่าน หรือเข้าใช้งานไม่ได้ กรุณาติดต่อผู้ดูแลระบบ</span>
       </p>
 
