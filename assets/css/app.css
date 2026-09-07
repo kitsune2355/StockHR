@@ -1153,6 +1153,8 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
    และใช้ element เดิมซ้ำ แก้ด้วย JS ตอนสร้างจึงได้ผลแค่ครั้งแรก
    ปล่อย top ไว้ตามเดิม กล่องจะได้ยังอยู่ใกล้ช่องที่กด */
 @media (max-width: 640px) {
+    .fp-quick-statuses { width: 100%; order: 3; }
+    .fp-bar-actions { margin-left: 0; }
     .tabulator-edit-list {
         left:  .5rem !important;
         right: .5rem !important;
@@ -2536,6 +2538,35 @@ input[type="date"].input-control { min-height: 2.75rem; }
 }
 .fp-bar-info { font-size: 0.8125rem; color: #64748b; min-width: 0; }
 .fp-bar-info b { color: #0f172a; }
+.fp-quick-statuses {
+    display: flex;
+    align-items: center;
+    gap: .375rem;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+.fp-status-toggle {
+    flex: none;
+    height: 2.25rem;
+    padding: 0 .875rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    background: #fff;
+    color: #475569;
+    font-size: .75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, color .15s, box-shadow .15s;
+}
+.fp-status-toggle:hover { border-color: #029488; color: #055f59; background: #e6f5f4; }
+.fp-status-toggle.is-active {
+    border-color: #029488;
+    background: #029488;
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(2, 148, 136, .22);
+}
 .fp-bar-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-left: auto; }
 
 /* ปุ่มเปิดตัวกรอง ซ่อนบนจอที่แถบกางค้างอยู่แล้ว
@@ -2601,6 +2632,9 @@ button.fp-toggle { display: none; }
 .dark .fp-bar { border-bottom-color: #1e293b; }
 .dark .fp-bar-info { color: #94a3b8; }
 .dark .fp-bar-info b { color: #f1f5f9; }
+.dark .fp-status-toggle { border-color: #334155; background: #0f172a; color: #cbd5e1; }
+.dark .fp-status-toggle:hover { border-color: #2dd4bf; background: rgba(2, 148, 136, .16); color: #99f6e4; }
+.dark .fp-status-toggle.is-active { border-color: #029488; background: #029488; color: #fff; }
 /* ค่าที่ต้องกรอกแต่ยังว่าง และมีผลต่อการทำงาน (เช่น หน่วยงานของผู้อนุมัติ)
    ต่างจาก .grid-empty ที่แปลว่า "ไม่ได้ระบุ ซึ่งก็ไม่เป็นไร" */
 .grid-warn { color: #b45309; font-weight: 500; }

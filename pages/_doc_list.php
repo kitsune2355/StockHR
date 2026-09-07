@@ -67,6 +67,15 @@ include dirname(__FILE__) . '/_filter_head.php';
       พบ <b id="rowCount" class="num">0</b> รายการ
     </span>
 
+    <div id="quickStatusFilters" class="fp-quick-statuses" role="group" aria-label="กรองสถานะเร็ว">
+      <button type="button" class="fp-status-toggle is-active" data-status="">ทั้งหมด</button>
+      <?php foreach ($status_of[$doc_type] as $key) { ?>
+      <button type="button" class="fp-status-toggle" data-status="<?php echo htmlspecialchars($key, ENT_QUOTES, 'UTF-8'); ?>">
+        <?php echo htmlspecialchars($all_status[$key], ENT_QUOTES, 'UTF-8'); ?>
+      </button>
+      <?php } ?>
+    </div>
+
     <div class="fp-bar-actions">
       <button type="button" id="btnReload" class="<?php echo $btn_soft; ?> btn-compact" title="โหลดข้อมูลใหม่">
         <i data-lucide="refresh-cw" class="h-4 w-4" aria-hidden="true"></i>

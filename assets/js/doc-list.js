@@ -204,6 +204,34 @@
     }
   }
 
+  function updateQuickStatus(status) {
+    var buttons = document.querySelectorAll(
+      "#quickStatusFilters .fp-status-toggle",
+    );
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].classList.toggle(
+        "is-active",
+        (buttons[i].getAttribute("data-status") || "") === (status || ""),
+      );
+    }
+  }
+
+  function syncQuickStatusFromTable(filters) {
+    var status = "";
+    var hasStatusFilter = false;
+    for (var i = 0; i < filters.length; i++) {
+      if (filters[i].field !== "status") {
+        continue;
+      }
+      hasStatusFilter = true;
+      if (typeof filters[i].value === "string") {
+        status = filters[i].value;
+      }
+      break;
+    }
+    updateQuickStatus(hasStatusFilter ? status : "");
+  }
+
   /* ---------- ป้ายสถานะ ---------- */
   function statusPill(status, label) {
     var tone =
@@ -488,6 +516,10 @@
       } else if (window.lucide) {
         window.lucide.createIcons();
       }
+    });
+    table.on("dataFiltered", function (filters) {
+      syncQuickStatusFromTable(filters || []);
+      refreshCount(table.getDataCount("active"));
     });
 
     if (window.GridExport) {
@@ -1691,29 +1723,49 @@
         el(ids[i]).addEventListener("change", load);
       }
     }
+    if (el("filterStatus")) {
+      el("filterStatus").addEventListener("change", function () {
+        updateQuickStatus(this.value);
+      });
+      updateQuickStatus(el("filterStatus").value);
+    }
     if (el("btnReload")) {
       el("btnReload").addEventListener("click", load);
     }
 
     if (el("gridSearch")) {
       el("gridSearch").addEventListener("input", function () {
-        var v = this.value.trim();
         if (!table) {
           return;
         }
-        if (v === "") {
+        var value = this.value.trim();
+        if (value === "") {
           table.clearFilter(true);
         } else {
           table.setFilter([
             [
-              { field: "doc_no", type: "like", value: v },
-              { field: "note", type: "like", value: v },
-              { field: "department_name", type: "like", value: v },
-              { field: "requester_name", type: "like", value: v },
+              { field: "doc_no", type: "like", value: value },
+              { field: "note", type: "like", value: value },
+              { field: "department_name", type: "like", value: value },
+              { field: "requester_name", type: "like", value: value },
             ],
           ]);
         }
         refreshCount(table.getDataCount("active"));
+      });
+    }
+
+    var quickStatuses = document.querySelectorAll(
+      "#quickStatusFilters .fp-status-toggle",
+    );
+    for (var q = 0; q < quickStatuses.length; q++) {
+      quickStatuses[q].addEventListener("click", function () {
+        var status = this.getAttribute("data-status") || "";
+        if (el("filterStatus")) {
+          el("filterStatus").value = status;
+        }
+        updateQuickStatus(status);
+        load();
       });
     }
 
