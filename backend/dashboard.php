@@ -135,10 +135,10 @@ function dashboard_my_tasks($username, $role, $limit = 6)
     if (dashboard_is_staff($role)) {
         $rows = doc_list(array('doc_type' => 'request', 'status' => 'waiting', 'limit' => 50));
 
-        $my_dept = 0;
+        $my_depts = array();
         if ($role === 'approver') {
             $me = user_find($username);
-            $my_dept = ($me === null) ? 0 : (int)$me['dept_id'];
+            $my_depts = ($me === null) ? array() : $me['dept_ids'];
         }
 
         for ($i = 0; $i < count($rows); $i++) {
@@ -148,7 +148,7 @@ function dashboard_my_tasks($username, $role, $limit = 6)
             if ($r['requester'] === $username) { continue; }
 
             /* ผู้อนุมัติเห็นเฉพาะหน่วยงานตัวเอง — กฎเดียวกับ request_decide */
-            if ($role === 'approver' && (int)$r['department_id'] !== $my_dept) { continue; }
+            if ($role === 'approver' && !in_array((int)$r['department_id'], $my_depts)) { continue; }
 
             $tasks[] = array(
                 'kind'    => 'approve',

@@ -137,6 +137,72 @@ function user_bind($stmt, $types, $values)
     call_user_func_array('mysqli_stmt_bind_param', $args);
 }
 
+/* ---------- หน่วยงานที่ผู้ใช้ดูแล ---------- */
+function user_department_ids($username)
+{
+    $connect = db_connect();
+    $stmt = mysqli_prepare($connect,
+        "SELECT `department_id` FROM `tb_user_department`
+         WHERE `username` = ? ORDER BY `department_id` ASC");
+    if (!$stmt) { return array(); }
+
+    mysqli_stmt_bind_param($stmt, 's', $username);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $department_id);
+
+    $ids = array();
+    while (mysqli_stmt_fetch($stmt)) {
+        $ids[] = (int)$department_id;
+    }
+    mysqli_stmt_close($stmt);
+    return $ids;
+}
+
+function user_department_save($username, $department_ids, $actor)
+{
+    $connect = db_connect();
+    $ids = array();
+    if (is_array($department_ids)) {
+        for ($i = 0; $i < count($department_ids); $i++) {
+            $id = (int)$department_ids[$i];
+            if ($id > 0 && !in_array($id, $ids)) { $ids[] = $id; }
+        }
+    }
+
+    $stmt = mysqli_prepare($connect, "DELETE FROM `tb_user_department` WHERE `username` = ?");
+    if (!$stmt) { return false; }
+    mysqli_stmt_bind_param($stmt, 's', $username);
+    $ok = mysqli_stmt_execute($stmt);
+    mysqli_stmt_close($stmt);
+    if (!$ok) { return false; }
+
+    if (count($ids) === 0) { return true; }
+
+    $stmt = mysqli_prepare($connect,
+        "INSERT INTO `tb_user_department`
+         (`username`, `department_id`, `created_at`, `created_by`, `updated_by`)
+         VALUES (?, ?, NOW(), ?, ?)");
+    if (!$stmt) { return false; }
+
+    for ($i = 0; $i < count($ids); $i++) {
+        $department_id = $ids[$i];
+        mysqli_stmt_bind_param($stmt, 'siss', $username, $department_id, $actor, $actor);
+        if (!mysqli_stmt_execute($stmt)) {
+            mysqli_stmt_close($stmt);
+            return false;
+        }
+    }
+    mysqli_stmt_close($stmt);
+    return true;
+}
+
+function user_has_department($username, $department_id)
+{
+    $department_id = (int)$department_id;
+    if ($department_id <= 0) { return false; }
+    return in_array($department_id, user_department_ids($username));
+}
+
 
 /* ============================================================
  *  อ่านข้อมูล
@@ -214,6 +280,13 @@ function user_list($options = array())
     }
     mysqli_stmt_close($stmt);
 
+    /* ต้องปิด statement หลักก่อน เพราะ user_department_ids() ใช้ connection เดียวกัน
+       ถ้าเรียกระหว่าง while ที่ยัง fetch ไม่ครบ mysqli จะเตือนว่า
+       "All data must be fetched before a new statement prepare takes place" */
+    for ($i = 0; $i < count($rows); $i++) {
+        $rows[$i]['dept_ids'] = user_department_ids($rows[$i]['username']);
+    }
+
     return $rows;
 }
 
@@ -242,6 +315,11 @@ function user_find($username)
 
     if (!$found) { return null; }
 
+    $dept_ids = user_department_ids($u);
+    if (count($dept_ids) === 0 && (int)$dept_id > 0) {
+        $dept_ids = array((int)$dept_id);
+    }
+
     return array(
         'username'   => $u,
         'full_name'  => $full_name,
@@ -253,7 +331,8 @@ function user_find($username)
         'agency_id'  => (int)$agency_id,
         'is_active'  => (int)$is_active,
         'dept_id'    => ($dept_id === null) ? 0 : (int)$dept_id,
-        'department_name' => ($department_name === null) ? '' : $department_name
+        'department_name' => ($department_name === null) ? '' : $department_name,
+        'dept_ids'   => $dept_ids
     );
 }
 
@@ -302,8 +381,10 @@ function user_validate($data, $is_new)
     /* ผู้อนุมัติต้องมีหน่วยงาน เพราะขอบเขตการอนุมัติผูกกับหน่วยงาน
        ถ้าไม่มี จะกลายเป็นบัญชีที่กดอนุมัติอะไรไม่ได้เลยแต่ดูเหมือนมีสิทธิ์
        (ผู้ดูแลระบบไม่ต้องมี เพราะอนุมัติข้ามหน่วยงานได้อยู่แล้ว) */
+    $dept_ids = isset($data['dept_ids']) && is_array($data['dept_ids']) ? $data['dept_ids'] : array();
     $dept_id = isset($data['dept_id']) ? (int)$data['dept_id'] : 0;
-    if ($role === 'approver' && $dept_id <= 0) {
+    if (count($dept_ids) === 0 && $dept_id > 0) { $dept_ids = array($dept_id); }
+    if ($role === 'approver' && count($dept_ids) === 0) {
         return 'ผู้อนุมัติต้องระบุหน่วยงาน เพราะอนุมัติได้เฉพาะใบเบิกของหน่วยงานตัวเอง';
     }
 
@@ -398,8 +479,9 @@ function user_create($data, $actor, $actor_role)
 
     /* หน่วยงานไม่บังคับตอนสร้าง เพราะบางบัญชี (เช่นผู้ดูแลระบบ) ไม่ได้สังกัดหน่วยงานไหน
        แต่ผู้อนุมัติที่ไม่มีหน่วยงานจะอนุมัติใบเบิกไม่ได้เลย — ดู request_decide() */
+    $dept_ids = isset($data['dept_ids']) && is_array($data['dept_ids']) ? $data['dept_ids'] : array();
     $dept_id = (isset($data['dept_id']) && (int)$data['dept_id'] > 0)
-               ? (int)$data['dept_id'] : null;
+               ? (int)$data['dept_id'] : ((count($dept_ids) > 0) ? (int)$dept_ids[0] : null);
 
     $stmt = mysqli_prepare($connect,
         "INSERT INTO `tb_user`
@@ -423,6 +505,10 @@ function user_create($data, $actor, $actor_role)
         return db_fail(db_error_message($errno), $errno);
     }
     mysqli_stmt_close($stmt);
+
+    if (!user_department_save($username, $dept_ids, $actor)) {
+        return db_fail('บันทึกหน่วยงานที่ผู้ใช้ดูแลไม่สำเร็จ');
+    }
 
     return db_ok('เพิ่มผู้ใช้ "' . $username . '" เรียบร้อย');
 }
@@ -450,8 +536,9 @@ function user_update($username, $data, $actor, $actor_role)
     $email     = isset($data['email']) ? trim($data['email']) : '';
     $agency_id = isset($data['agency_id']) ? (int)$data['agency_id'] : 0;
 
+    $dept_ids = isset($data['dept_ids']) && is_array($data['dept_ids']) ? $data['dept_ids'] : array();
     $dept_id = (isset($data['dept_id']) && (int)$data['dept_id'] > 0)
-               ? (int)$data['dept_id'] : null;
+               ? (int)$data['dept_id'] : ((count($dept_ids) > 0) ? (int)$dept_ids[0] : null);
 
     $stmt = mysqli_prepare($connect,
         "UPDATE `tb_user`
@@ -469,6 +556,10 @@ function user_update($username, $data, $actor, $actor_role)
         return db_fail(db_error_message($errno), $errno);
     }
     mysqli_stmt_close($stmt);
+
+    if (!user_department_save($username, $dept_ids, $actor)) {
+        return db_fail('บันทึกหน่วยงานที่ผู้ใช้ดูแลไม่สำเร็จ');
+    }
 
     /* เปลี่ยนรหัสผ่านเฉพาะกรณีที่กรอกมา ถ้าเว้นว่างคือใช้รหัสเดิมต่อ */
     $new_password = isset($data['new_password']) ? $data['new_password'] : '';
@@ -683,10 +774,11 @@ function user_approvers_for_dept($dept_id, $exclude = '')
 
     if ($dept_id > 0) {
         $stmt = mysqli_prepare($connect,
-            "SELECT `username`, `full_name`, `email`
-             FROM `tb_user`
-             WHERE `role` = 'approver' AND `is_active` = 1 AND `dept_id` = ?
-             ORDER BY `username` ASC");
+            "SELECT u.`username`, u.`full_name`, u.`email`
+             FROM `tb_user` u
+             INNER JOIN `tb_user_department` ud ON ud.`username` = u.`username`
+             WHERE u.`role` = 'approver' AND u.`is_active` = 1 AND ud.`department_id` = ?
+             ORDER BY u.`username` ASC");
         if ($stmt) {
             mysqli_stmt_bind_param($stmt, 'i', $dept_id);
             mysqli_stmt_execute($stmt);

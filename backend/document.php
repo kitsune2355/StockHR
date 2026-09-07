@@ -123,7 +123,7 @@ function doc_next_no($doc_type, $doc_date)
  *   search       ค้นจากเลขที่เอกสารหรือหมายเหตุ
  *   date_from / date_to
  *   requester    เอาเฉพาะใบที่คนนี้เป็นผู้ขอเบิก (ใช้ทำหน้า "ใบเบิกของฉัน")
- *   department_id
+ *   department_id / department_ids
  *   limit
  */
 function doc_list($options = array())
@@ -186,6 +186,17 @@ function doc_list($options = array())
         $where[]  = "h.`department_id` = ?";
         $types   .= 'i';
         $values[] = (int)$options['department_id'];
+    }
+
+    if (isset($options['department_ids']) && is_array($options['department_ids'])
+        && count($options['department_ids']) > 0) {
+        $marks = array();
+        for ($i = 0; $i < count($options['department_ids']); $i++) {
+            $marks[] = '?';
+            $types .= 'i';
+            $values[] = (int)$options['department_ids'][$i];
+        }
+        $where[] = "h.`department_id` IN (" . implode(',', $marks) . ")";
     }
 
     /* นับจำนวนบรรทัดและจำนวนรวมมาด้วยเลย หน้าประวัติจะได้ไม่ต้องยิงถามทีละใบ */
@@ -375,10 +386,8 @@ function doc_scope_for($actor, $actor_role)
 
     if ($actor_role === 'approver') {
         $me   = user_find($actor);
-        $dept = ($me === null) ? 0 : (int)$me['dept_id'];
-
-        if ($dept > 0) {
-            return array('department_id' => $dept);
+        if ($me !== null && count($me['dept_ids']) > 0) {
+            return array('department_ids' => $me['dept_ids']);
         }
     }
 
@@ -405,8 +414,7 @@ function doc_can_read($doc, $actor, $actor_role)
 
     if ($actor_role === 'approver') {
         $me = user_find($actor);
-        return ($me !== null && (int)$me['dept_id'] > 0
-                && (int)$me['dept_id'] === (int)$doc['department_id']);
+        return ($me !== null && user_has_department($actor, $doc['department_id']));
     }
 
     return false;

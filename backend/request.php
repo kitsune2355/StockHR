@@ -139,13 +139,13 @@ function request_decide($doc_id, $decision, $reason, $actor, $actor_role)
     if ($actor_role === 'approver') {
         $me = user_find($actor);
 
-        if ($me === null || (int)$me['dept_id'] <= 0) {
+        if ($me === null || count($me['dept_ids']) === 0) {
             return db_fail('บัญชีของคุณยังไม่ได้ระบุหน่วยงาน จึงอนุมัติใบเบิกไม่ได้ '
                          . 'กรุณาให้ผู้ดูแลระบบตั้งหน่วยงานให้ก่อน');
         }
 
-        if ((int)$me['dept_id'] !== (int)$doc['department_id']) {
-            return db_fail('อนุมัติได้เฉพาะใบเบิกของหน่วยงาน "' . $me['department_name'] . '" '
+        if (!user_has_department($actor, $doc['department_id'])) {
+            return db_fail('บัญชีของคุณไม่มีสิทธิ์อนุมัติใบเบิกของหน่วยงานนี้ '
                          . 'ใบนี้เป็นของหน่วยงาน "' . $doc['department_name'] . '"');
         }
     }
@@ -282,22 +282,33 @@ function request_waiting_count($actor = '', $actor_role = '')
         return 0;
     }
 
-    $dept = 0;
+    $depts = array();
     if ($actor_role === 'approver' && $actor !== '') {
         $me = user_find($actor);
-        if ($me === null || (int)$me['dept_id'] <= 0) {
+        if ($me === null || count($me['dept_ids']) === 0) {
             return 0;                       // ไม่มีหน่วยงาน = อนุมัติอะไรไม่ได้
         }
-        $dept = (int)$me['dept_id'];
+        $depts = $me['dept_ids'];
     }
 
-    if ($dept > 0) {
+    if (count($depts) > 0) {
+        $marks = array();
+        $types = '';
+        $values = array();
+        for ($i = 0; $i < count($depts); $i++) {
+            $marks[] = '?';
+            $types .= 'i';
+            $values[] = (int)$depts[$i];
+        }
+        $types .= 's';
+        $values[] = $actor;
         $stmt = mysqli_prepare($connect,
             "SELECT COUNT(*) FROM `tb_doc_header`
              WHERE `doc_type` = 'request' AND `status` = 'waiting'
-               AND `department_id` = ? AND (`requester` IS NULL OR `requester` <> ?)");
+               AND `department_id` IN (" . implode(',', $marks) . ")
+               AND (`requester` IS NULL OR `requester` <> ?)");
         if (!$stmt) { return 0; }
-        mysqli_stmt_bind_param($stmt, 'is', $dept, $actor);
+        user_bind($stmt, $types, $values);
     } else {
         $stmt = mysqli_prepare($connect,
             "SELECT COUNT(*) FROM `tb_doc_header`

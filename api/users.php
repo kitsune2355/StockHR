@@ -11,8 +11,8 @@
  *     {
  *       "action": "save",
  *       "csrf_token": "...",
- *       "creates": [ {username, full_name, email, role, agency_id, is_active, new_password}, ... ],
- *       "updates": [ {username, full_name, email, role, agency_id, is_active, new_password?}, ... ]
+ *       "creates": [ {username, full_name, email, role, agency_id, dept_ids, is_active}, ... ],
+ *       "updates": [ {username, full_name, email, role, agency_id, dept_ids, is_active}, ... ]
  *     }
  *     -> { ok, saved, failed, errors: [ {label, message} ] }
  *
@@ -107,6 +107,7 @@ if ($action === 'save') {
             'role'         => isset($row['role'])         ? $row['role']         : '',
             'agency_id'    => isset($row['agency_id'])    ? (int)$row['agency_id'] : 0,
             'dept_id'      => isset($row['dept_id'])      ? (int)$row['dept_id']   : 0,
+            'dept_ids'     => isset($row['dept_ids']) && is_array($row['dept_ids']) ? $row['dept_ids'] : array(),
             'is_active'    => isset($row['is_active'])    ? (int)$row['is_active'] : 0,
             'new_password' => isset($row['new_password']) ? $row['new_password'] : ''
         ), $actor, $actor_role);
@@ -130,6 +131,7 @@ if ($action === 'save') {
             'role'         => isset($row['role'])         ? $row['role']         : '',
             'agency_id'    => isset($row['agency_id'])    ? (int)$row['agency_id'] : 0,
             'dept_id'      => isset($row['dept_id'])      ? (int)$row['dept_id']   : 0,
+            'dept_ids'     => isset($row['dept_ids']) && is_array($row['dept_ids']) ? $row['dept_ids'] : array(),
             'is_active'    => isset($row['is_active'])    ? (int)$row['is_active'] : 1,
             'new_password' => isset($row['new_password']) ? $row['new_password'] : ''
         ), $actor, $actor_role);
