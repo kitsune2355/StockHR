@@ -87,6 +87,8 @@ function request_save($data, $actor, $actor_role = '')
         return $res;
     }
 
+    doc_history_add($res['id'], 'submitted', $actor, trim($data['note']));
+
     db_commit();
 
     /* ---------- แจ้งผู้อนุมัติของหน่วยงาน ----------
@@ -181,6 +183,8 @@ function request_decide($doc_id, $decision, $reason, $actor, $actor_role)
         return db_fail('ใบเบิกนี้เพิ่งถูกผู้อนุมัติคนอื่นตัดสินไปแล้ว กรุณารีเฟรชหน้า');
     }
 
+    doc_history_add($id, $decision, $actor, $reason);
+
     /* ---------- ปิดลิงก์อนุมัติที่ยังค้างอยู่ทุกดอกของใบนี้ ----------
      * ใบถูกตัดสินแล้ว ลิงก์ของผู้อนุมัติคนอื่นที่ยังไม่ได้กดต้องตายตามด้วย
      * ไม่งั้นเขาเปิดลิงก์แล้วเห็นหน้าปุ่มเต็ม ๆ กดไปแล้วเจอข้อความว่า
@@ -250,6 +254,8 @@ function request_cancel($doc_id, $reason, $actor, $actor_role)
         return db_fail(db_error_message($errno), $errno);
     }
     mysqli_stmt_close($stmt);
+
+    doc_history_add($id, 'cancelled', $actor, $reason);
 
     /* ใบถูกยกเลิกแล้ว ลิงก์อนุมัติที่ส่งไปในเมลต้องใช้ไม่ได้ทันที
        ไม่งั้นผู้อนุมัติเปิดลิงก์แล้วยังเห็นปุ่มอนุมัติของใบที่ไม่มีอยู่แล้ว */
@@ -346,4 +352,236 @@ function request_ready_list()
         $out[] = $rows[$i];
     }
     return $out;
+}
+
+
+/* ============================================================
+ *  ผู้ขอเบิกแก้ไขใบเบิกที่ยัง "รออนุมัติ"
+ *
+ *  แก้ได้เฉพาะเจ้าของใบ หรือผู้ดูแลระบบ และเฉพาะใบสถานะ waiting
+ *  (ใบ waiting การันตีว่ายังไม่มีการจ่าย qty_issued = 0 ทุกบรรทัด)
+ *
+ *  แก้แล้ว: ลิงก์อนุมัติในอีเมลเดิมถือ snapshot เก่า ต้องเผาทิ้งแล้วส่งใหม่
+ *
+ *  $data = array('doc_date', 'department_id', 'note', 'items' => [...])
+ * ============================================================ */
+function request_update($doc_id, $data, $actor, $actor_role = '')
+{
+    $doc = doc_find($doc_id);
+    if ($doc === null)                  { return db_fail('ไม่พบใบเบิกที่ต้องการแก้ไข'); }
+    if ($doc['doc_type'] !== 'request') { return db_fail('เอกสารนี้ไม่ใช่ใบเบิก'); }
+
+    $is_owner   = ($doc['requester'] === $actor);
+    $is_manager = in_array($actor_role, array('super_admin', 'admin'));
+    if (!$is_owner && !$is_manager) {
+        return db_fail('แก้ไขได้เฉพาะใบเบิกของตัวเอง');
+    }
+    if ($doc['status'] !== 'waiting') {
+        return db_fail('ใบเบิกนี้ไม่ได้อยู่ในสถานะรออนุมัติแล้ว จึงแก้ไขไม่ได้ '
+                     . '(สถานะปัจจุบัน: ' . $doc['status_label'] . ')');
+    }
+
+    $error = doc_validate($data);
+    if ($error !== '') { return db_fail($error); }
+
+    /* หน่วยงาน: คนทั่วไปแก้ใบของตัวเอง หน่วยงานคงเดิม ห้ามย้าย
+       ผู้ดูแลระบบเปลี่ยนได้ (ทำแทนหน่วยงานอื่นเวลามีปัญหา) */
+    $dept = $is_manager
+            ? (isset($data['department_id']) && (int)$data['department_id'] > 0
+               ? (int)$data['department_id'] : (int)$doc['department_id'])
+            : (int)$doc['department_id'];
+    if ($dept <= 0) {
+        return db_fail('ใบเบิกนี้ยังไม่มีหน่วยงาน กรุณาแจ้งผู้ดูแลระบบ');
+    }
+
+    /* สินค้าทุกบรรทัดต้องเป็นของที่หน่วยงานนี้เบิกได้ (เหมือน request_save) */
+    require_once dirname(__FILE__) . '/product_department.php';
+    require_once dirname(__FILE__) . '/product.php';
+
+    $items = $data['items'];
+    for ($i = 0; $i < count($items); $i++) {
+        $pid = (int)$items[$i]['product_id'];
+        if (!product_dept_allows($pid, $dept)) {
+            $p = product_find($pid);
+            $name = ($p === null) ? ('รหัส ' . $pid)
+                                  : ($p['product_code'] . ' ' . $p['product_name']);
+            return db_fail($name . ': หน่วยงานที่เลือกไม่มีสิทธิ์เบิกสินค้ารายการนี้ '
+                         . '— เอาออกจากรายการ หรือแจ้งผู้ดูแลระบบให้เพิ่มสิทธิ์ให้');
+        }
+    }
+
+    $connect  = db_connect();
+    $id       = (int)$doc['doc_id'];
+    $doc_date = trim($data['doc_date']);
+    $note     = isset($data['note']) ? trim($data['note']) : '';
+
+    db_begin();
+
+    /* WHERE ... AND status='waiting' กันกรณีผู้อนุมัติเพิ่งกดอนุมัติพอดี */
+    $stmt = mysqli_prepare($connect,
+        "UPDATE `tb_doc_header`
+         SET `doc_date` = ?, `department_id` = ?, `note` = ?, `updated_by` = ?
+         WHERE `doc_id` = ? AND `status` = 'waiting'");
+    if (!$stmt) { db_rollback(); return db_fail('แก้ไขใบเบิกไม่สำเร็จ'); }
+
+    mysqli_stmt_bind_param($stmt, 'sissi', $doc_date, $dept, $note, $actor, $id);
+    if (!mysqli_stmt_execute($stmt)) {
+        $errno = mysqli_stmt_errno($stmt);
+        mysqli_stmt_close($stmt);
+        db_rollback();
+        return db_fail(db_error_message($errno), $errno);
+    }
+    $changed = mysqli_stmt_affected_rows($stmt);
+    mysqli_stmt_close($stmt);
+
+    /* affected_rows < 1 อาจแปลว่าค่าไม่เปลี่ยน (แก้แต่รายการ) หรือสถานะเปลี่ยนไปแล้ว
+       เช็คสถานะซ้ำให้ชัด */
+    $recheck = doc_find($id);
+    if ($recheck === null || $recheck['status'] !== 'waiting') {
+        db_rollback();
+        return db_fail('ใบเบิกนี้เพิ่งถูกตัดสินไปแล้ว กรุณารีเฟรชหน้า');
+    }
+
+    /* เขียนรายการใหม่ทั้งชุด (ใบ waiting ยังไม่มี qty_issued จึงลบทิ้งได้ปลอดภัย) */
+    $stmt = mysqli_prepare($connect, "DELETE FROM `tb_doc_item` WHERE `doc_id` = ?");
+    if (!$stmt) { db_rollback(); return db_fail('แก้ไขรายการไม่สำเร็จ'); }
+    mysqli_stmt_bind_param($stmt, 'i', $id);
+    if (!mysqli_stmt_execute($stmt)) {
+        $errno = mysqli_stmt_errno($stmt);
+        mysqli_stmt_close($stmt);
+        db_rollback();
+        return db_fail(db_error_message($errno), $errno);
+    }
+    mysqli_stmt_close($stmt);
+
+    $stmt = mysqli_prepare($connect,
+        "INSERT INTO `tb_doc_item`
+         SET `doc_id` = ?, `line_no` = ?, `product_id` = ?, `qty` = ?,
+             `unit_cost` = 0, `total_cost` = 0, `note` = ?,
+             `created_at` = NOW(), `created_by` = ?, `updated_by` = ?");
+    if (!$stmt) { db_rollback(); return db_fail('บันทึกรายการไม่สำเร็จ'); }
+
+    for ($i = 0; $i < count($items); $i++) {
+        $line_no   = $i + 1;
+        $pid       = (int)$items[$i]['product_id'];
+        $qty       = (float)$items[$i]['qty'];
+        $item_note = isset($items[$i]['note']) ? trim($items[$i]['note']) : '';
+
+        mysqli_stmt_bind_param($stmt, 'iiidss', $id, $line_no, $pid, $qty, $item_note, $actor, $actor);
+        if (!mysqli_stmt_execute($stmt)) {
+            $errno = mysqli_stmt_errno($stmt);
+            mysqli_stmt_close($stmt);
+            db_rollback();
+            return db_fail('บรรทัดที่ ' . $line_no . ': ' . db_error_message($errno), $errno);
+        }
+    }
+    mysqli_stmt_close($stmt);
+
+    /* แก้หลังโดน "ส่งกลับ" = ยื่นใหม่ ไม่ใช่แค่แก้ */
+    $event = (doc_history_last_event($id) === 'returned') ? 'resubmitted' : 'edited';
+    doc_history_add($id, $event, $actor, 'แก้ไข ' . count($items) . ' รายการ');
+
+    db_commit();
+
+    /* เผากุญแจอนุมัติเดิม (ถือ snapshot เก่า) แล้วแจ้งผู้อนุมัติให้พิจารณาใหม่ */
+    require_once dirname(__FILE__) . '/approve_link.php';
+    approve_link_close_doc($id, $actor);
+    notify_event_request_edited($id, $actor);
+
+    $out = db_ok('บันทึกการแก้ไขใบเบิก ' . $doc['doc_no'] . ' เรียบร้อย — ส่งให้ผู้อนุมัติพิจารณาใหม่แล้ว', $id);
+    $out['doc_no'] = $doc['doc_no'];
+    return $out;
+}
+
+
+/* ============================================================
+ *  ผู้อนุมัติ "ส่งกลับแก้ไข" ใบที่อนุมัติไปแล้ว
+ *
+ *  approved -> waiting  พร้อมล้างข้อมูลการอนุมัติเดิม (ย้ายเข้าประวัติแทน)
+ *  ใช้ตอนผู้ทำเบิกแจ้งว่าเบิกผิดหลังใบผ่านอนุมัติแล้ว แต่คลังยังไม่ได้จ่ายของ
+ *
+ *  ถ้าคลังจ่ายไปบางส่วนแล้ว (qty_issued > 0) จะส่งกลับไม่ได้ ต้องยกเลิกใบจ่ายก่อน
+ * ============================================================ */
+function request_return($doc_id, $reason, $actor, $actor_role)
+{
+    if (!in_array($actor_role, array('super_admin', 'admin', 'approver'))) {
+        return db_fail('คุณไม่มีสิทธิ์ส่งกลับใบเบิก');
+    }
+
+    $doc = doc_find($doc_id);
+    if ($doc === null)                  { return db_fail('ไม่พบใบเบิกที่ต้องการส่งกลับ'); }
+    if ($doc['doc_type'] !== 'request') { return db_fail('เอกสารนี้ไม่ใช่ใบเบิก'); }
+    if ($doc['status'] !== 'approved') {
+        return db_fail('ส่งกลับได้เฉพาะใบที่ "อนุมัติแล้ว" เท่านั้น '
+                     . '(สถานะปัจจุบัน: ' . $doc['status_label'] . ')');
+    }
+
+    if ($doc['requester'] === $actor) {
+        return db_fail('ส่งกลับใบเบิกของตัวเองไม่ได้');
+    }
+
+    /* ผู้อนุมัติทั่วไปส่งกลับได้เฉพาะหน่วยงานของตัวเอง (เหมือน request_decide) */
+    if ($actor_role === 'approver') {
+        $me = user_find($actor);
+        if ($me === null || count($me['dept_ids']) === 0
+            || !user_has_department($actor, $doc['department_id'])) {
+            return db_fail('บัญชีของคุณไม่มีสิทธิ์กับใบเบิกของหน่วยงานนี้');
+        }
+    }
+
+    $reason = trim($reason);
+    if ($reason === '') {
+        return db_fail('กรุณาระบุเหตุผล/สิ่งที่ต้องแก้ — ผู้ทำเบิกต้องรู้ว่าจะแก้อะไร');
+    }
+
+    $id = (int)$doc['doc_id'];
+
+    /* ---------- กันใบที่คลังจ่ายไปแล้วบางส่วน ----------
+       จ่ายได้เฉพาะใบ approved ถ้าจ่ายไปบ้างแล้ว การถอยกลับ waiting จะทำให้
+       ของที่จ่ายออกไปแล้วค้างอยู่โดยไม่มีใบรองรับ ต้องยกเลิกใบจ่ายก่อน */
+    $connect = db_connect();
+    $chk = @mysqli_query($connect,
+        "SELECT COALESCE(SUM(`qty_issued`), 0) FROM `tb_doc_item` WHERE `doc_id` = " . $id);
+    if ($chk) {
+        $r = mysqli_fetch_row($chk);
+        mysqli_free_result($chk);
+        if ((float)$r[0] > 0) {
+            return db_fail('คลังจ่ายของใบนี้ไปบางส่วนแล้ว — ต้องยกเลิกใบจ่ายที่อ้างใบนี้ก่อน '
+                         . 'จึงจะส่งกลับแก้ไขได้');
+        }
+    }
+
+    db_begin();
+
+    $stmt = mysqli_prepare($connect,
+        "UPDATE `tb_doc_header`
+         SET `status` = 'waiting', `approved_by` = NULL, `approved_at` = NULL,
+             `approve_note` = '', `updated_by` = ?
+         WHERE `doc_id` = ? AND `status` = 'approved'");
+    if (!$stmt) { db_rollback(); return db_fail('ส่งกลับใบเบิกไม่สำเร็จ'); }
+
+    mysqli_stmt_bind_param($stmt, 'si', $actor, $id);
+    if (!mysqli_stmt_execute($stmt)) {
+        $errno = mysqli_stmt_errno($stmt);
+        mysqli_stmt_close($stmt);
+        db_rollback();
+        return db_fail(db_error_message($errno), $errno);
+    }
+    $changed = mysqli_stmt_affected_rows($stmt);
+    mysqli_stmt_close($stmt);
+
+    if ($changed < 1) {
+        db_rollback();
+        return db_fail('สถานะใบเบิกเปลี่ยนไประหว่างทาง (อาจถูกจ่ายของหรือยกเลิก) กรุณารีเฟรชหน้า');
+    }
+
+    doc_history_add($id, 'returned', $actor, $reason);
+
+    db_commit();
+
+    require_once dirname(__FILE__) . '/approve_link.php';
+    approve_link_close_doc($id, $actor);
+    notify_event_request_returned($id, $reason, $actor);
+
+    return db_ok('ส่งใบเบิก ' . $doc['doc_no'] . ' กลับให้ผู้ทำเบิกแก้ไขแล้ว', $id);
 }

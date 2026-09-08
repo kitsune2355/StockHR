@@ -27,6 +27,19 @@ if (empty($_SESSION['csrf_token'])) {
 }
 $csrf_token = $_SESSION['csrf_token'];
 
+/* โหมดแก้ไข: เปิดหน้านี้ด้วย ?doc_id= เพื่อแก้ใบเบิกที่ยัง "รออนุมัติ"
+   มีเฉพาะใบเบิก — ใบรับเข้า/จ่ายออก แก้ย้อนหลังไม่ได้อยู่แล้ว
+   สิทธิ์/สถานะที่แก้ได้จริง ตรวจซ้ำในชั้น API (action bootstrap + update) */
+$edit_doc_id = ($doc_type === 'request' && isset($_GET['doc_id']))
+               ? (int)$_GET['doc_id'] : 0;
+
+$df_confirm_title = $confirm_title;
+$df_confirm_text  = $confirm_text;
+if ($edit_doc_id > 0) {
+    $df_confirm_title = 'ยืนยันการแก้ไขใบเบิก';
+    $df_confirm_text  = 'บันทึกการแก้ไข {n} รายการ แล้วส่งให้ผู้อนุมัติพิจารณาใหม่?';
+}
+
 function df_json($value)
 {
     /* PHP 5.2 ยังไม่มี JSON_HEX_TAG จึงต้องแทน < เอง กัน </script> ในข้อมูลปิด tag */
@@ -66,6 +79,16 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
           <span class="block text-sm text-slate-500 dark:text-slate-400"><?php echo htmlspecialchars($page_hint, ENT_QUOTES, 'UTF-8'); ?></span>
         </span>
       </div> -->
+
+      <?php if ($doc_type === 'request') { ?>
+      <!-- โผล่เฉพาะตอนเปิดจากปุ่ม "แก้ไขใบเบิก" ในหน้ารายการใบเบิก
+           JS เติมเลขที่ใบ + เปิดกล่องนี้หลังโหลดข้อมูลใบเดิมสำเร็จ -->
+      <div id="editBanner" hidden
+           class="mb-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+        <i data-lucide="pencil" class="mt-0.5 h-4 w-4 flex-none" aria-hidden="true"></i>
+        <span id="editBannerText"></span>
+      </div>
+      <?php } ?>
 
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
@@ -376,8 +399,10 @@ window.DOCFORM = {
     docType:      <?php echo df_json($doc_type); ?>,
     csrfToken:    <?php echo df_json($csrf_token); ?>,
     endpoint:     'api/documents.php',
-    confirmTitle: <?php echo df_json($confirm_title); ?>,
-    confirmText:  <?php echo df_json($confirm_text); ?>,
+    /* 0 = โหมดสร้างใหม่ตามปกติ, >0 = กำลังแก้ใบเบิกใบนี้ (ส่ง action:"update") */
+    editDocId:    <?php echo (int)$edit_doc_id; ?>,
+    confirmTitle: <?php echo df_json($df_confirm_title); ?>,
+    confirmText:  <?php echo df_json($df_confirm_text); ?>,
     /* ใช้กับใบเบิกสมมติของคู่มือ ให้วันที่ตรงกับเซิร์ฟเวอร์ ไม่ใช่นาฬิกาเครื่องผู้ใช้ */
     today:        <?php echo df_json(date('Y-m-d')); ?>
 };

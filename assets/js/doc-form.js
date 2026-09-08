@@ -36,6 +36,12 @@
   var picked = null; // ใบเบิกที่เลือกอยู่ (เฉพาะหน้าใบจ่าย)
   var seq = 0;
 
+  /* โหมดแก้ไขใบเบิก: เปิดหน้านี้ด้วย ?doc_id= จากปุ่ม "แก้ไขใบเบิก" ในหน้ารายการ
+       EDIT_ID = 0 คือสร้างใหม่ตามปกติ, >0 คือกำลังแก้ใบนั้น (ส่ง action:"update")
+       editSaved กันกล่องเตือน beforeunload ตอน redirect กลับหน้ารายการหลังบันทึกแก้ไข */
+  var EDIT_ID = num(CFG.editDocId);
+  var editSaved = false;
+
   /* หน่วยงานต้นสังกัดของคนที่กำลังใช้งาน — มาจากข้อมูลผู้ใช้ ไม่ใช่จากฟอร์ม */
   var MY_DEPT = 0;
   var MY_DEPT_NAME = "";
@@ -166,7 +172,7 @@
 
   function load() {
     post(
-      { action: "bootstrap", doc_type: TYPE },
+      { action: "bootstrap", doc_type: TYPE, edit_doc_id: EDIT_ID },
       function (res) {
         DATA.products = res.products || [];
         DATA.departments = res.departments || [];
@@ -196,6 +202,11 @@
         setHidden(el("formBody"), false);
         setHidden(el("formLoading"), true);
         clearError();
+
+        if (EDIT_ID > 0) {
+          applyEditMode(res);
+        }
+
         refreshTotals();
         setupScanner();
 
@@ -208,6 +219,51 @@
         showError(message);
       },
     );
+  }
+
+  /* ---------- เติมข้อมูลใบเบิกเดิมลงฟอร์ม (โหมดแก้ไข) ----------
+   * bootstrap ฝั่ง API กรองสินค้าตามหน่วยงานของ "ใบที่กำลังแก้" มาให้แล้ว
+   * DATA.products/byId จึงตรงกับใบนี้ ไม่ต้อง reloadProducts ตอนเปิด
+   *
+   * แก้ไม่ได้ (ไม่ใช่เจ้าของ / ใบถูกตัดสินไปแล้ว) -> API ส่ง editDoc=null + editError
+   * บอกเหตุผลแล้วปิดปุ่มบันทึก ไม่เติมอะไรลงฟอร์ม
+   */
+  function applyEditMode(res) {
+    if (!res.editDoc) {
+      showError(res.editError || "แก้ไขใบเบิกนี้ไม่ได้");
+      el("btnSave").disabled = true;
+      return;
+    }
+
+    var d = res.editDoc;
+
+    if (has("departmentId")) {
+      el("departmentId").value = String(d.department_id);
+      if (window.SelectSearch) {
+        window.SelectSearch.refresh(el("departmentId"));
+      }
+    }
+    if (d.doc_date) {
+      el("docDate").value = d.doc_date;
+    }
+    el("docNote").value = d.note || "";
+
+    var rows = [];
+    var src = d.items || [];
+    for (var i = 0; i < src.length; i++) {
+      rows.push({
+        product_id: num(src[i].product_id),
+        qty: num(src[i].qty),
+        note: src[i].note || "",
+      });
+    }
+    items.setRows(rows);
+
+    setHidden(el("editBanner"), false);
+    el("editBannerText").textContent =
+      "กำลังแก้ไขใบเบิก " +
+      d.doc_no +
+      " — บันทึกแล้วจะส่งให้ผู้อนุมัติพิจารณาใหม่ และลิงก์อนุมัติเดิมจะใช้ไม่ได้";
   }
 
   /* ---------- โหลดรายการสินค้าใหม่ตามหน่วยงานที่เลือก ----------
@@ -1509,13 +1565,16 @@
     }
 
     var payload = {
-      action: "save",
+      action: EDIT_ID > 0 ? "update" : "save",
       doc_type: TYPE,
       csrf_token: CFG.csrfToken,
       doc_date: el("docDate").value,
       note: el("docNote").value,
       items: got.items,
     };
+    if (EDIT_ID > 0) {
+      payload.doc_id = EDIT_ID;
+    }
     if (has("departmentId")) {
       payload.department_id = num(el("departmentId").value);
     }
@@ -1547,6 +1606,15 @@
           } else {
             alert(res.message);
           }
+
+          /* โหมดแก้ไข: กลับไปหน้ารายการใบเบิกเพื่อดูสถานะ/ไทม์ไลน์ที่อัปเดตแล้ว
+                   ไม่ล้างฟอร์มไว้ทำใบใหม่แบบตอนสร้าง */
+          if (EDIT_ID > 0) {
+            editSaved = true;
+            window.location.href = "main.php?page=request_list";
+            return;
+          }
+
           /* เอกสารบันทึกแล้วแก้ไม่ได้ จึงล้างหน้าให้พร้อมทำใบถัดไป
                    ไม่พาไปหน้าประวัติ เพราะส่วนใหญ่ทำต่อกันหลายใบรวดเดียว */
           resetForm();
@@ -1652,8 +1720,9 @@
       }
 
       /* รายการตัวอย่างในคู่มือไม่ใช่งานของผู้ใช้ ไม่ต้องเตือนตอนออกจากหน้า
-               ยังคงใช้ > 0 ตรงนี้ เพราะ id ติดลบมีแต่ของสาธิตเท่านั้น */
-      if (demoBackup) {
+               ยังคงใช้ > 0 ตรงนี้ เพราะ id ติดลบมีแต่ของสาธิตเท่านั้น
+               editSaved = เพิ่งกดบันทึกแก้ไขสำเร็จ กำลัง redirect เอง ไม่ต้องเตือน */
+      if (demoBackup || editSaved) {
         return;
       }
 

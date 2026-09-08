@@ -93,9 +93,38 @@ if ($action === 'bootstrap') {
      */
     $filter = array('only_active' => true);
 
+    /* ---------- โหมดแก้ไขใบเบิก ----------
+     * หน้า "ทำรายการเบิก" เปิดด้วย ?doc_id= เพื่อแก้ใบที่ยัง "รออนุมัติ"
+     * ต้องหาใบก่อน เพราะหน่วยงานของใบเป็นตัวกำหนดรายการสินค้าที่ให้เลือก
+     * (ไม่ใช่หน่วยงานต้นสังกัดของคนที่กำลังแก้)
+     */
+    $edit_doc    = null;
+    $edit_doc_id = ($doc_type === 'request' && isset($input['edit_doc_id']))
+                   ? (int)$input['edit_doc_id'] : 0;
+    $edit_error  = '';
+    if ($edit_doc_id > 0) {
+        $cand = doc_find($edit_doc_id);
+        if ($cand === null || $cand['doc_type'] !== 'request') {
+            $edit_error = 'ไม่พบใบเบิกที่ต้องการแก้ไข';
+        } elseif ($cand['status'] !== 'waiting') {
+            $edit_error = 'ใบเบิกนี้ไม่ได้อยู่ในสถานะรออนุมัติแล้ว จึงแก้ไขไม่ได้ '
+                        . '(สถานะปัจจุบัน: ' . $cand['status_label'] . ')';
+        } elseif ($cand['requester'] !== $actor
+                  && !in_array($actor_role, array('super_admin', 'admin'))) {
+            $edit_error = 'แก้ไขได้เฉพาะใบเบิกของตัวเอง';
+        } else {
+            $edit_doc = $cand;
+        }
+    }
+
     if ($doc_type === 'request') {
         $me   = user_find($actor);
         $dept = ($me === null) ? 0 : (int)$me['dept_id'];
+
+        /* ใบที่กำลังแก้ ยึดหน่วยงานของใบเป็นหลัก */
+        if ($edit_doc !== null && (int)$edit_doc['department_id'] > 0) {
+            $dept = (int)$edit_doc['department_id'];
+        }
 
         if (in_array($actor_role, array('super_admin', 'admin'))
             && isset($input['department_id']) && (int)$input['department_id'] > 0) {
@@ -125,6 +154,33 @@ if ($action === 'bootstrap') {
            (backend บังคับซ้ำอีกชั้นใน request_save) */
         $out['lockDept'] = (!in_array($actor_role, array('super_admin', 'admin'))
                             && $out['myDept'] > 0);
+
+        /* ---------- ข้อมูลใบเบิกเดิม สำหรับ prefill โหมดแก้ไข ---------- */
+        if ($edit_doc_id > 0) {
+            if ($edit_doc === null) {
+                $out['editDoc']   = null;
+                $out['editError'] = $edit_error;
+            } else {
+                $lines = array();
+                for ($i = 0; $i < count($edit_doc['items']); $i++) {
+                    $it = $edit_doc['items'][$i];
+                    $lines[] = array(
+                        'product_id' => (int)$it['product_id'],
+                        'qty'        => (float)$it['qty'],
+                        'note'       => $it['note']
+                    );
+                }
+                $out['editDoc'] = array(
+                    'doc_id'          => (int)$edit_doc['doc_id'],
+                    'doc_no'          => $edit_doc['doc_no'],
+                    'department_id'   => (int)$edit_doc['department_id'],
+                    'department_name' => $edit_doc['department_name'],
+                    'doc_date'        => $edit_doc['doc_date'],
+                    'note'            => $edit_doc['note'],
+                    'items'           => $lines
+                );
+            }
+        }
     }
 
     if ($doc_type === 'issue') {
@@ -213,6 +269,10 @@ if ($action === 'get') {
         $doc['adjust_lines'] = adjust_doc_lines($doc);
     }
 
+    /* ไทม์ไลน์เหตุการณ์ของเอกสาร (ยื่น/แก้ไข/อนุมัติ/ส่งกลับ/ยกเลิก/จ่ายครบ)
+       ตารางอาจยังไม่มีในระบบเก่า — doc_history() คืน array() เปล่าเอง ไม่ error */
+    $doc['history'] = doc_history($doc['doc_id']);
+
     api_ok(array('doc' => $doc));
 }
 
@@ -255,6 +315,63 @@ if ($action === 'save') {
         'doc_id'  => $res['id'],
         'doc_no'  => isset($res['doc_no']) ? $res['doc_no'] : ''
     ));
+}
+
+
+/* ============================================================
+ *  แก้ไขใบเบิกที่ยัง "รออนุมัติ"
+ *
+ *  เปิดจากหน้า "ทำรายการเบิก" ในโหมดแก้ไข (?doc_id=)
+ *  บันทึกแล้ว = ลบรายการเดิมเขียนใหม่ทั้งชุด + ส่งให้ผู้อนุมัติพิจารณาใหม่
+ *  กติกาว่าใครแก้ได้ / สถานะไหนแก้ได้ อยู่ใน request_update()
+ * ============================================================ */
+if ($action === 'update') {
+
+    api_require_csrf($input);
+    api_require_role(doc_write_roles_for('request'));
+
+    $items = isset($input['items']) && is_array($input['items']) ? $input['items'] : array();
+
+    $data = array(
+        'doc_date'      => isset($input['doc_date'])      ? $input['doc_date']           : '',
+        'department_id' => isset($input['department_id']) ? (int)$input['department_id'] : 0,
+        'note'          => isset($input['note'])          ? $input['note']               : '',
+        'items'         => $items
+    );
+
+    $res = request_update(
+        isset($input['doc_id']) ? (int)$input['doc_id'] : 0,
+        $data, $actor, $actor_role
+    );
+
+    if (!$res['ok']) { api_fail($res['message']); }
+
+    api_ok(array(
+        'message' => $res['message'],
+        'doc_id'  => $res['id'],
+        'doc_no'  => isset($res['doc_no']) ? $res['doc_no'] : ''
+    ));
+}
+
+
+/* ============================================================
+ *  ผู้อนุมัติ "ส่งกลับแก้ไข" ใบที่อนุมัติไปแล้ว
+ *
+ *  approved -> waiting  พร้อมเหตุผล (ผู้ทำเบิกแจ้งว่าเบิกผิด)
+ *  กติกา (role / จ่ายบางส่วนแล้วห้ามถอย) อยู่ใน request_return()
+ * ============================================================ */
+if ($action === 'sendback') {
+
+    api_require_csrf($input);
+
+    $res = request_return(
+        isset($input['doc_id']) ? (int)$input['doc_id'] : 0,
+        isset($input['reason']) ? $input['reason']      : '',
+        $actor, $actor_role
+    );
+
+    if (!$res['ok']) { api_fail($res['message']); }
+    api_ok(array('message' => $res['message']));
 }
 
 

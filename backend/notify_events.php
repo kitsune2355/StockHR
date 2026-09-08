@@ -376,6 +376,98 @@ function notify_event_request_decided($doc_id, $decision, $reason, $actor)
 }
 
 
+/* ============================================================
+ *  เหตุการณ์ที่ 2ก — ผู้ทำเบิกแก้ไขใบที่ยัง "รออนุมัติ" แล้วยื่นใหม่
+ *  ปลายทาง: ผู้อนุมัติของหน่วยงาน (มีกุญแจอนุมัติในเมลชุดใหม่ ของเดิมถูกเผาแล้ว)
+ * ============================================================ */
+function notify_event_request_edited($doc_id, $actor)
+{
+    /* โหลดก่อนประกอบข้อความ เพราะเนื้อเมลอ้าง APPROVE_LINK_DAYS
+       เหตุผลเดียวกับ notify_event_request_submitted */
+    require_once dirname(__FILE__) . '/approve_link.php';
+
+    $doc = doc_find($doc_id);
+    if ($doc === null || $doc['doc_type'] !== 'request') { return 0; }
+
+    $people = user_approvers_for_dept($doc['department_id'], $actor);
+    if (count($people) === 0) { return 0; }
+
+    $who     = ($doc['requester_name'] !== '') ? $doc['requester_name'] : $doc['requester'];
+    $summary = notify_items_summary($doc['items']);
+
+    return notify_deliver($people, array(
+        'type'      => 'request_edited',
+        'title'     => 'ใบเบิก ' . $doc['doc_no'] . ' ถูกแก้ไข รอพิจารณาใหม่',
+        'message'   => $who . ' (' . $doc['department_name'] . ') แก้ไขใบเบิกแล้วยื่นใหม่ ' . $summary,
+        'link_page' => 'request_list',
+        'doc_id'    => $doc['doc_id'],
+        'actor'     => $actor,
+        'subject'   => '[แก้ไขแล้ว] ใบเบิก ' . $doc['doc_no'] . ' จาก ' . $who,
+        'heading'   => 'ใบเบิกถูกแก้ไข กรุณาพิจารณาใหม่',
+        'button'    => 'เปิดหน้าอนุมัติ',
+        'ref_type'  => 'request_edited',
+
+        /* กุญแจในเมลอนุมัติรอบก่อนถือ snapshot รายการเก่า และถูก
+           approve_link_close_doc() เผาทิ้งตอนบันทึกการแก้ไขแล้ว
+           เมลฉบับนี้จึงต้องออกกุญแจใหม่ให้ผู้อนุมัติแต่ละคน */
+        'approve_link' => true,
+
+        'body_html' =>
+              '<p>' . htmlspecialchars($who, ENT_QUOTES, 'UTF-8')
+            . ' แก้ไขใบเบิกที่เคยยื่นไว้ และส่งกลับเข้ามาให้คุณพิจารณาใหม่ '
+            . 'กรุณาตรวจรายการด้านล่างอีกครั้งก่อนอนุมัติ</p>'
+            . mail_detail_table(notify_doc_pairs($doc))
+            . notify_items_html($doc['items'])
+            . '<p style="font-size:13px;color:#94a3b8;margin-top:16px">'
+            . 'ลิงก์อนุมัติที่ส่งไปในเมลรอบก่อนถูกยกเลิกแล้ว กรุณาใช้ปุ่มในเมลฉบับนี้ '
+            . 'ลิงก์ใหม่ใช้ได้ครั้งเดียวและหมดอายุใน ' . (int)APPROVE_LINK_DAYS . ' วัน</p>'
+    ));
+}
+
+
+/* ============================================================
+ *  เหตุการณ์ที่ 2ข — ผู้อนุมัติถอยใบที่ "อนุมัติแล้ว" กลับให้ผู้ทำเบิกแก้
+ *  ปลายทาง: ผู้ขอเบิก
+ * ============================================================ */
+function notify_event_request_returned($doc_id, $reason, $actor)
+{
+    $doc = doc_find($doc_id);
+    if ($doc === null || $doc['doc_type'] !== 'request') { return 0; }
+
+    $people = notify_person($doc['requester']);
+    if (count($people) === 0) { return 0; }
+
+    $returner = user_find($actor);
+    $by       = ($returner !== null && $returner['full_name'] !== '')
+                ? $returner['full_name'] : $actor;
+
+    $reason = trim((string)$reason);
+    $extra  = array(array('ผู้ส่งกลับ', $by));
+    if ($reason !== '') {
+        $extra[] = array('สิ่งที่ต้องแก้', $reason);
+    }
+
+    return notify_deliver($people, array(
+        'type'      => 'request_returned',
+        'title'     => 'ส่งกลับใบเบิก ' . $doc['doc_no'] . ' ให้แก้ไข',
+        'message'   => $reason !== '' ? 'เหตุผล: ' . $reason : 'ผู้อนุมัติส่งใบเบิกกลับมาให้แก้ไข',
+        'link_page' => 'request_list',
+        'doc_id'    => $doc['doc_id'],
+        'actor'     => $actor,
+        'subject'   => '[ส่งกลับแก้ไข] ใบเบิก ' . $doc['doc_no'],
+        'heading'   => 'ใบเบิกถูกส่งกลับมาให้แก้ไข',
+        'button'    => 'เปิดใบเบิก',
+        'ref_type'  => 'request_returned',
+        'body_html' =>
+              '<p>ผู้อนุมัติถอยใบเบิกที่อนุมัติไปแล้วกลับมาให้คุณแก้ไข '
+            . 'ใบนี้กลับไปอยู่สถานะ "รออนุมัติ" — เปิดใบเบิกแล้วกดแก้ไข '
+            . 'แก้เสร็จกดยื่นใหม่ ผู้อนุมัติจะพิจารณาอีกครั้ง</p>'
+            . mail_detail_table(notify_doc_pairs($doc, $extra))
+            . notify_items_html($doc['items'])
+    ));
+}
+
+
 /* ---------- คู่ข้อมูลหัวใบสำหรับใบปรับยอด (ไม่มีหน่วยงาน/ผู้ขอเบิก) ---------- */
 function notify_adjust_pairs($doc, $extra = array())
 {

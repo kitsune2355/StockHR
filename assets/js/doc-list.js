@@ -24,6 +24,30 @@
   var ROLE = CFG.role;
   var canSeeAll = false;
 
+  /* ---------- คอลัมน์จัดการ: ไอคอนที่โชว์ในแถว vs ยุบเข้าเมนู ⋮ ----------
+   * เอกสารบางใบมีปุ่มได้ถึงสิบอัน (ดู · พิมพ์ · ลิงก์สองอัน · แก้ไข · อนุมัติ ·
+   * ไม่อนุมัติ · ส่งกลับ · ยกเลิก · เมล) เรียงกันหมดในแถวเดียวจนล้นคอลัมน์
+   *
+   * โชว์เฉพาะงานหลักที่กดบ่อย ที่เหลือย้ายเข้าเมนูจุดสามจุดแนวตั้ง
+   * ลำดับของไอคอนที่โชว์ยังคงที่เสมอ (กรองจาก rowActions ตามลำดับเดิม)
+   * เพื่อไม่ให้ปุ่มขยับตำแหน่งตามสถานะ — เหตุผลเดียวกับคอมเมนต์ rowActions()
+   */
+  var INLINE_ROW_ACTS = { open: 1, print: 1, approve: 1, reject: 1, ack: 1 };
+
+  /* แถวสาธิตของคู่มือ:
+   *   request  — ปุ่มเยอะสุด (ถึง 10 อัน) ใช้เมนู ⋮ เหมือนแถวจริง แล้วคู่มือ
+   *              กางเมนูค้างไว้ (openRowMenu แบบ pinned) เพื่อชี้แต่ละคำสั่งได้
+   *   หน้าอื่น — ปุ่มไม่เยอะ กางไอคอนครบทุกอันในแถว (คอลัมน์กว้างขึ้นชั่วคราว)
+   */
+  var DEMO_INLINE_ALL = TYPE !== "request";
+  var DEMO_ACTION_WIDTH = 340;
+
+  /* เมนู ⋮ ที่ลอยอยู่นอกตาราง (ตารางตั้ง overflow ตัดขอบ จึงต่อ body ไว้)
+     pinned = คู่มือกางค้างไว้ ไม่ผูกตัวปิดอัตโนมัติ (เลื่อน/กดนอก/Esc) */
+  var rowMenuEl = null;
+  var rowMenuAnchor = null;
+  var rowMenuPinned = false;
+
   function el(id) {
     return document.getElementById(id);
   }
@@ -261,6 +285,24 @@
     var out = [];
 
     if (doc.doc_type === "request") {
+      /* แถวสาธิตของคู่มือ (doc-list.js ยัดไว้บนสุดตอนเปิดคู่มือ) มีสถานะสมมติเดียว
+         แต่ต้องโชว์ไอคอนให้ครบทุกอันเพื่อให้คู่มือชี้ได้ กดไม่ได้จริงอยู่แล้ว
+         (bindRowActions ดักแถว _demo ไว้ก่อนถึงคำสั่งทุกอัน) */
+      var demo = doc._demo === true;
+
+      /* แก้ไขใบเบิกที่ยังรออนุมัติ: ผู้ทำเบิกเอง หรือผู้ดูแลระบบ
+         แก้เสร็จส่งให้ผู้อนุมัติพิจารณาใหม่ (เปิดหน้า "ทำรายการเบิก" โหมดแก้ไข) */
+      if (
+        (doc.status === "waiting" && (doc.requester === ME || isManager())) ||
+        demo
+      ) {
+        out.push({
+          key: "edit",
+          label: "แก้ไขใบเบิก",
+          icon: "pencil",
+          tone: "ghost",
+        });
+      }
       /* อนุมัติได้เมื่อ: รออนุมัติ + เป็นผู้อนุมัติ + ไม่ใช่ใบของตัวเอง */
       if (doc.status === "waiting" && isApprover() && doc.requester !== ME) {
         out.push({
@@ -273,6 +315,17 @@
           key: "reject",
           label: "ไม่อนุมัติ",
           icon: "x",
+          tone: "bad",
+        });
+      }
+      /* ส่งกลับแก้ไข: ใบที่ "อนุมัติแล้ว" แต่ผู้ทำเบิกแจ้งว่าเบิกผิด
+         ผู้อนุมัติกดถอยกลับเป็น "รออนุมัติ" พร้อมเหตุผล (ส่งกลับใบตัวเองไม่ได้)
+         ถ้าคลังจ่ายของไปบางส่วนแล้ว backend จะบล็อก บอกให้ยกเลิกใบจ่ายก่อน */
+      if ((doc.status === "approved" || demo) && isApprover() && doc.requester !== ME) {
+        out.push({
+          key: "sendback",
+          label: "ส่งกลับแก้ไข",
+          icon: "corner-up-left",
           tone: "bad",
         });
       }
@@ -446,70 +499,94 @@
     return out;
   }
 
-  /* ความกว้างคิดจากจำนวนปุ่มมากสุดที่เป็นไปได้ของหน้านั้น
-       ตั้งค่าคงที่ทีละหน้า ไม่ใช่ต่อแถว เพราะคอลัมน์มีความกว้างเดียวทั้งตาราง
-       ถ้าตั้งแคบตามแถวที่ปุ่มน้อย แถวที่ปุ่มเยอะจะถูกตัดหาย */
+  /* ความกว้างพอสำหรับไอคอนที่โชว์จริงมากสุด (งานหลัก) + ปุ่ม ⋮ อีกหนึ่ง
+       ที่เหลือยุบเข้าเมนู จึงไม่ต้องเผื่อความกว้างให้ครบทุกปุ่มอีก
+       (แถวสาธิตของคู่มือใช้ DEMO_ACTION_WIDTH ต่างหาก ตั้งใน demoSetup) */
   function rowActionWidth() {
+    if (TYPE === "request" || TYPE === "adjust") {
+      return 184;
+    } // ดู · พิมพ์ · อนุมัติ · ไม่อนุมัติ · ⋮
     if (TYPE === "issue") {
-      return 232;
-    } // ดู พิมพ์ ลิงก์ เปิด เซ็น ยกเลิก เมล
-    if (TYPE === "request") {
-      return 232;
-    } // ดู พิมพ์ ลิงก์ อนุมัติ ไม่อนุมัติ ยกเลิก เมล
-    if (TYPE === "adjust") {
-      return 264;
-    } // ดู พิมพ์ คัดลอกลิงก์ เปิดลิงก์ อนุมัติ ไม่อนุมัติ ยกเลิก เมล
-    return 100; // ใบรับเข้า: ดู พิมพ์ ยกเลิก
+      return 152;
+    } // ดู · พิมพ์ · เซ็นรับ · ⋮
+    return 120; // ใบรับเข้า: ดู · พิมพ์ · ยกเลิก
+  }
+
+  /* ปุ่มไอคอนเดี่ยว — พิมพ์เป็น <a> เพราะเปิดแท็บใหม่ (ทำเป็นปุ่มแล้ว window.open
+       จะโดนตัวกันป๊อปอัพ และเสียคลิกขวาเพื่อคัดลอกที่อยู่) ที่เหลือเป็น <button> */
+  function rowActBtnHtml(a, docId) {
+    if (a.key === "print") {
+      return (
+        '<a class="rowact is-' +
+        a.tone +
+        '" target="_blank" rel="noopener" href="print_doc.php?doc_id=' +
+        docId +
+        '" title="' +
+        escapeHtml(a.label) +
+        '" aria-label="' +
+        escapeHtml(a.label) +
+        '"><i data-lucide="' +
+        a.icon +
+        '" aria-hidden="true"></i></a>'
+      );
+    }
+    return (
+      '<button type="button" class="rowact is-' +
+      a.tone +
+      '" data-row-act="' +
+      a.key +
+      '" data-doc="' +
+      docId +
+      '" title="' +
+      escapeHtml(a.label) +
+      '" aria-label="' +
+      escapeHtml(a.label) +
+      '"><i data-lucide="' +
+      a.icon +
+      '" aria-hidden="true"></i></button>'
+    );
   }
 
   function rowActionHtml(doc) {
     var acts = rowActions(doc);
     var html = '<span class="rowacts">';
+    var i;
 
-    for (var i = 0; i < acts.length; i++) {
-      var a = acts[i];
-
-      /* พิมพ์เป็น <a> ไม่ใช่ <button> เพราะเปิดแท็บใหม่
-               ทำเป็นปุ่มแล้วสั่ง window.open จะโดนตัวกันป๊อปอัพบล็อก
-               และเสียความสามารถพื้นฐานอย่างคลิกขวาเพื่อคัดลอกที่อยู่ */
-      if (a.key === "print") {
-        html +=
-          '<a class="rowact is-' +
-          a.tone +
-          '" target="_blank" rel="noopener"' +
-          ' href="print_doc.php?doc_id=' +
-          doc.doc_id +
-          '"' +
-          ' title="' +
-          escapeHtml(a.label) +
-          '"' +
-          ' aria-label="' +
-          escapeHtml(a.label) +
-          '">' +
-          '<i data-lucide="' +
-          a.icon +
-          '" aria-hidden="true"></i></a>';
-        continue;
+    /* แถวสาธิตของหน้าที่ปุ่มไม่เยอะ: โชว์ทุกไอคอนในแถว ไม่ยุบเข้าเมนู
+       (คอลัมน์กว้างขึ้นชั่วคราวตอนเปิดคู่มือ — ดู demoSetup)
+       หน้า request แถวสาธิตใช้เมนู ⋮ เหมือนแถวจริง แล้วคู่มือกางเมนูค้างไว้เอง */
+    if (doc._demo === true && DEMO_INLINE_ALL) {
+      for (i = 0; i < acts.length; i++) {
+        html += rowActBtnHtml(acts[i], doc.doc_id);
       }
+      return html + "</span>";
+    }
 
+    var inline = [];
+    var overflow = [];
+    for (i = 0; i < acts.length; i++) {
+      if (INLINE_ROW_ACTS[acts[i].key]) {
+        inline.push(acts[i]);
+      } else {
+        overflow.push(acts[i]);
+      }
+    }
+    /* ล้นแค่ปุ่มเดียว โชว์ในแถวไปเลย ไม่ต้องมีเมนูให้กดเพิ่มอีกชั้น
+       ยกเว้นแถวสาธิตของคู่มือ (request) ที่ต้องมี ⋮ เสมอ ให้คู่มือกางเมนูชี้ได้ */
+    if (overflow.length === 1 && doc._demo !== true) {
+      inline.push(overflow.pop());
+    }
+
+    for (i = 0; i < inline.length; i++) {
+      html += rowActBtnHtml(inline[i], doc.doc_id);
+    }
+
+    if (overflow.length > 0) {
       html +=
-        '<button type="button" class="rowact is-' +
-        a.tone +
-        '"' +
-        ' data-row-act="' +
-        a.key +
-        '" data-doc="' +
+        '<button type="button" class="rowact rowact-more" data-row-more="' +
         doc.doc_id +
-        '"' +
-        ' title="' +
-        escapeHtml(a.label) +
-        '"' +
-        ' aria-label="' +
-        escapeHtml(a.label) +
-        '">' +
-        '<i data-lucide="' +
-        a.icon +
-        '" aria-hidden="true"></i></button>';
+        '" title="คำสั่งเพิ่มเติม" aria-label="คำสั่งเพิ่มเติม" aria-haspopup="true">' +
+        '<i data-lucide="ellipsis-vertical" aria-hidden="true"></i></button>';
     }
 
     return html + "</span>";
@@ -547,6 +624,11 @@
 
            renderComplete ยิงหลังวาดเสร็จทุกรอบ จึงเป็นที่เดียวที่เชื่อได้ */
     table.on("renderComplete", function () {
+      /* แถววาดใหม่ = ปุ่ม ⋮ ที่เมนูเกาะอยู่หายไปแล้ว ปิดเมนูทิ้ง
+         (ยกเว้นเมนูที่คู่มือกางค้างไว้ — teardown เป็นคนปิด) */
+      if (!rowMenuPinned) {
+        closeRowMenu();
+      }
       if (typeof window.renderIcons === "function") {
         window.renderIcons();
       } else if (window.lucide) {
@@ -1209,6 +1291,74 @@
     }
     el("docActions").innerHTML = html;
     setHidden(el("docActions"), acts.length === 0);
+
+    renderTimeline(doc);
+  }
+
+  /* ============================================================
+   *  ไทม์ไลน์เหตุการณ์ของเอกสาร
+   * ============================================================
+   *  ยื่น / แก้ไข / อนุมัติ / ไม่อนุมัติ / ส่งกลับ / ยื่นใหม่ / ยกเลิก / จ่ายครบ
+   *  มาจาก tb_doc_history (API แนบ doc.history มากับ action get)
+   *  ระบบเก่าที่ยังไม่มีตารางนี้ -> history ว่าง -> ซ่อนกล่องทั้งก้อน
+   * ============================================================ */
+  var TIMELINE_LABEL = {
+    submitted: "ยื่นใบเบิก",
+    edited: "แก้ไขรายการ",
+    resubmitted: "แก้ไขแล้วยื่นใหม่",
+    approved: "อนุมัติ",
+    rejected: "ไม่อนุมัติ",
+    returned: "ส่งกลับให้แก้ไข",
+    cancelled: "ยกเลิก",
+    issued: "จ่ายของครบแล้ว",
+  };
+
+  function renderTimeline(doc) {
+    var wrap = el("docTimelineWrap");
+    var ol = el("docTimeline");
+    if (!wrap || !ol) {
+      return;
+    }
+
+    var hist = (doc && doc.history) || [];
+    if (hist.length === 0) {
+      ol.innerHTML = "";
+      setHidden(wrap, true);
+      return;
+    }
+
+    var dt = function (v) {
+      return window.ThaiDate ? window.ThaiDate.dateTime(v, "") : v;
+    };
+
+    var html = "";
+    for (var i = 0; i < hist.length; i++) {
+      var h = hist[i];
+      var label = TIMELINE_LABEL[h.event] || h.event;
+      var who = h.actor_name || h.actor || "";
+
+      html +=
+        '<li class="doc-tl-item is-' +
+        escapeHtml(h.event) +
+        '">' +
+        '<span class="doc-tl-dot" aria-hidden="true"></span>' +
+        '<span class="doc-tl-head"><b>' +
+        escapeHtml(label) +
+        "</b>" +
+        (who
+          ? ' <span class="doc-tl-who">· ' + escapeHtml(who) + "</span>"
+          : "") +
+        ' <span class="doc-tl-time">· ' +
+        escapeHtml(dt(h.created_at)) +
+        "</span></span>" +
+        (h.note
+          ? '<span class="doc-tl-note">' + escapeHtml(h.note) + "</span>"
+          : "") +
+        "</li>";
+    }
+
+    ol.innerHTML = html;
+    setHidden(wrap, false);
   }
 
   /* ============================================================
@@ -1239,6 +1389,16 @@
       resendMail();
       return;
     }
+    if (key === "edit") {
+      /* เปิดหน้า "ทำรายการเบิก" ในโหมดแก้ไข — prefill จาก ?doc_id= */
+      window.location.href =
+        "main.php?page=request_new&doc_id=" + openDoc.doc_id;
+      return;
+    }
+    if (key === "sendback") {
+      sendBack();
+      return;
+    }
   }
 
   /* ============================================================
@@ -1252,34 +1412,114 @@
    *  ทุกอย่างที่ปุ่มพวกนี้ใช้ (doc_no, doc_type_label, status_label, ชื่อผู้ขอ)
    *  มาพร้อมกับรายการอยู่แล้ว การยิงซ้ำจะเพิ่มแค่ความหน่วงก่อนกล่องยืนยันเด้ง
    * ============================================================ */
-  function bindRowActions() {
-    var grid = el("grid");
-    if (!grid) {
+  /* ส่งคำสั่งของไอคอนหนึ่งอันไปทำงาน — ใช้ร่วมกันทั้งปุ่มในแถวและรายการในเมนู ⋮ */
+  function dispatchRowAction(key, doc, id) {
+    if (key === "open") {
+      openDetail(id);
+      return;
+    }
+    if (key === "copylink") {
+      signLink(doc, "copy");
+      return;
+    }
+    if (key === "openlink") {
+      signLink(doc, "open");
+      return;
+    }
+    if (key === "approvelink") {
+      approveLink(doc);
+      return;
+    }
+    if (key === "openapprovelink") {
+      openApproveLink(doc);
       return;
     }
 
-    grid.addEventListener("click", function (e) {
-      var btn = e.target.closest ? e.target.closest("[data-row-act]") : null;
-      if (!btn) {
+    openDoc = doc;
+    runAction(key);
+  }
+
+  /* ---------- เมนู ⋮ (คำสั่งที่ยุบจากคอลัมน์จัดการ) ----------
+   * ต่อไว้ใต้ <body> เพราะตารางตั้ง overflow ตัดขอบ เมนูที่วางในเซลล์จะถูกตัดหาย
+   * ปิดเมื่อ: กดนอกเมนู · เลื่อนตาราง · ปรับขนาดจอ · กด Esc · ตารางวาดแถวใหม่
+   * ยกเว้นโหมด pinned (คู่มือกางค้างไว้) ที่ปิดเฉพาะตอนเรียก closeRowMenu ตรง ๆ
+   */
+  function closeRowMenu() {
+    if (!rowMenuEl) {
+      return;
+    }
+    document.removeEventListener("mousedown", onRowMenuOutside, true);
+    window.removeEventListener("scroll", closeRowMenu, true);
+    window.removeEventListener("resize", closeRowMenu);
+    document.removeEventListener("keydown", onRowMenuKey, true);
+
+    if (rowMenuAnchor) {
+      rowMenuAnchor.removeAttribute("aria-expanded");
+    }
+    if (rowMenuEl.parentNode) {
+      rowMenuEl.parentNode.removeChild(rowMenuEl);
+    }
+    rowMenuEl = null;
+    rowMenuAnchor = null;
+    rowMenuPinned = false;
+  }
+
+  function onRowMenuOutside(e) {
+    if (rowMenuEl && !rowMenuEl.contains(e.target)) {
+      closeRowMenu();
+    }
+  }
+  function onRowMenuKey(e) {
+    if (e.key === "Escape" || e.keyCode === 27) {
+      closeRowMenu();
+    }
+  }
+
+  function openRowMenu(anchor, doc, pinned) {
+    closeRowMenu();
+
+    var acts = rowActions(doc);
+    var overflow = [];
+    for (var i = 0; i < acts.length; i++) {
+      if (!INLINE_ROW_ACTS[acts[i].key]) {
+        overflow.push(acts[i]);
+      }
+    }
+    /* แถวจริง: ปุ่ม ⋮ ถูกวาดเฉพาะตอนล้นตั้งแต่ 2 ปุ่ม (1 ปุ่มถูกดันขึ้นแถว)
+       แถวสาธิตแบบ pinned: มี ⋮ เสมอ แม้เหลือคำสั่งเดียว */
+    if (overflow.length < 1 || (overflow.length <= 1 && pinned !== true)) {
+      return;
+    }
+
+    var menu = document.createElement("div");
+    /* rowmenu-demo = เมนูที่คู่มือกางค้างไว้ คู่มือชี้เป้าด้วยคลาสนี้
+       เพื่อไม่ให้ไปโดนปุ่มคำสั่งเดียวกันที่ถูกดันขึ้นแถวจริงบางแถว */
+    menu.className = pinned === true ? "rowmenu rowmenu-demo" : "rowmenu";
+    menu.setAttribute("role", "menu");
+
+    var frag = "";
+    for (var j = 0; j < overflow.length; j++) {
+      var a = overflow[j];
+      frag +=
+        '<button type="button" role="menuitem" class="rowmenu-item is-' +
+        a.tone +
+        '" data-row-act="' +
+        a.key +
+        '"><i data-lucide="' +
+        a.icon +
+        '" aria-hidden="true"></i><span>' +
+        escapeHtml(a.label) +
+        "</span></button>";
+    }
+    menu.innerHTML = frag;
+
+    menu.addEventListener("click", function (e) {
+      var it = e.target.closest ? e.target.closest("[data-row-act]") : null;
+      if (!it) {
         return;
       }
 
-      /* กันไม่ให้คลิกทะลุไปโดนตัวจับของ Tabulator ที่ระดับแถว */
-      e.preventDefault();
-      e.stopPropagation();
-
-      var id = Number(btn.getAttribute("data-doc"));
-      var row = table ? table.getRow(id) : null;
-      if (!row) {
-        return;
-      }
-
-      var doc = row.getData();
-      var key = btn.getAttribute("data-row-act");
-
-      /* แถวตัวอย่างของคู่มือไม่มีอยู่จริงในฐานข้อมูล
-               ปล่อยให้กดแล้วยิงคำสั่งไปจะได้ error จากเซิร์ฟเวอร์ที่อธิบายอะไรไม่ได้
-               ตอบกลับด้วยข้อความที่ตรงกับสิ่งที่เกิดขึ้นแทน */
+      /* เมนูสาธิตของคู่มือ (pinned) — กดแล้วไม่ทำงานจริง ตอบข้อความแทน */
       if (doc._demo) {
         if (typeof window.appInfo === "function") {
           window.appInfo(
@@ -1290,29 +1530,117 @@
         return;
       }
 
-      if (key === "open") {
-        openDetail(id);
-        return;
+      var key = it.getAttribute("data-row-act");
+      closeRowMenu();
+      dispatchRowAction(key, doc, doc.doc_id);
+    });
+
+    document.body.appendChild(menu);
+
+    /* วางใต้ปุ่ม ชิดขวาให้ตรงกับปุ่ม แล้วพลิกขึ้นถ้าชนขอบล่างจอ */
+    var r = anchor.getBoundingClientRect();
+    var mw = menu.offsetWidth;
+    var mh = menu.offsetHeight;
+
+    var left = r.right - mw;
+    if (left < 8) {
+      left = 8;
+    }
+    if (left + mw > window.innerWidth - 8) {
+      left = window.innerWidth - 8 - mw;
+    }
+
+    var top = r.bottom + 4;
+    if (top + mh > window.innerHeight - 8) {
+      top = r.top - mh - 4;
+      if (top < 8) {
+        top = Math.max(8, window.innerHeight - 8 - mh);
       }
-      if (key === "copylink") {
-        signLink(doc, "copy");
-        return;
-      }
-      if (key === "openlink") {
-        signLink(doc, "open");
-        return;
-      }
-      if (key === "approvelink") {
-        approveLink(doc);
-        return;
-      }
-      if (key === "openapprovelink") {
-        openApproveLink(doc);
+    }
+
+    menu.style.left = Math.round(left) + "px";
+    menu.style.top = Math.round(top) + "px";
+
+    anchor.setAttribute("aria-expanded", "true");
+    rowMenuEl = menu;
+    rowMenuAnchor = anchor;
+    rowMenuPinned = pinned === true;
+
+    if (typeof window.renderIcons === "function") {
+      window.renderIcons(menu);
+    }
+
+    /* โหมด pinned (คู่มือ) ไม่ผูกตัวปิดอัตโนมัติ — driver.js เลื่อนจอ/คลิกเองระหว่างเดินคู่มือ
+       ถ้าผูกไว้เมนูจะปิดกลางคัน demoTeardown เป็นคนสั่งปิดเอง */
+    if (rowMenuPinned) {
+      return;
+    }
+
+    /* หน่วงหนึ่งจังหวะ ไม่ให้คลิกที่เพิ่งเปิดเมนูวิ่งไปโดน onRowMenuOutside ทันที */
+    setTimeout(function () {
+      document.addEventListener("mousedown", onRowMenuOutside, true);
+    }, 0);
+    window.addEventListener("scroll", closeRowMenu, true);
+    window.addEventListener("resize", closeRowMenu);
+    document.addEventListener("keydown", onRowMenuKey, true);
+  }
+
+  function bindRowActions() {
+    var grid = el("grid");
+    if (!grid) {
+      return;
+    }
+
+    grid.addEventListener("click", function (e) {
+      var moreBtn = e.target.closest
+        ? e.target.closest("[data-row-more]")
+        : null;
+      var btn = e.target.closest ? e.target.closest("[data-row-act]") : null;
+      if (!moreBtn && !btn) {
         return;
       }
 
-      openDoc = doc;
-      runAction(key);
+      /* กันไม่ให้คลิกทะลุไปโดนตัวจับของ Tabulator ที่ระดับแถว */
+      e.preventDefault();
+      e.stopPropagation();
+
+      var trigger = moreBtn || btn;
+      var id = Number(
+        trigger.getAttribute(moreBtn ? "data-row-more" : "data-doc"),
+      );
+      var row = table ? table.getRow(id) : null;
+      if (!row) {
+        return;
+      }
+
+      var doc = row.getData();
+
+      /* แถวตัวอย่างของคู่มือไม่มีอยู่จริงในฐานข้อมูล
+               ปล่อยให้กดแล้วยิงคำสั่งไปจะได้ error จากเซิร์ฟเวอร์ที่อธิบายอะไรไม่ได้
+               ตอบกลับด้วยข้อความที่ตรงกับสิ่งที่เกิดขึ้นแทน */
+      if (doc._demo) {
+        closeRowMenu();
+        if (typeof window.appInfo === "function") {
+          window.appInfo(
+            "นี่คือแถวตัวอย่างสำหรับสาธิต กดใช้งานจริงไม่ได้ " +
+              "ปิดคู่มือแล้วลองกับเอกสารจริงได้เลย",
+          );
+        }
+        return;
+      }
+
+      if (moreBtn) {
+        /* กดปุ่มเดิมซ้ำ = ปิด */
+        if (rowMenuAnchor === moreBtn) {
+          closeRowMenu();
+        } else {
+          openRowMenu(moreBtn, doc);
+        }
+        return;
+      }
+
+      closeRowMenu();
+      dispatchRowAction(btn.getAttribute("data-row-act"), doc, id);
     });
   }
 
@@ -1846,6 +2174,41 @@
     );
   }
 
+  /* ---------- ส่งใบเบิกกลับให้ผู้ทำเบิกแก้ไข ----------
+   * ใบที่อนุมัติไปแล้ว แต่ผู้ทำเบิกแจ้งว่าเบิกของผิด
+   * ถอยกลับเป็น "รออนุมัติ" พร้อมเหตุผล แล้วผู้ทำเบิกแก้ + ยื่นใหม่
+   * ข้อจำกัด (ส่งกลับใบตัวเองไม่ได้ / จ่ายบางส่วนแล้วห้ามถอย) บังคับที่ backend
+   */
+  function sendBack() {
+    askReason(
+      {
+        title: "ส่งใบเบิก " + openDoc.doc_no + " กลับให้แก้ไข",
+        text:
+          'ใบนี้อนุมัติไปแล้ว การส่งกลับจะทำให้กลับเป็น "รออนุมัติ" ' +
+          "ผู้ทำเบิกแก้ไขแล้วยื่นใหม่ให้พิจารณาอีกครั้ง — ระบุสิ่งที่ต้องแก้",
+        required: true,
+        danger: true,
+        confirm: "ยืนยันส่งกลับ",
+      },
+      function (reason) {
+        post(
+          {
+            action: "sendback",
+            csrf_token: CFG.csrfToken,
+            doc_id: openDoc.doc_id,
+            reason: reason,
+          },
+          function (res) {
+            ok(res.message);
+            closeDetail();
+            load();
+          },
+          bad,
+        );
+      },
+    );
+  }
+
   /* ---------- กล่องถามเหตุผล ---------- */
   function askReason(opts, done) {
     if (!window.Swal) {
@@ -2078,12 +2441,30 @@
     }
     demoOn = true;
 
+    /* หน้าที่แถวสาธิตกางไอคอนครบทุกอัน (ไม่ยุบเข้าเมนู) คอลัมน์จัดการต้องกว้างพอ
+       ระหว่างเปิดคู่มือเท่านั้น คืนค่าเดิมตอน teardown
+       หน้า request ใช้เมนู ⋮ เหมือนแถวจริง ความกว้างเท่าเดิมพอ */
+    if (DEMO_INLINE_ALL) {
+      setActionColWidth(DEMO_ACTION_WIDTH);
+    }
+
     table.addRow(demoRow(), true); // true = บนสุด คู่มือจะได้ชี้แถวแรกเสมอ
     demoBanner(true);
 
     if (typeof window.renderIcons === "function") {
       window.renderIcons();
     }
+
+    /* หน้า request: กางเมนู ⋮ ของแถวสาธิตค้างไว้ ให้คู่มือชี้แต่ละคำสั่งในเมนูได้
+       (app-guide.js เรียก buildSteps ทันทีหลัง setup() จึงต้องกางแบบ sync) */
+    if (!DEMO_INLINE_ALL) {
+      var moreBtn = document.querySelector('#grid [data-row-more]');
+      var drow = table.getRow(-1);
+      if (moreBtn && drow) {
+        openRowMenu(moreBtn, drow.getData(), true);
+      }
+    }
+
     return true;
   }
 
@@ -2093,12 +2474,31 @@
     }
     demoOn = false;
 
+    closeRowMenu();
+
     var row = table ? table.getRow(-1) : null;
     if (row) {
       row.delete();
     }
 
+    if (DEMO_INLINE_ALL) {
+      setActionColWidth(rowActionWidth());
+    }
     demoBanner(false);
+  }
+
+  function setActionColWidth(w) {
+    if (!table) {
+      return;
+    }
+    try {
+      var col = table.getColumn("_open");
+      if (col) {
+        col.setWidth(w);
+      }
+    } catch (e) {
+      /* ตารางยังไม่พร้อม/ไม่มีคอลัมน์ ไม่ใช่เรื่องคอขาดบาดตาย */
+    }
   }
 
   function demoBanner(on) {

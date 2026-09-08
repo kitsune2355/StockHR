@@ -45,7 +45,10 @@ if ($notice_text === '') { $notice_text = $notice_default; }
  *
  * ข้อความยังอยู่บนใบเบิกที่พิมพ์ออกมาเสมอ ไม่ได้หายไปไหน
  */
-$show_notice = !in_array($sess_role, array('super_admin', 'admin'));
+/* โหมดแก้ไข (?doc_id=) ก็ไม่ต้องเห็น — ผู้ทำเบิกกำลังแก้ใบเดิม ไม่ได้เริ่มเบิกใหม่
+   ($edit_doc_id มาจาก _doc_form.php ที่ include ไว้ด้านบนแล้ว) */
+$show_notice = !in_array($sess_role, array('super_admin', 'admin'))
+               && (int)$edit_doc_id <= 0;
 ?>
 
 <?php if ($show_notice): ?>

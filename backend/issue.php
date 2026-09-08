@@ -121,6 +121,7 @@ function issue_save($data, $actor)
     /* จ่ายครบทุกบรรทัดแล้ว ปิดใบเบิก */
     if (issue_request_is_complete($ref_doc_id)) {
         doc_set_status($ref_doc_id, 'issued', $actor);
+        doc_history_add($ref_doc_id, 'issued', $actor, 'จ่ายของครบทุกบรรทัดตามใบจ่าย ' . $doc_no);
     }
 
     db_commit();

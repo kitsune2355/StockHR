@@ -678,3 +678,92 @@ function doc_set_status($doc_id, $status, $actor)
 
     return $ok;
 }
+
+
+/* ============================================================
+ *  ประวัติเอกสาร (timeline) — tb_doc_history
+ *
+ *  บันทึกทุกครั้งที่เอกสารเปลี่ยนสถานะหรือรายการ เรียกภายใน transaction
+ *  ของผู้เรียก (คู่กับการเปลี่ยนแปลงจริง)
+ *
+ *  ห้ามทำให้งานหลักพัง: ถ้าเขียนประวัติไม่ได้ (เช่นยังไม่รัน sql/061)
+ *  ให้คืน false เฉย ๆ ผู้เรียกไม่ต้องตรวจผล และไม่ต้อง rollback ใบเพราะเหตุนี้
+ * ============================================================ */
+function doc_history_add($doc_id, $event, $actor, $note = '')
+{
+    $connect = db_connect();
+    $doc_id  = (int)$doc_id;
+    if ($doc_id <= 0 || trim((string)$event) === '') { return false; }
+
+    $actor = trim((string)$actor);
+    $by    = ($actor === '') ? null : $actor;
+    $note  = (string)$note;
+    if (db_text_length($note) > 500) {
+        $note = function_exists('mb_substr') ? mb_substr($note, 0, 500, 'UTF-8') : substr($note, 0, 500);
+    }
+
+    $stmt = @mysqli_prepare($connect,
+        "INSERT INTO `tb_doc_history` (`doc_id`, `event`, `actor`, `note`, `created_at`)
+         VALUES (?, ?, ?, ?, NOW())");
+    if (!$stmt) { return false; }
+
+    mysqli_stmt_bind_param($stmt, 'isss', $doc_id, $event, $by, $note);
+    $ok = @mysqli_stmt_execute($stmt);
+    mysqli_stmt_close($stmt);
+
+    return $ok ? true : false;
+}
+
+
+/* ---------- อ่าน timeline ของเอกสารใบหนึ่ง ----------
+ * เรียงตามลำดับที่เกิด (hist_id) พร้อมชื่อเต็มของผู้ทำ
+ * @ กันกรณีตารางยังไม่ถูกสร้าง — คืน array ว่าง
+ */
+function doc_history($doc_id)
+{
+    $connect = db_connect();
+    $doc_id  = (int)$doc_id;
+
+    $res = @mysqli_query($connect,
+        "SELECT h.`event`, h.`actor`, u.`full_name`, h.`note`, h.`created_at`
+         FROM `tb_doc_history` h
+         LEFT JOIN `tb_user` u ON u.`username` = h.`actor`
+         WHERE h.`doc_id` = " . $doc_id . "
+         ORDER BY h.`hist_id` ASC");
+    if (!$res) { return array(); }
+
+    $rows = array();
+    while ($r = mysqli_fetch_assoc($res)) {
+        $rows[] = array(
+            'event'      => $r['event'],
+            'actor'      => ($r['actor'] === null) ? '' : $r['actor'],
+            'actor_name' => ($r['full_name'] !== null && trim($r['full_name']) !== '')
+                            ? $r['full_name']
+                            : (($r['actor'] === null) ? 'ระบบ' : $r['actor']),
+            'note'       => $r['note'],
+            'created_at' => $r['created_at']
+        );
+    }
+    mysqli_free_result($res);
+
+    return $rows;
+}
+
+
+/* ---------- ชนิดเหตุการณ์ล่าสุดของเอกสาร (ไว้ตัดสินว่า edit นี้เป็น resubmitted ไหม) ---------- */
+function doc_history_last_event($doc_id)
+{
+    $connect = db_connect();
+    $doc_id  = (int)$doc_id;
+
+    $res = @mysqli_query($connect,
+        "SELECT `event` FROM `tb_doc_history`
+         WHERE `doc_id` = " . $doc_id . "
+         ORDER BY `hist_id` DESC LIMIT 1");
+    if (!$res) { return ''; }
+
+    $row = mysqli_fetch_row($res);
+    mysqli_free_result($res);
+
+    return $row ? $row[0] : '';
+}

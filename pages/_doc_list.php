@@ -200,6 +200,13 @@ include dirname(__FILE__) . '/_filter_head.php';
       <div class="doc-sum">
         จำนวนรวม <b id="docTotal" class="num">0</b>
       </div>
+
+      <!-- ไทม์ไลน์เหตุการณ์ของเอกสาร — เติมโดย renderTimeline() ใน doc-list.js
+           ซ่อนทั้งก้อนถ้าเอกสารใบนั้นยังไม่มีประวัติ (เช่น ระบบก่อนมี tb_doc_history) -->
+      <div id="docTimelineWrap" hidden class="doc-timeline-wrap">
+        <h3 class="doc-timeline-title">ประวัติเอกสาร</h3>
+        <ol id="docTimeline" class="doc-timeline"></ol>
+      </div>
     </div>
 
     <div id="docActions" hidden class="doc-sheet-foot"></div>

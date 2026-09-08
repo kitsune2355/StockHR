@@ -28,6 +28,8 @@ function notify_types()
         'request_waiting'    => array('label' => 'ใบเบิกรออนุมัติ',   'icon' => 'clipboard-list', 'tone' => 'amber'),
         'request_approved'   => array('label' => 'อนุมัติใบเบิกแล้ว',  'icon' => 'circle-check',   'tone' => 'green'),
         'request_rejected'   => array('label' => 'ไม่อนุมัติใบเบิก',   'icon' => 'circle-x',       'tone' => 'red'),
+        'request_returned'   => array('label' => 'ส่งใบเบิกกลับให้แก้ไข', 'icon' => 'corner-up-left', 'tone' => 'amber'),
+        'request_edited'     => array('label' => 'ใบเบิกถูกแก้ไข',     'icon' => 'pencil',         'tone' => 'brand'),
         'request_cancelled'  => array('label' => 'ยกเลิกใบเบิก',      'icon' => 'ban',            'tone' => 'slate'),
         'issue_created'      => array('label' => 'จ่ายของแล้ว',       'icon' => 'package-minus',  'tone' => 'brand'),
         'issue_acknowledged' => array('label' => 'เซ็นรับของแล้ว',    'icon' => 'signature',      'tone' => 'green'),

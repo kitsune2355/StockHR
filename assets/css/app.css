@@ -1789,6 +1789,36 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 .doc-act.is-bad { background: #fff; color: #b91c1c; border: 1px solid #fecaca; }
 .doc-act.is-bad:hover { background: #fef2f2; border-color: #f87171; }
 
+/* ---------- ไทม์ไลน์เหตุการณ์ของเอกสาร ---------- */
+.doc-timeline-wrap { margin-top: 1rem; }
+.doc-timeline-title { font-size: 0.8125rem; font-weight: 600; color: #475569; margin: 0 0 .5rem; }
+
+.doc-timeline { list-style: none; margin: 0; padding: 0; }
+.doc-tl-item {
+    position: relative; padding: 0 0 .75rem 1.25rem;
+    border-left: 2px solid #e2e8f0;
+    font-size: 0.8125rem; line-height: 1.5; color: #0f172a;
+}
+.doc-tl-item:last-child { padding-bottom: 0; border-left-color: transparent; }
+.doc-tl-dot {
+    position: absolute; left: -6px; top: .28rem;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #94a3b8; box-shadow: 0 0 0 3px #fff;
+}
+.doc-tl-item.is-approved  .doc-tl-dot { background: #059669; }
+.doc-tl-item.is-rejected  .doc-tl-dot,
+.doc-tl-item.is-cancelled .doc-tl-dot { background: #dc2626; }
+.doc-tl-item.is-returned  .doc-tl-dot { background: #d97706; }
+.doc-tl-item.is-issued    .doc-tl-dot { background: #4f46e5; }
+.doc-tl-head { display: block; }
+.doc-tl-head b { font-weight: 600; }
+.doc-tl-who  { color: #475569; }
+.doc-tl-time { color: #94a3b8; }
+.doc-tl-note {
+    display: block; margin-top: .125rem;
+    color: #64748b; word-break: break-word;
+}
+
 /* ---------- แถบสรุปหัวรายงาน ---------- */
 .rep-tiles { display: flex; flex-wrap: wrap; gap: .5rem; }
 
@@ -1850,6 +1880,19 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 
 .dark .doc-act.is-bad { background: #0f172a; color: #fca5a5; border-color: rgba(239, 68, 68, .35); }
 .dark .doc-act.is-bad:hover { background: rgba(239, 68, 68, .12); border-color: #f87171; }
+
+.dark .doc-timeline-title { color: #94a3b8; }
+.dark .doc-tl-item { color: #e2e8f0; border-left-color: #1e293b; }
+.dark .doc-tl-item:last-child { border-left-color: transparent; }
+.dark .doc-tl-dot { background: #64748b; box-shadow: 0 0 0 3px #0f172a; }
+.dark .doc-tl-item.is-approved  .doc-tl-dot { background: #34d399; }
+.dark .doc-tl-item.is-rejected  .doc-tl-dot,
+.dark .doc-tl-item.is-cancelled .doc-tl-dot { background: #f87171; }
+.dark .doc-tl-item.is-returned  .doc-tl-dot { background: #fbbf24; }
+.dark .doc-tl-item.is-issued    .doc-tl-dot { background: #a5b4fc; }
+.dark .doc-tl-who  { color: #94a3b8; }
+.dark .doc-tl-time { color: #64748b; }
+.dark .doc-tl-note { color: #94a3b8; }
 
 .dark .rep-tile { background: #0b1220; border-color: #1e293b; }
 .dark .rep-tile-label { color: #94a3b8; }
@@ -5269,6 +5312,74 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
 
 /* ช่องนี้มีปุ่มติดกันหลายอัน ตัดช่องว่างซ้ายขวาของช่องออกเพื่อให้ได้ที่คืนมา */
 .tabulator .tabulator-cell.cell-rowacts { padding-left: .25rem; padding-right: .5rem; }
+
+/* ปุ่มจุดสามจุดแนวตั้ง — เปิดเมนูคำสั่งที่ยุบจากคอลัมน์ */
+.rowact.rowact-more[aria-expanded="true"] {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #e2e8f0;
+}
+.dark .rowact.rowact-more[aria-expanded="true"] {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-color: #334155;
+}
+
+/* ---------- เมนู ⋮ (ต่อไว้ใต้ body ลอยเหนือตาราง ดู openRowMenu ใน doc-list.js) ---------- */
+.rowmenu {
+    position: fixed;
+    z-index: 75;
+    min-width: 208px;
+    padding: .375rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: .625rem;
+    box-shadow: 0 12px 32px -8px rgba(15, 23, 42, .25);
+}
+.rowmenu-item {
+    display: flex;
+    align-items: center;
+    gap: .625rem;
+    width: 100%;
+    padding: .5rem .625rem;
+    border: 0;
+    border-radius: .5rem;
+    background: transparent;
+    color: #334155;
+    font-size: .8125rem;
+    line-height: 1.2;
+    text-align: left;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+}
+.rowmenu-item > svg { width: 16px; height: 16px; flex: none; color: #64748b; }
+.rowmenu-item:hover { background: #f1f5f9; color: #0f172a; }
+.rowmenu-item:focus-visible {
+    outline: none;
+    background: #f1f5f9;
+    box-shadow: inset 0 0 0 2px rgba(2, 148, 136, .35);
+}
+.rowmenu-item.is-ok         { color: #02776f; }
+.rowmenu-item.is-ok > svg   { color: #059669; }
+.rowmenu-item.is-ok:hover   { background: #effbf9; }
+.rowmenu-item.is-bad        { color: #b91c1c; }
+.rowmenu-item.is-bad > svg  { color: #dc2626; }
+.rowmenu-item.is-bad:hover  { background: #fef2f2; }
+
+.dark .rowmenu {
+    background: #0f172a;
+    border-color: #1e293b;
+    box-shadow: 0 12px 32px -8px rgba(0, 0, 0, .5);
+}
+.dark .rowmenu-item        { color: #cbd5e1; }
+.dark .rowmenu-item > svg  { color: #94a3b8; }
+.dark .rowmenu-item:hover  { background: #1e293b; color: #e2e8f0; }
+.dark .rowmenu-item.is-ok        { color: #71dbd2; }
+.dark .rowmenu-item.is-ok > svg  { color: #34d399; }
+.dark .rowmenu-item.is-ok:hover  { background: rgba(2, 148, 136, .16); }
+.dark .rowmenu-item.is-bad        { color: #fca5a5; }
+.dark .rowmenu-item.is-bad > svg  { color: #f87171; }
+.dark .rowmenu-item.is-bad:hover  { background: rgba(220, 38, 38, .14); }
 
 /* จอแคบ: ตารางเลื่อนแนวนอนอยู่แล้ว บีบปุ่มให้แคบลงเพื่อลดระยะที่ต้องเลื่อน */
 @media (max-width: 640px) {
