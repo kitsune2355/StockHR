@@ -66,10 +66,14 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
     <div class="flex flex-none flex-wrap items-center gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
 
       <div class="ml-auto flex flex-wrap items-center gap-2">
-        <button type="button" id="btnAddRow" class="<?php echo $btn_soft; ?> btn-compact">
-          <i data-lucide="plus" class="h-4 w-4" aria-hidden="true"></i>
-          <span class="btn-label">เพิ่มรายการ</span>
-        </button>
+        <div class="flex items-center gap-2">
+          <input type="number" id="addCount" value="1" min="1" max="50" aria-label="จำนวนบรรทัดที่จะเพิ่ม"
+                 class="num h-11 w-16 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:ring-brand-900">
+          <button type="button" id="btnAddRow" class="<?php echo $btn_soft; ?> btn-compact" title="เพิ่มบรรทัดตามจำนวนที่กรอก">
+            <i data-lucide="plus" class="h-4 w-4" aria-hidden="true"></i>
+            <span class="btn-label">เพิ่มรายการ</span>
+          </button>
+        </div>
         <button type="button" id="btnClear" class="<?php echo $btn_soft; ?> btn-compact">
           <i data-lucide="eraser" class="h-4 w-4" aria-hidden="true"></i>
           <span class="btn-label">ล้างรายการ</span>
@@ -101,7 +105,7 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
 
       <div id="emptyRows" class="flex flex-col items-center gap-2 p-12 text-center text-sm text-slate-400 dark:text-slate-500">
         <i data-lucide="clipboard-list" class="h-8 w-8" aria-hidden="true"></i>
-        ยังไม่มีรายการ — กดปุ่ม "เพิ่มรายการ" แล้วเลือกสินค้าในบรรทัด
+        ยังไม่มีรายการ — กรอกจำนวนแล้วกด "เพิ่มรายการ" (เพิ่มพร้อมกันได้หลายบรรทัด) แล้วเลือกสินค้าในแต่ละบรรทัด
       </div>
     </div>
 

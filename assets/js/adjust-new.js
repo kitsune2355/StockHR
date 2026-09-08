@@ -92,7 +92,14 @@
 
 
     function bind() {
-        el('btnAddRow').addEventListener('click', function () { addBlankRow(true); });
+        /* เพิ่มบรรทัดว่างทีละหลายแถวตามจำนวนที่กรอก (แบบเดียวกับหน้าผู้ใช้งาน)
+           กรอก 1 = เพิ่มบรรทัดเดียวแล้วกางช่องเลือกสินค้าให้เลย */
+        el('btnAddRow').addEventListener('click', function () {
+            var n = parseInt(el('addCount').value, 10);
+            if (isNaN(n) || n < 1) { n = 1; }
+            if (n > 50) { n = 50; }
+            for (var i = 0; i < n; i++) { addBlankRow(n === 1); }
+        });
         el('btnClear').addEventListener('click', clearAll);
         el('btnSave').addEventListener('click', save);
         el('docNote').addEventListener('input', clearError);
@@ -209,15 +216,22 @@
             return;
         }
 
-        /* สินค้าซ้ำกับบรรทัดอื่น — เตือนแล้วย้อนค่ากลับ */
+        /* สินค้าซ้ำกับบรรทัดอื่น — ย้อนค่ากลับ แล้วชี้ไปที่บรรทัดเดิม */
         for (var i = 0; i < ROWS.length; i++) {
             if (ROWS[i] !== row && ROWS[i].pid === pid) {
-                if (typeof window.appWarning === 'function') {
-                    window.appWarning('สินค้านี้อยู่ในใบแล้ว (บรรทัดที่ ' + (i + 1) + ')');
-                }
+                var dupTr = ROWS[i].tr;
+                var dupNo = i + 1;
+
                 row.sel.value = row.pid ? String(row.pid) : '';
                 if (window.SelectSearch) { window.SelectSearch.refresh(row.sel); }
-                flash(ROWS[i].tr);
+
+                if (typeof window.appWarning === 'function') {
+                    /* กะพริบหลังผู้ใช้ปิดกล่องข้อความ ไม่งั้นเอฟเฟกต์อยู่หลังกล่องที่บังจอ */
+                    window.appWarning('สินค้านี้อยู่ในใบแล้ว (บรรทัดที่ ' + dupNo + ')')
+                        .then(function () { flash(dupTr); });
+                } else {
+                    flash(dupTr);
+                }
                 return;
             }
         }
@@ -338,11 +352,19 @@
         el('btnSave').disabled = (chosenCount() === 0);
     }
 
+    /* กะพริบแถวครั้งเดียวแล้วจาง + เลื่อนให้เห็น (แบบเดียวกับ flashRow ในหน้าบันทึกรับเข้า)
+       ใช้ตอนผู้ใช้เลือกสินค้าที่มีอยู่ในใบแล้ว จะได้รู้ทันทีว่าไปดูบรรทัดไหน */
     function flash(tr) {
-        tr.classList.add('ring-2', 'ring-brand-300', 'ring-inset');
-        setTimeout(function () {
-            tr.classList.remove('ring-2', 'ring-brand-300', 'ring-inset');
-        }, 700);
+        if (!tr) { return; }
+        tr.classList.remove('is-flash');
+        void tr.offsetWidth;                 // บังคับให้ animation เริ่มใหม่ทุกครั้งที่เรียกซ้ำ
+        tr.classList.add('is-flash');
+        setTimeout(function () { tr.classList.remove('is-flash'); }, 1300);
+        try {
+            tr.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        } catch (e) {
+            tr.scrollIntoView(false);
+        }
     }
 
 

@@ -6096,6 +6096,22 @@ button.bc-side-toggle { display: none; }
     100% { background: transparent; }
 }
 
+/* ---------- หน้าบันทึกปรับยอด: กะพริบแถวที่ชนกับรายการเดิม ----------
+   ตารางหน้านี้เป็น <table> ธรรมดา (ไม่ใช่ Tabulator) จึงมีคลาสของตัวเอง
+   เอฟเฟกต์เหมือน .row-scanned ของหน้าบันทึกรับเข้า — เขียวแวบเดียวแล้วจาง
+   ทำที่ <td> เพราะพื้นหลังของ <tr> ในตาราง border-collapse ไม่รับ animation ตรง ๆ */
+@keyframes adjRowFlash {
+    0%   { background: #a7f3d0; }
+    100% { background: transparent; }
+}
+#rows tr.is-flash > td { animation: adjRowFlash 1.2s ease-out; }
+
+@keyframes adjRowFlashDark {
+    0%   { background: rgba(16, 185, 129, .38); }
+    100% { background: transparent; }
+}
+.dark #rows tr.is-flash > td { animation: adjRowFlashDark 1.2s ease-out; }
+
 
 /* ============================================================
  *  หน้าการแจ้งเตือน (pages/notifications.php)
