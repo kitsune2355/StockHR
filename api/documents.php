@@ -328,7 +328,7 @@ if ($action === 'acknowledge') {
 if ($action === 'export_lines') {
 
     $doc_type = isset($input['doc_type']) ? $input['doc_type'] : '';
-    if (!in_array($doc_type, array('receive', 'request', 'issue'))) {
+    if (!in_array($doc_type, array('receive', 'request', 'issue', 'adjust'))) {
         api_fail('ไม่รู้จักประเภทเอกสารที่ขอ');
     }
 
@@ -342,7 +342,15 @@ if ($action === 'export_lines') {
 
     /* ขอบเขตการมองเห็นต้องเหมือน action 'list' ทุกประการ
        ไม่งั้นคนที่เห็นบนจอแค่ของหน่วยงานตัวเอง จะกดส่งออกแล้วได้ของทั้งบริษัท */
-    $scope = doc_scope_for($actor, $actor_role);
+    if ($doc_type === 'adjust') {
+        if (!in_array($actor_role, array('super_admin', 'admin'))
+            && !adjust_approver_can($actor, $actor_role)) {
+            api_fail('คุณไม่มีสิทธิ์ดูใบปรับยอด', 403);
+        }
+        $scope = array();
+    } else {
+        $scope = doc_scope_for($actor, $actor_role);
+    }
     foreach ($scope as $k => $v) {
         $opts[$k] = $v;
     }
@@ -356,6 +364,31 @@ if ($action === 'export_lines') {
     for ($i = 0; $i < count($docs); $i++) {
         $doc = doc_find($docs[$i]['doc_id']);
         if ($doc === null) { continue; }
+
+        /* ใบปรับยอด: แตกรายบรรทัดพร้อมยอดเดิม/นับได้จริง/ส่วนต่าง (ไม่มีราคา/หน่วยงาน) */
+        if ($doc['doc_type'] === 'adjust') {
+            $adj = adjust_doc_lines($doc);
+            for ($j = 0; $j < count($adj); $j++) {
+                $ln = $adj[$j];
+                $lines[] = array(
+                    'doc_no'       => $doc['doc_no'],
+                    'doc_date'     => $doc['doc_date'],
+                    'status_label' => $doc['status_label'],
+                    'created_by'   => $doc['created_by'],
+                    'approved_by'  => $doc['approved_by'],
+                    'line_no'      => $j + 1,
+                    'product_code' => $ln['product_code'],
+                    'product_name' => $ln['product_name'],
+                    'unit_name'    => $ln['unit_name'],
+                    'before'       => (float)$ln['before'],
+                    'counted'      => (float)$ln['counted'],
+                    'diff'         => (float)$ln['diff'],
+                    'item_note'    => $ln['note'],
+                    'doc_note'     => $doc['note']
+                );
+            }
+            continue;
+        }
 
         for ($j = 0; $j < count($doc['items']); $j++) {
             $it = $doc['items'][$j];

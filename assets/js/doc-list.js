@@ -592,7 +592,38 @@
       return;
     }
 
-    var cols = [
+    var cols;
+
+    if (TYPE === "adjust") {
+      /* ใบปรับยอดไม่มีราคา/หน่วยงาน — ใช้คอลัมน์ ยอดเดิม/นับได้จริง/ส่วนต่าง แทน */
+      cols = [
+        { key: "doc_no", label: "เลขที่เอกสาร" },
+        { key: "doc_date", label: "วันที่ตรวจนับ" },
+        { key: "status_label", label: "สถานะ" },
+        { key: "created_by", label: "ผู้บันทึก" },
+        { key: "approved_by", label: "ผู้อนุมัติ" },
+        { key: "line_no", label: "บรรทัดที่" },
+        { key: "product_code", label: "รหัสสินค้า" },
+        { key: "product_name", label: "ชื่อสินค้า" },
+        { key: "unit_name", label: "หน่วย" },
+        { key: "before", label: "ยอดเดิม" },
+        { key: "counted", label: "นับได้จริง" },
+        { key: "diff", label: "ส่วนต่าง" },
+        { key: "item_note", label: "หมายเหตุบรรทัด" },
+        { key: "doc_note", label: "เหตุผลการปรับยอด" },
+      ];
+
+      window.GridExport.rows({
+        button: btn,
+        filename: CFG.exportName + "_รายบรรทัด",
+        sheetName: "รายบรรทัด",
+        columns: cols,
+        fetch: lineExportFetch,
+      });
+      return;
+    }
+
+    cols = [
       { key: "doc_no", label: "เลขที่เอกสาร" },
       { key: "doc_date", label: "วันที่" },
       { key: "status_label", label: "สถานะ" },
@@ -622,28 +653,30 @@
       filename: CFG.exportName + "_รายบรรทัด",
       sheetName: "รายบรรทัด",
       columns: cols,
-
-      fetch: function (done, fail) {
-        var payload = {
-          action: "export_lines",
-          doc_type: TYPE,
-          status: el("filterStatus") ? el("filterStatus").value : "",
-          date_from: el("dateFrom") ? el("dateFrom").value : "",
-          date_to: el("dateTo") ? el("dateTo").value : "",
-        };
-        if (el("onlyMine") && el("onlyMine").checked) {
-          payload.mine = true;
-        }
-
-        post(
-          payload,
-          function (res) {
-            done(res.lines || []);
-          },
-          fail,
-        );
-      },
+      fetch: lineExportFetch,
     });
+  }
+
+  /* ดึงข้อมูลรายบรรทัดจากเซิร์ฟเวอร์ พร้อมตัวกรองชุดเดียวกับที่เห็นบนจอ */
+  function lineExportFetch(done, fail) {
+    var payload = {
+      action: "export_lines",
+      doc_type: TYPE,
+      status: el("filterStatus") ? el("filterStatus").value : "",
+      date_from: el("dateFrom") ? el("dateFrom").value : "",
+      date_to: el("dateTo") ? el("dateTo").value : "",
+    };
+    if (el("onlyMine") && el("onlyMine").checked) {
+      payload.mine = true;
+    }
+
+    post(
+      payload,
+      function (res) {
+        done(res.lines || []);
+      },
+      fail,
+    );
   }
 
   function columns() {
