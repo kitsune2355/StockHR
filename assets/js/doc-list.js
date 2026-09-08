@@ -34,13 +34,8 @@
    */
   var INLINE_ROW_ACTS = { open: 1, print: 1, approve: 1, reject: 1, ack: 1 };
 
-  /* แถวสาธิตของคู่มือ:
-   *   request  — ปุ่มเยอะสุด (ถึง 10 อัน) ใช้เมนู ⋮ เหมือนแถวจริง แล้วคู่มือ
-   *              กางเมนูค้างไว้ (openRowMenu แบบ pinned) เพื่อชี้แต่ละคำสั่งได้
-   *   หน้าอื่น — ปุ่มไม่เยอะ กางไอคอนครบทุกอันในแถว (คอลัมน์กว้างขึ้นชั่วคราว)
-   */
-  var DEMO_INLINE_ALL = TYPE !== "request";
-  var DEMO_ACTION_WIDTH = 340;
+  /* แถวสาธิตของคู่มือใช้เมนู ⋮ เหมือนแถวจริง (ทุกหน้า) แล้วคู่มือกางเมนูค้างไว้
+     (openRowMenu แบบ pinned) เพื่อให้ชี้แต่ละคำสั่งในเมนูได้ */
 
   /* เมนู ⋮ ที่ลอยอยู่นอกตาราง (ตารางตั้ง overflow ตัดขอบ จึงต่อ body ไว้)
      pinned = คู่มือกางค้างไว้ ไม่ผูกตัวปิดอัตโนมัติ (เลื่อน/กดนอก/Esc) */
@@ -500,8 +495,8 @@
   }
 
   /* ความกว้างพอสำหรับไอคอนที่โชว์จริงมากสุด (งานหลัก) + ปุ่ม ⋮ อีกหนึ่ง
-       ที่เหลือยุบเข้าเมนู จึงไม่ต้องเผื่อความกว้างให้ครบทุกปุ่มอีก
-       (แถวสาธิตของคู่มือใช้ DEMO_ACTION_WIDTH ต่างหาก ตั้งใน demoSetup) */
+       ที่เหลือยุบเข้าเมนู จึงไม่ต้องเผื่อความกว้างให้ครบทุกปุ่ม
+       แถวสาธิตของคู่มือก็ใช้ค่าเดียวกัน (มี ⋮ เหมือนแถวจริง) */
   function rowActionWidth() {
     if (TYPE === "request" || TYPE === "adjust") {
       return 184;
@@ -552,16 +547,6 @@
     var html = '<span class="rowacts">';
     var i;
 
-    /* แถวสาธิตของหน้าที่ปุ่มไม่เยอะ: โชว์ทุกไอคอนในแถว ไม่ยุบเข้าเมนู
-       (คอลัมน์กว้างขึ้นชั่วคราวตอนเปิดคู่มือ — ดู demoSetup)
-       หน้า request แถวสาธิตใช้เมนู ⋮ เหมือนแถวจริง แล้วคู่มือกางเมนูค้างไว้เอง */
-    if (doc._demo === true && DEMO_INLINE_ALL) {
-      for (i = 0; i < acts.length; i++) {
-        html += rowActBtnHtml(acts[i], doc.doc_id);
-      }
-      return html + "</span>";
-    }
-
     var inline = [];
     var overflow = [];
     for (i = 0; i < acts.length; i++) {
@@ -572,7 +557,7 @@
       }
     }
     /* ล้นแค่ปุ่มเดียว โชว์ในแถวไปเลย ไม่ต้องมีเมนูให้กดเพิ่มอีกชั้น
-       ยกเว้นแถวสาธิตของคู่มือ (request) ที่ต้องมี ⋮ เสมอ ให้คู่มือกางเมนูชี้ได้ */
+       ยกเว้นแถวสาธิตของคู่มือที่ต้องมี ⋮ เสมอ ให้คู่มือกางเมนูชี้แต่ละคำสั่งได้ */
     if (overflow.length === 1 && doc._demo !== true) {
       inline.push(overflow.pop());
     }
@@ -2441,13 +2426,6 @@
     }
     demoOn = true;
 
-    /* หน้าที่แถวสาธิตกางไอคอนครบทุกอัน (ไม่ยุบเข้าเมนู) คอลัมน์จัดการต้องกว้างพอ
-       ระหว่างเปิดคู่มือเท่านั้น คืนค่าเดิมตอน teardown
-       หน้า request ใช้เมนู ⋮ เหมือนแถวจริง ความกว้างเท่าเดิมพอ */
-    if (DEMO_INLINE_ALL) {
-      setActionColWidth(DEMO_ACTION_WIDTH);
-    }
-
     table.addRow(demoRow(), true); // true = บนสุด คู่มือจะได้ชี้แถวแรกเสมอ
     demoBanner(true);
 
@@ -2455,14 +2433,13 @@
       window.renderIcons();
     }
 
-    /* หน้า request: กางเมนู ⋮ ของแถวสาธิตค้างไว้ ให้คู่มือชี้แต่ละคำสั่งในเมนูได้
-       (app-guide.js เรียก buildSteps ทันทีหลัง setup() จึงต้องกางแบบ sync) */
-    if (!DEMO_INLINE_ALL) {
-      var moreBtn = document.querySelector('#grid [data-row-more]');
-      var drow = table.getRow(-1);
-      if (moreBtn && drow) {
-        openRowMenu(moreBtn, drow.getData(), true);
-      }
+    /* กางเมนู ⋮ ของแถวสาธิตค้างไว้ ให้คู่มือชี้แต่ละคำสั่งในเมนูได้
+       (app-guide.js เรียก buildSteps ทันทีหลัง setup() จึงต้องกางแบบ sync)
+       ถ้าแถวสาธิตไม่มีคำสั่งที่ต้องยุบเลย ก็ไม่มีปุ่ม ⋮ — ข้ามไป */
+    var moreBtn = document.querySelector('#grid [data-row-more]');
+    var drow = table.getRow(-1);
+    if (moreBtn && drow) {
+      openRowMenu(moreBtn, drow.getData(), true);
     }
 
     return true;
@@ -2481,24 +2458,7 @@
       row.delete();
     }
 
-    if (DEMO_INLINE_ALL) {
-      setActionColWidth(rowActionWidth());
-    }
     demoBanner(false);
-  }
-
-  function setActionColWidth(w) {
-    if (!table) {
-      return;
-    }
-    try {
-      var col = table.getColumn("_open");
-      if (col) {
-        col.setWidth(w);
-      }
-    } catch (e) {
-      /* ตารางยังไม่พร้อม/ไม่มีคอลัมน์ ไม่ใช่เรื่องคอขาดบาดตาย */
-    }
   }
 
   function demoBanner(on) {
