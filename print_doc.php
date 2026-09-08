@@ -55,6 +55,7 @@ require_once dirname(__FILE__) . '/backend/thai_date.php';
 require_once dirname(__FILE__) . '/backend/document.php';
 require_once dirname(__FILE__) . '/backend/user.php';
 require_once dirname(__FILE__) . '/backend/company_logo.php';
+require_once dirname(__FILE__) . '/backend/adjust.php';
 
 $doc = doc_find($doc_id);
 
@@ -131,10 +132,18 @@ if ($deny === '') {
        ต้องเขียนกำกับไว้ ไม่งั้นฝ่ายบัญชีจะเอาตัวเลขนี้ไปใช้เป็นยอดจริง */
     $is_estimate = ($doc['doc_type'] === 'request');
 
+    /* ใบปรับยอด: คอลัมน์คนละชุด (ยอดเดิม/นับได้/ส่วนต่าง) ไม่มีราคา ไม่มีหมายเหตุแบบฟอร์มการเบิก */
+    $is_adjust = ($doc['doc_type'] === 'adjust');
+    $adj_lines = $is_adjust ? adjust_doc_lines($doc) : array();
+    $adj_diff_total = 0;
+    for ($i = 0; $i < count($adj_lines); $i++) { $adj_diff_total += $adj_lines[$i]['diff']; }
+    $maker_name = $is_adjust ? pd_full_name($doc['created_by']) : '';
+
     $title_map = array(
         'request' => 'ใบเบิกวัสดุ',
         'issue'   => 'ใบจ่ายวัสดุ',
-        'receive' => 'ใบรับวัสดุเข้าคลัง'
+        'receive' => 'ใบรับวัสดุเข้าคลัง',
+        'adjust'  => 'ใบปรับยอดสินค้า'
     );
     $paper_title = isset($title_map[$doc['doc_type']]) ? $title_map[$doc['doc_type']] : $doc['doc_type_label'];
 }
@@ -340,6 +349,25 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
 
   <!-- ============ ข้อมูลหัวเอกสาร ============ -->
   <div class="meta">
+    <?php if ($is_adjust): ?>
+
+    <div><b>ผู้บันทึก:</b> <span><?php echo pd_esc($maker_name !== '' ? $maker_name : $doc['created_by']); ?></span></div>
+    <div><b>สถานะ:</b> <span><?php echo pd_esc($doc['status_label']); ?></span></div>
+
+    <?php if ($doc['approved_by'] !== ''): ?>
+    <div><b>ผู้อนุมัติ:</b> <span><?php echo pd_esc($approver_name); ?> <?php echo pd_esc(thai_date_time($doc['approved_at'], '')); ?></span></div>
+    <?php endif; ?>
+
+    <?php if (trim($doc['note']) !== ''): ?>
+    <div style="min-width:100%"><b>เหตุผลการปรับยอด:</b> <span><?php echo pd_esc($doc['note']); ?></span></div>
+    <?php endif; ?>
+
+    <?php if (trim($doc['cancel_note']) !== ''): ?>
+    <div style="min-width:100%"><b>เหตุผลที่ยกเลิก:</b> <span><?php echo pd_esc($doc['cancel_note']); ?></span></div>
+    <?php endif; ?>
+
+    <?php else: ?>
+
     <div><b>ผู้ขอเบิก:</b> <span><?php echo pd_esc($doc['requester_name'] !== '' ? $doc['requester_name'] : $doc['requester']); ?></span></div>
     <div><b>สถานะ:</b> <span><?php echo pd_esc($doc['status_label']); ?></span></div>
 
@@ -354,9 +382,62 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
     <?php if (trim($doc['note']) !== ''): ?>
     <div style="min-width:100%"><b>หมายเหตุผู้ขอ:</b> <span><?php echo pd_esc($doc['note']); ?></span></div>
     <?php endif; ?>
+
+    <?php endif; ?>
   </div>
 
   <!-- ============ รายการวัสดุ ============ -->
+  <?php if ($is_adjust): ?>
+
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:34px">ที่</th>
+        <th style="width:92px">รหัส</th>
+        <th>รายการ</th>
+        <th style="width:56px">หน่วย</th>
+        <th style="width:72px">ยอดเดิม</th>
+        <th style="width:78px">นับได้จริง</th>
+        <th style="width:72px">ส่วนต่าง</th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php for ($i = 0; $i < count($adj_lines); $i++): $ln = $adj_lines[$i]; ?>
+      <tr>
+        <td class="c"><?php echo ($i + 1); ?></td>
+        <td class="code"><?php echo pd_esc($ln['product_code']); ?></td>
+        <td>
+          <?php echo pd_esc($ln['product_name']); ?>
+          <?php if (trim($ln['note']) !== ''): ?>
+          <div style="font-size:11px;color:#6b7280"><?php echo pd_esc($ln['note']); ?></div>
+          <?php endif; ?>
+        </td>
+        <td class="c"><?php echo pd_esc($ln['unit_name']); ?></td>
+        <td class="r"><?php echo pd_qty($ln['before']); ?></td>
+        <td class="r"><?php echo pd_qty($ln['counted']); ?></td>
+        <td class="r"><?php echo ($ln['diff'] > 0 ? '+' : '') . pd_qty($ln['diff']); ?></td>
+      </tr>
+      <?php endfor; ?>
+
+      <?php $blank = 8 - count($adj_lines); for ($i = 0; $i < $blank; $i++): ?>
+      <tr><td class="c">&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <?php endfor; ?>
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="6" style="text-align:right">ส่วนต่างรวม</td>
+        <td class="r"><?php echo ($adj_diff_total > 0 ? '+' : '') . pd_qty($adj_diff_total); ?></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <p class="estimate">
+    * "ยอดเดิม" คือยอดคงเหลือในระบบ ณ เวลาที่<?php echo ($doc['status'] === 'approved') ? 'อนุมัติ' : 'พิมพ์'; ?>ใบนี้
+    &nbsp; "นับได้จริง" คือจำนวนที่ตรวจนับได้ &nbsp; ยอดคงเหลือจะถูกปรับให้เท่ากับ "นับได้จริง" เมื่อใบนี้ได้รับอนุมัติ
+  </p>
+
+  <?php else: ?>
+
   <table class="items">
     <thead>
       <tr>
@@ -409,6 +490,8 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
     </tfoot>
   </table>
 
+  <?php endif; /* /!$is_adjust */ ?>
+
   <?php if ($is_estimate): ?>
   <p class="estimate">
     * ราคาต่อหน่วยเป็นราคาซื้อล่าสุดของสินค้า ณ วันที่พิมพ์ ใช้ประกอบการพิจารณาเท่านั้น
@@ -417,8 +500,8 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
   <?php endif; ?>
 
   <!-- ============ หมายเหตุประจำแบบฟอร์ม ============
-       ข้อความชุดนี้เป็นเงื่อนไขการเบิกที่ฝ่ายธุรการกำหนด ต้องติดไปกับใบเบิกทุกใบ
-       ผู้เบิกจะได้รู้รอบส่งใบและวันรับของโดยไม่ต้องโทรถาม -->
+       ข้อความชุดนี้เป็นเงื่อนไขการเบิกที่ฝ่ายธุรการกำหนด — ไม่เกี่ยวกับใบปรับยอด -->
+  <?php if (!$is_adjust): ?>
   <div class="notes">
     <div class="notes-h">หมายเหตุ:</div>
     <ol>
@@ -427,6 +510,7 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
       <li>สำนักงานใหญ่, สำนักงานสุขสวัสดิ์ เบิกของทุกวันอังคาร, วันพฤหัสบดี เวลา 12.00 - 16.00 น.</li>
     </ol>
   </div>
+  <?php endif; ?>
 
   <!-- ============ ช่องลงนาม ============
        สามช่องแรกไม่มีลายเซ็นในระบบ จึงพิมพ์ชื่อ-นามสกุลเป็นสีน้ำเงินตัวหนา
@@ -459,20 +543,32 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
         <?php
     }
 
-    pd_sign_box('ผู้ขอเบิก', $doc['requester_name'],
-                pd_esc(thai_date_long($doc['doc_date'])), '');
+    if ($is_adjust) {
 
-    pd_sign_box('ผู้อนุมัติ', $approver_name,
-                $doc['approved_at'] !== '' ? pd_esc(thai_date_long($doc['approved_at'])) : '............', '');
+        /* ใบปรับยอดมีสองฝ่าย: คนตรวจนับ/บันทึก กับคนอนุมัติ */
+        pd_sign_box('ผู้บันทึก / ผู้ตรวจนับ', $maker_name,
+                    pd_esc(thai_date_long($doc['doc_date'])), '');
 
-    pd_sign_box('ผู้จ่ายของ', $issuer_name,
-                ($issuer_name !== '' && $doc['doc_date'] !== '') ? pd_esc(thai_date_long($doc['doc_date'])) : '............', '');
+        pd_sign_box('ผู้อนุมัติ', $approver_name,
+                    $doc['approved_at'] !== '' ? pd_esc(thai_date_long($doc['approved_at'])) : '............', '');
 
-    /* ผู้รับของเป็นช่องเดียวที่มีลายเซ็นจริง — วาดไว้ตอนกดเซ็นรับ
-       ใบที่เซ็นก่อนระบบมีฟีเจอร์นี้ หรือยังไม่ได้เซ็น จะตกไปใช้ชื่อสีน้ำเงินเหมือนช่องอื่น */
-    pd_sign_box('ผู้รับของ', $doc['receiver_name'],
-                $doc['received_at'] !== '' ? pd_esc(thai_date_long($doc['received_at'])) : '............',
-                $receiver_sign);
+    } else {
+
+        pd_sign_box('ผู้ขอเบิก', $doc['requester_name'],
+                    pd_esc(thai_date_long($doc['doc_date'])), '');
+
+        pd_sign_box('ผู้อนุมัติ', $approver_name,
+                    $doc['approved_at'] !== '' ? pd_esc(thai_date_long($doc['approved_at'])) : '............', '');
+
+        pd_sign_box('ผู้จ่ายของ', $issuer_name,
+                    ($issuer_name !== '' && $doc['doc_date'] !== '') ? pd_esc(thai_date_long($doc['doc_date'])) : '............', '');
+
+        /* ผู้รับของเป็นช่องเดียวที่มีลายเซ็นจริง — วาดไว้ตอนกดเซ็นรับ
+           ใบที่เซ็นก่อนระบบมีฟีเจอร์นี้ หรือยังไม่ได้เซ็น จะตกไปใช้ชื่อสีน้ำเงินเหมือนช่องอื่น */
+        pd_sign_box('ผู้รับของ', $doc['receiver_name'],
+                    $doc['received_at'] !== '' ? pd_esc(thai_date_long($doc['received_at'])) : '............',
+                    $receiver_sign);
+    }
     ?>
   </div>
 

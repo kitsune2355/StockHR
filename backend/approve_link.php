@@ -89,7 +89,7 @@ function approve_token_make($doc_id, $username)
 
 
 /* ---------- ใบนี้ยังออกลิงก์อนุมัติได้ไหม ----------
- * คืน true เฉพาะใบเบิกที่สถานะยังเป็น waiting
+ * คืน true เฉพาะใบเบิก/ใบปรับยอดที่สถานะยังเป็น waiting
  * ใบที่ตัดสินไปแล้วออกลิงก์ไม่ได้ เพราะลิงก์ที่กดแล้วไม่เกิดอะไรขึ้น
  * แย่กว่าไม่มีลิงก์ให้ — คนกดจะไม่รู้ว่าตกลงอนุมัติไปหรือยัง
  */
@@ -98,7 +98,7 @@ function approve_link_doc_ok($doc_id)
     $connect = db_connect();
     $stmt = approve_link_prepare($connect,
         "SELECT 1 FROM `tb_doc_header`
-          WHERE `doc_id` = ? AND `doc_type` = 'request' AND `status` = 'waiting'
+          WHERE `doc_id` = ? AND `doc_type` IN ('request','adjust') AND `status` = 'waiting'
           LIMIT 1");
     if (!$stmt) { return false; }
 
@@ -341,11 +341,26 @@ function approve_link_all($doc_id, $actor = null)
     require_once dirname(__FILE__) . '/user.php';
 
     $doc = doc_find($doc_id);
-    if ($doc === null || $doc['doc_type'] !== 'request') { return array(); }
+    if ($doc === null) { return array(); }
 
     /* ผู้รับลิงก์ต้องเป็นชุดเดียวกับผู้รับเมล ไม่งั้นจะมีคนได้ลิงก์
        ทั้งที่ไม่เคยได้เมล หรือกลับกัน */
-    $people = user_approvers_for_dept($doc['department_id'], $doc['requester']);
+    if ($doc['doc_type'] === 'adjust') {
+        require_once dirname(__FILE__) . '/adjust_approver.php';
+        $names  = adjust_approver_usernames();
+        $people = array();
+        for ($i = 0; $i < count($names); $i++) {
+            if ($names[$i] === $doc['created_by']) { continue; }   // ห้ามอนุมัติใบตัวเอง
+            $u = user_find($names[$i]);
+            if ($u !== null && (int)$u['is_active'] === 1) {
+                $people[] = array('username' => $u['username'], 'full_name' => $u['full_name']);
+            }
+        }
+    } elseif ($doc['doc_type'] === 'request') {
+        $people = user_approvers_for_dept($doc['department_id'], $doc['requester']);
+    } else {
+        return array();
+    }
 
     $out = array();
     for ($i = 0; $i < count($people); $i++) {

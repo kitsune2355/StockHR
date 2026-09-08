@@ -321,10 +321,32 @@
       }
     }
 
+    if (doc.doc_type === "adjust") {
+      /* อนุมัติได้เมื่อ: รออนุมัติ + เป็นผู้อนุมัติใบปรับยอด + ไม่ใช่ใบที่ตัวเองสร้าง */
+      if (
+        doc.status === "waiting" &&
+        CFG.adjustApprover === true &&
+        doc.created_by !== ME
+      ) {
+        out.push({ key: "approve", label: "อนุมัติ", icon: "check", tone: "ok" });
+        out.push({ key: "reject", label: "ไม่อนุมัติ", icon: "x", tone: "bad" });
+      }
+      /* ยกเลิก: ผู้ดูแลระบบ ทั้งใบที่ยังรอ และใบที่อนุมัติไปแล้ว (จะถอนยอดคืนให้) */
+      if ((doc.status === "waiting" || doc.status === "approved") && isManager()) {
+        out.push({
+          key: "cancel",
+          label: "ยกเลิกใบปรับยอด",
+          icon: "ban",
+          tone: "bad",
+        });
+      }
+    }
+
     /* ---------- ส่งอีเมลซ้ำ ----------
      * เฉพาะผู้ดูแลระบบ และเฉพาะเอกสารที่มีปลายทางให้ส่งจริง
      * ใบรับเข้าไม่มีใครต้องรับแจ้งเตือน จึงไม่มีปุ่มนี้
-     * ใบเบิกที่จ่ายครบแล้วก็ไม่มี เพราะเรื่องย้ายไปอยู่ที่ใบจ่ายแล้ว */
+     * ใบเบิกที่จ่ายครบแล้วก็ไม่มี เพราะเรื่องย้ายไปอยู่ที่ใบจ่ายแล้ว
+     * ใบปรับยอดที่ยังรออนุมัติ = ส่งลิงก์อนุมัติชุดใหม่ให้ผู้อนุมัติ */
     if (
       isManager() &&
       doc.doc_type !== "receive" &&
@@ -395,12 +417,23 @@
      * ต่างกันตรงที่ลิงก์อนุมัติออกให้เป็นรายคน กล่องจึงมีหลายลิงก์ให้เลือกส่ง
      * ส่วนลิงก์เซ็นรับมีอันเดียวต่อใบ แต่ใช้กล่องหน้าตาเดียวกัน
      */
-    if (doc.doc_type === "request" && doc.status === "waiting" && isManager()) {
+    if (
+      (doc.doc_type === "request" || doc.doc_type === "adjust") &&
+      doc.status === "waiting" &&
+      isManager()
+    ) {
       out.push({
         key: "approvelink",
         icon: "link",
         tone: "ghost",
-        label: "ลิงก์อนุมัติ",
+        label: "คัดลอกลิงก์อนุมัติ",
+      });
+      /* เปิดลิงก์อนุมัติในแท็บใหม่ทันที (มีผู้อนุมัติคนเดียว = เปิดเลย, หลายคน = ให้เลือกก่อน) */
+      out.push({
+        key: "openapprovelink",
+        icon: "external-link",
+        tone: "ghost",
+        label: "เปิดลิงก์อนุมัติ",
       });
     }
 
@@ -423,6 +456,9 @@
     if (TYPE === "request") {
       return 232;
     } // ดู พิมพ์ ลิงก์ อนุมัติ ไม่อนุมัติ ยกเลิก เมล
+    if (TYPE === "adjust") {
+      return 264;
+    } // ดู พิมพ์ คัดลอกลิงก์ เปิดลิงก์ อนุมัติ ไม่อนุมัติ ยกเลิก เมล
     return 100; // ใบรับเข้า: ดู พิมพ์ ยกเลิก
   }
 
@@ -578,7 +614,7 @@
     cols.push({ key: "unit_name", label: "หน่วย" });
     cols.push({ key: "unit_cost", label: "ราคา/หน่วย" });
     cols.push({ key: "amount", label: "เป็นเงิน" });
-    cols.push({ key: "item_note", label: "หมายเหตุบรรทัด" });
+    cols.push({ key: "item_note", label: "หมายเหตุ" });
     cols.push({ key: "doc_note", label: "หมายเหตุเอกสาร" });
 
     window.GridExport.rows({
@@ -905,6 +941,53 @@
     );
   }
 
+  /* ตารางรายการของใบปรับยอด — ยอดเดิม / นับได้จริง / ส่วนต่าง
+     ใบที่อนุมัติแล้วใช้ค่าที่แช่แข็งไว้ตอนอนุมัติ ใบที่ยังรอใช้ยอดคงเหลือปัจจุบัน */
+  function renderAdjustItems(doc) {
+    var lines = doc.adjust_lines || [];
+    var rows = "";
+    var sumDiff = 0;
+
+    for (var i = 0; i < lines.length; i++) {
+      var ln = lines[i];
+      var diff = Number(ln.diff) || 0;
+      sumDiff += diff;
+
+      var diffCell =
+        Math.abs(diff) < 0.005
+          ? '<span class="grid-empty">0</span>'
+          : '<b style="color:' +
+            (diff > 0 ? "#059669" : "#dc2626") +
+            '">' +
+            (diff > 0 ? "+" : "") +
+            fmt(diff) +
+            "</b>";
+
+      rows +=
+        "<tr>" +
+        '<td class="num">' + (i + 1) + "</td>" +
+        '<td><span class="grid-user">' + escapeHtml(ln.product_code) + "</span><br>" +
+        '<span class="doc-pname">' + escapeHtml(ln.product_name) + "</span></td>" +
+        "<td>" + escapeHtml(ln.unit_name || "") + "</td>" +
+        '<td class="num">' + fmt(ln.before) + "</td>" +
+        '<td class="num"><b>' + fmt(ln.counted) + "</b></td>" +
+        '<td class="num">' + diffCell + "</td>" +
+        "<td>" +
+        (ln.note ? escapeHtml(ln.note) : '<span class="grid-empty">—</span>') +
+        "</td>" +
+        "</tr>";
+    }
+
+    var head =
+      '<tr><th>#</th><th>สินค้า</th><th>หน่วย</th>' +
+      '<th class="num">ยอดเดิม</th><th class="num">นับได้จริง</th>' +
+      '<th class="num">ส่วนต่าง</th><th>หมายเหตุ</th></tr>';
+
+    el("docItems").innerHTML =
+      "<thead>" + head + "</thead><tbody>" + rows + "</tbody>";
+    el("docTotal").textContent = (sumDiff > 0 ? "+" : "") + fmt(sumDiff);
+  }
+
   function renderDetail(doc) {
     el("docTitle").textContent = doc.doc_type_label + " " + doc.doc_no;
     el("docStatus").innerHTML = statusPill(doc.status, doc.status_label);
@@ -949,6 +1032,10 @@
      * (ยอดค้างจ่ายยังดูได้จากหน้าทำใบจ่าย ซึ่งเป็นที่ที่ต้องใช้จริง)
      * ส่วนใบรับเข้ากับใบจ่ายยังแสดงครบเหมือนเดิม
      */
+    if (doc.doc_type === "adjust" && doc.adjust_lines) {
+      renderAdjustItems(doc);
+    } else {
+
     var slim = doc.doc_type === "request";
 
     /* ---------- ราคาต่อหน่วย : เฉพาะใบรับเข้า ----------
@@ -1059,6 +1146,8 @@
     el("docItems").innerHTML =
       "<thead>" + head + "</thead><tbody>" + rows + "</tbody>" + foot;
     el("docTotal").textContent = fmt(total);
+
+    } /* /else (ไม่ใช่ใบปรับยอด) */
 
     /* ---------- ปุ่มทำงาน ----------
      * ปุ่มพิมพ์อยู่นอกรายการ actionsFor() เพราะเปิดหน้าใหม่ ไม่ได้เปลี่ยนสถานะเอกสาร
@@ -1184,6 +1273,10 @@
         approveLink(doc);
         return;
       }
+      if (key === "openapprovelink") {
+        openApproveLink(doc);
+        return;
+      }
 
       openDoc = doc;
       runAction(key);
@@ -1245,7 +1338,50 @@
         doc_id: doc.doc_id,
       },
       function (res) {
-        showApproveLinks(doc, res.links, res.days);
+        var links = (res && res.links) || [];
+
+        /* ใบปรับยอดที่มีผู้อนุมัติคนเดียว = คัดลอกลิงก์ให้เลย ไม่ต้องเปิดกล่อง
+           (ใบเบิกกับใบที่มีผู้อนุมัติหลายคน ยังต้องเปิดกล่องเลือกชื่อก่อนเสมอ
+            เพราะลิงก์ออกรายคน ส่งผิดคน = คนนั้นตัดสินใบนี้ในนามคนที่ลิงก์ออกให้) */
+        if (doc.doc_type === "adjust" && links.length === 1) {
+          copyToClipboard(links[0].url, function (copied) {
+            if (copied) {
+              ok(
+                "คัดลอกลิงก์อนุมัติ (สำหรับ " +
+                  (links[0].full_name || links[0].username) +
+                  ") แล้ว",
+              );
+            } else {
+              showApproveLinks(doc, links, res.days);
+            }
+          });
+          return;
+        }
+
+        showApproveLinks(doc, links, res.days);
+      },
+      bad,
+    );
+  }
+
+  /* เปิดลิงก์อนุมัติในแท็บใหม่ทันที
+   * ผู้อนุมัติคนเดียว = เปิดของคนนั้นเลย
+   * หลายคน = เปิดกล่องให้เลือกก่อน (แต่ละแถวมีปุ่ม "เปิด" อยู่แล้ว) เพราะลิงก์
+   *          ออกให้เป็นรายคน เปิดผิดคน = คนนั้นตัดสินใบนี้ในนามคนที่ลิงก์ออกให้ */
+  function openApproveLink(doc) {
+    post(
+      {
+        action: "approve_link",
+        csrf_token: CFG.csrfToken,
+        doc_id: doc.doc_id,
+      },
+      function (res) {
+        var links = (res && res.links) || [];
+        if (links.length === 1) {
+          window.open(links[0].url, "_blank", "noopener");
+        } else {
+          showApproveLinks(doc, links, res.days);
+        }
       },
       bad,
     );
@@ -1324,6 +1460,12 @@
       ' value="' +
       safe +
       '" onclick="this.select()">' +
+      '<a class="ack-open" href="' +
+      safe +
+      '" target="_blank" rel="noopener"' +
+      ' title="เปิดลิงก์ในแท็บใหม่" aria-label="เปิดลิงก์">' +
+      '<i data-lucide="external-link" class="h-4 w-4" aria-hidden="true"></i>' +
+      "</a>" +
       '<button type="button" class="ack-copy" data-url="' +
       safe +
       '"' +
@@ -1484,15 +1626,20 @@
   /* ---------- อนุมัติ / ไม่อนุมัติ ---------- */
   function decide(decision) {
     var isNo = decision === "rejected";
+    var isAdjust = openDoc.doc_type === "adjust";
+    var noun = isAdjust ? "ใบปรับยอด" : "ใบเบิก";
 
     askReason(
       {
-        title: isNo
-          ? "ไม่อนุมัติใบเบิก " + openDoc.doc_no
-          : "อนุมัติใบเบิก " + openDoc.doc_no,
+        title:
+          (isNo ? "ไม่อนุมัติ" : "อนุมัติ") + noun + " " + openDoc.doc_no,
         text: isNo
-          ? "ระบุเหตุผล เพื่อให้ผู้ขอเบิกรู้ว่าต้องแก้อะไร"
-          : "อนุมัติแล้วคลังจะทำใบจ่ายตามใบนี้ได้ (ยังไม่ตัดสต๊อกตอนนี้)",
+          ? isAdjust
+            ? "ระบุเหตุผลที่ไม่อนุมัติ ยอดคงเหลือจะไม่เปลี่ยน"
+            : "ระบุเหตุผล เพื่อให้ผู้ขอเบิกรู้ว่าต้องแก้อะไร"
+          : isAdjust
+            ? "อนุมัติแล้วยอดคงเหลือจะถูกปรับให้ตรงกับที่นับทันที และย้อนกลับได้ด้วยการยกเลิกใบเท่านั้น"
+            : "อนุมัติแล้วคลังจะทำใบจ่ายตามใบนี้ได้ (ยังไม่ตัดสต๊อกตอนนี้)",
         required: isNo,
         danger: isNo,
         confirm: isNo ? "ยืนยันไม่อนุมัติ" : "ยืนยันอนุมัติ",
@@ -1635,6 +1782,8 @@
         "ยอดที่รับเข้าไปจะถูกดึงออกจากสต๊อก ถ้าของถูกเบิกไปแล้วจะยกเลิกไม่ได้",
       request: "ใบเบิกนี้จะถูกปิด ผู้ขอต้องทำใบใหม่ถ้ายังต้องการของ",
       issue: "ของจะถูกคืนเข้าสต๊อก และยอดค้างจ่ายจะกลับไปที่ใบเบิก",
+      adjust:
+        "ถ้าใบนี้อนุมัติไปแล้ว ยอดที่ปรับจะถูกถอนคืนออกจากสต๊อก (ถ้าของถูกเบิก/จ่ายไปหลังจากนั้นจะยกเลิกไม่ได้)",
     }[openDoc.doc_type];
 
     askReason(
@@ -1840,8 +1989,12 @@
       _demo: true,
       doc_type: TYPE,
       doc_type_label:
-        { receive: "ใบรับเข้า", request: "ใบเบิก", issue: "ใบจ่าย" }[TYPE] ||
-        "เอกสาร",
+        {
+          receive: "ใบรับเข้า",
+          request: "ใบเบิก",
+          issue: "ใบจ่าย",
+          adjust: "ใบปรับยอดสินค้า",
+        }[TYPE] || "เอกสาร",
       doc_no: "ตัวอย่าง-0000",
       doc_date: today,
       department_id: 0,
@@ -1870,13 +2023,17 @@
            ใบเบิก: รออนุมัติ = มีอนุมัติ/ไม่อนุมัติ/ยกเลิก/เมล
            ใบจ่าย: จ่ายแล้ว  = มีลิงก์เซ็นรับ/เปิดหน้าเซ็น/เซ็นรับ/ยกเลิก/เมล
            ใบรับเข้า: รับของแล้ว = มียกเลิก */
-    base.status = { receive: "received", request: "waiting", issue: "issued" }[
-      TYPE
-    ];
+    base.status = {
+      receive: "received",
+      request: "waiting",
+      issue: "issued",
+      adjust: "waiting",
+    }[TYPE];
     base.status_label = {
       receive: "รับของแล้ว",
       request: "รออนุมัติ",
       issue: "จ่ายแล้ว",
+      adjust: "รออนุมัติ",
     }[TYPE];
 
     return base;
@@ -1941,6 +2098,7 @@
       receive: "receive_history",
       request: "request_list",
       issue: "issue_history",
+      adjust: "adjust_history",
     }[TYPE],
     setup: demoSetup,
     teardown: demoTeardown,

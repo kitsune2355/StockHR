@@ -441,6 +441,60 @@ function stock_apply($product_id, $delta, $move_type, $doc, $actor, $note = '', 
 
 
 /* ============================================================
+ *  ตั้งยอดคงเหลือให้เท่ากับตัวเลขที่นับได้จริง (ใช้กับหน้าปรับยอดสินค้า)
+ *
+ *  ต่างจาก stock_apply() ตรงที่รับ "ยอดปลายทาง" ไม่ใช่ผลต่าง
+ *  ผลต่างถูกคิดจากยอดที่ล็อกไว้ ณ วินาทีที่บันทึก ไม่ใช่ยอดตอนเปิดฟอร์ม
+ *  ระหว่างที่ผู้ใช้กรอกใบตรวจนับอยู่ อาจมีคนรับเข้า/จ่ายออกสินค้าตัวเดียวกันไปก่อน
+ *  ถ้าคิดผลต่างจากยอดตอนเปิดฟอร์ม ยอดสุดท้ายจะไม่ตรงกับที่นับมา
+ *
+ *  ยอดตรงกับระบบอยู่แล้ว = ไม่เขียนอะไร คืน skipped = true
+ *  (ไม่นับเป็นข้อผิดพลาด ใบตรวจนับส่วนใหญ่มีหลายบรรทัดที่ยอดตรงพอดี)
+ *
+ *  ต้องเรียกอยู่ใน transaction ที่ผู้เรียกเปิดไว้แล้วเท่านั้น เหมือน stock_apply()
+ * ============================================================ */
+function stock_set($product_id, $target_qty, $move_type, $doc, $actor, $note = '', $unit_cost = null)
+{
+    $connect    = db_connect();
+    $product_id = (int)$product_id;
+    $target     = (float)$target_qty;
+
+    if ($target < 0) {
+        return db_fail('ยอดนับจริงติดลบไม่ได้');
+    }
+
+    /* ล็อกแถวยอดคงเหลือก่อนอ่าน — critical section เดียวกับตอนเขียนใน stock_apply()
+       การล็อกซ้ำแถวเดิมใน transaction เดียวกันของ InnoDB ทำได้ ไม่ค้าง */
+    $stmt = mysqli_prepare($connect,
+        "SELECT `qty` FROM `tb_stock_balance` WHERE `product_id` = ? FOR UPDATE");
+    if (!$stmt) { return db_fail('อ่านยอดคงเหลือไม่สำเร็จ'); }
+
+    mysqli_stmt_bind_param($stmt, 'i', $product_id);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $current);
+    $found = mysqli_stmt_fetch($stmt);
+    mysqli_stmt_close($stmt);
+
+    $current = $found ? (float)$current : 0.0;
+    $delta   = $target - $current;
+
+    /* กันปัญหาปัดเศษของ DECIMAL(12,2) — ต่างกันไม่ถึงครึ่งหน่วยย่อย ถือว่าตรงกัน */
+    if ($delta > -0.005 && $delta < 0.005) {
+        $res = db_ok('ยอดตรงกับระบบอยู่แล้ว');
+        $res['skipped'] = true;
+        $res['qty']     = $current;
+        $res['before']  = $current;
+        return $res;
+    }
+
+    $res = stock_apply($product_id, $delta, $move_type, $doc, $actor, $note, $unit_cost);
+    $res['skipped'] = false;
+    $res['before']  = $current;
+    return $res;
+}
+
+
+/* ============================================================
  *  ประวัติความเคลื่อนไหว (รายงาน)
  *
  *  $options

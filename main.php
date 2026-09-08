@@ -90,10 +90,16 @@ if (!isset($routes[$requested])) {
  */
 require_once dirname(__FILE__) . '/backend/request.php';
 require_once dirname(__FILE__) . '/backend/issue.php';
+require_once dirname(__FILE__) . '/backend/adjust.php';
 
 if (in_array($sess_role, array('super_admin', 'admin', 'approver'))) {
     app_set_badge('request_list', request_waiting_count($sess_username, $sess_role), 'amber');
     app_set_badge('report_low',   stock_low_count(),       'red');
+}
+
+/* ใบปรับยอดที่รออนุมัติ — เห็นเฉพาะคนที่อนุมัติได้ (ผู้ดูแลระบบ หรือคนในรายชื่อผู้อนุมัติ) */
+if (adjust_approver_can($sess_username, $sess_role)) {
+    app_set_badge('adjust_history', adjust_waiting_count(), 'amber');
 }
 
 /* ใบจ่ายที่รอเซ็นรับ นับเฉพาะของตัวเอง — เป็นงานที่คนอื่นทำแทนไม่ได้ */

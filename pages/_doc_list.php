@@ -26,6 +26,7 @@
 if (!isset($sess_username)) { exit('ไม่มีสิทธิ์เข้าถึง'); }
 
 require_once dirname(dirname(__FILE__)) . '/backend/document.php';
+require_once dirname(dirname(__FILE__)) . '/backend/adjust_approver.php';
 
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = md5(uniqid(mt_rand(), true));
@@ -51,7 +52,8 @@ $all_status = doc_statuses();
 $status_of = array(
     'receive' => array('received', 'cancelled'),
     'request' => array('waiting', 'approved', 'rejected', 'issued', 'cancelled'),
-    'issue'   => array('issued', 'received', 'cancelled')
+    'issue'   => array('issued', 'received', 'cancelled'),
+    'adjust'  => array('waiting', 'approved', 'rejected', 'cancelled')
 );
 
 $filter_hint = 'กรองจากเอกสารทั้งหมดของหน้านี้';
@@ -212,6 +214,8 @@ window.DOCLIST = {
     endpoint:   'api/documents.php',
     me:         <?php echo dl_json($sess_username); ?>,
     role:       <?php echo dl_json($sess_role); ?>,
+    /* ใช้เฉพาะ docType='adjust' — คนนี้กดอนุมัติ/ไม่อนุมัติใบปรับยอดได้ไหม */
+    adjustApprover: <?php echo dl_json(adjust_approver_can($sess_username, $sess_role)); ?>,
     exportName: <?php echo dl_json($export_name); ?>,
     /* ใช้กับแถวตัวอย่างของคู่มือ ให้วันที่ตรงกับเซิร์ฟเวอร์ ไม่ใช่นาฬิกาเครื่องผู้ใช้ */
     today:      <?php echo dl_json(date('Y-m-d')); ?>

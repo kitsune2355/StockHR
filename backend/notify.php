@@ -32,6 +32,9 @@ function notify_types()
         'issue_created'      => array('label' => 'จ่ายของแล้ว',       'icon' => 'package-minus',  'tone' => 'brand'),
         'issue_acknowledged' => array('label' => 'เซ็นรับของแล้ว',    'icon' => 'signature',      'tone' => 'green'),
         'issue_cancelled'    => array('label' => 'ยกเลิกใบจ่าย',      'icon' => 'ban',            'tone' => 'slate'),
+        'adjust_waiting'     => array('label' => 'ใบปรับยอดรออนุมัติ', 'icon' => 'scale',          'tone' => 'amber'),
+        'adjust_approved'    => array('label' => 'อนุมัติใบปรับยอดแล้ว', 'icon' => 'circle-check',  'tone' => 'green'),
+        'adjust_rejected'    => array('label' => 'ไม่อนุมัติใบปรับยอด', 'icon' => 'circle-x',       'tone' => 'red'),
         'stock_low'          => array('label' => 'ของใกล้หมด',        'icon' => 'triangle-alert', 'tone' => 'red'),
         'system'             => array('label' => 'ระบบ',              'icon' => 'bell',           'tone' => 'slate')
     );

@@ -376,6 +376,160 @@ function notify_event_request_decided($doc_id, $decision, $reason, $actor)
 }
 
 
+/* ---------- คู่ข้อมูลหัวใบสำหรับใบปรับยอด (ไม่มีหน่วยงาน/ผู้ขอเบิก) ---------- */
+function notify_adjust_pairs($doc, $extra = array())
+{
+    $pairs = array(
+        array('เลขที่เอกสาร',  $doc['doc_no']),
+        array('วันที่ตรวจนับ', thai_date_long($doc['doc_date'])),
+        array('ผู้บันทึก',     $doc['created_by'] !== '' ? $doc['created_by'] : '-')
+    );
+    for ($i = 0; $i < count($extra); $i++) { $pairs[] = $extra[$i]; }
+    if (trim($doc['note']) !== '') {
+        $pairs[] = array('เหตุผล', $doc['note']);
+    }
+    return $pairs;
+}
+
+
+/* ============================================================
+ *  ใบปรับยอด — ยื่นเข้ามารออนุมัติ
+ *  ปลายทาง: คนในรายชื่อผู้อนุมัติ (มีลิงก์อนุมัติในเมลแบบเดียวกับใบเบิก)
+ *
+ *  ยังไม่ได้ตั้งผู้อนุมัติ -> ไม่ส่งอะไรเลย ปล่อยใบค้างเป็น "รออนุมัติ"
+ *  ในหน้าประวัติ ผู้ดูแลระบบเปิดหน้านั้นก็เห็นเอง ไม่ต้องมีเมลกวน
+ * ============================================================ */
+function notify_event_adjust_submitted($doc_id, $actor)
+{
+    require_once dirname(__FILE__) . '/adjust_approver.php';
+    require_once dirname(__FILE__) . '/approve_link.php';   // APPROVE_LINK_DAYS ในเนื้อเมล
+
+    $doc = doc_find($doc_id);
+    if ($doc === null || $doc['doc_type'] !== 'adjust') { return 0; }
+
+    $by      = user_find($actor);
+    $who     = ($by !== null && $by['full_name'] !== '') ? $by['full_name'] : $actor;
+    $summary = notify_items_summary($doc['items']);
+
+    /* ผู้รับ = รายชื่อผู้อนุมัติที่ตั้งไว้ (ตัดคนยื่นออก) */
+    $names  = adjust_approver_usernames();
+    $people = array();
+    for ($i = 0; $i < count($names); $i++) {
+        if ($names[$i] === $actor) { continue; }
+        $p = notify_person($names[$i]);
+        if (count($p) > 0) { $people[] = $p[0]; }
+    }
+
+    /* ยังไม่ได้ตั้งผู้อนุมัติ = ไม่มีใครให้ส่งหา ปล่อยใบค้างไว้ในหน้าประวัติ ไม่ส่งเมล */
+    if (count($people) === 0) { return 0; }
+
+    /* ส่งลิงก์กดอนุมัติได้เลยไม่ต้องล็อกอิน (รายคน) แบบใบเบิก */
+    return notify_deliver($people, array(
+        'type'      => 'adjust_waiting',
+        'title'     => 'ใบปรับยอด ' . $doc['doc_no'] . ' รอคุณอนุมัติ',
+        'message'   => $who . ' ยื่นปรับยอด ' . $summary,
+        'link_page' => 'adjust_history',
+        'doc_id'    => $doc['doc_id'],
+        'actor'     => $actor,
+        'subject'   => '[รออนุมัติ] ใบปรับยอด ' . $doc['doc_no'] . ' จาก ' . $who,
+        'heading'   => 'มีใบปรับยอดรอการอนุมัติ',
+        'button'    => 'เปิดหน้าอนุมัติ',
+        'ref_type'  => 'adjust_waiting',
+        'approve_link' => true,
+        'body_html' =>
+              '<p>' . htmlspecialchars($who, ENT_QUOTES, 'UTF-8')
+            . ' ยื่นใบปรับยอดเข้ามาให้คุณพิจารณา '
+            . 'กดปุ่มด้านล่างเพื่ออนุมัติหรือไม่อนุมัติได้เลย ไม่ต้องเข้าสู่ระบบ '
+            . 'ยอดคงเหลือจะเปลี่ยนก็ต่อเมื่อได้รับอนุมัติ</p>'
+            . mail_detail_table(notify_adjust_pairs($doc))
+            . notify_adjust_lines_html($doc)
+            . '<p style="font-size:13px;color:#94a3b8;margin-top:16px">'
+            . 'ลิงก์นี้ใช้ได้ครั้งเดียวและหมดอายุใน ' . (int)APPROVE_LINK_DAYS . ' วัน '
+            . 'กรุณาอย่าส่งต่อให้ผู้อื่น เพราะผู้ที่ถือลิงก์จะตัดสินใบนี้ในนามของคุณได้</p>'
+    ));
+}
+
+
+/* ---------- ตารางบรรทัดของใบปรับยอดสำหรับเนื้อเมล — ยอดเดิม / นับได้ / ส่วนต่าง ---------- */
+function notify_adjust_lines_html($doc)
+{
+    require_once dirname(__FILE__) . '/adjust.php';
+    $lines = adjust_doc_lines($doc);
+    if (count($lines) === 0) { return ''; }
+
+    $th = 'style="padding:7px 8px;background:#f1f5f9;color:#475569;font-weight:600;border-bottom:1px solid #e2e8f0"';
+    $td = 'style="padding:6px 8px;border-bottom:1px solid #f1f5f9;font-size:14px"';
+
+    $html = '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
+          . 'style="width:100%;margin:14px 0 4px;font-size:14px;border-collapse:collapse">'
+          . '<tr><th align="left" ' . $th . '>รายการ</th>'
+          . '<th align="right" ' . $th . '>ยอดเดิม</th>'
+          . '<th align="right" ' . $th . '>นับได้จริง</th>'
+          . '<th align="right" ' . $th . '>ส่วนต่าง</th></tr>';
+
+    for ($i = 0; $i < count($lines); $i++) {
+        $ln   = $lines[$i];
+        $diff = (float)$ln['diff'];
+        $sign = ($diff > 0) ? '+' : '';
+        $col  = ($diff > 0) ? '#059669' : (($diff < 0) ? '#dc2626' : '#64748b');
+        $html .= '<tr>'
+              . '<td ' . $td . '>' . htmlspecialchars($ln['product_name'], ENT_QUOTES, 'UTF-8')
+              . ' <span style="color:#94a3b8">' . htmlspecialchars($ln['product_code'], ENT_QUOTES, 'UTF-8') . '</span></td>'
+              . '<td align="right" ' . $td . '>' . stock_format($ln['before']) . '</td>'
+              . '<td align="right" ' . $td . '>' . stock_format($ln['counted']) . '</td>'
+              . '<td align="right" ' . $td . ' color:' . $col . '"><b style="color:' . $col . '">'
+              . $sign . stock_format($diff) . '</b></td>'
+              . '</tr>';
+    }
+    return $html . '</table>';
+}
+
+
+/* ============================================================
+ *  ใบปรับยอด — ผู้อนุมัติตัดสิน
+ *  ปลายทาง: ผู้สร้างใบ
+ * ============================================================ */
+function notify_event_adjust_decided($doc_id, $decision, $reason, $actor)
+{
+    $doc = doc_find($doc_id);
+    if ($doc === null || $doc['doc_type'] !== 'adjust') { return 0; }
+
+    $people = notify_person($doc['created_by']);
+    if (count($people) === 0) { return 0; }
+
+    $approver = user_find($actor);
+    $by       = ($approver !== null && $approver['full_name'] !== '') ? $approver['full_name'] : $actor;
+    $approved = ($decision === 'approved');
+
+    $extra = array(array('ผู้ตัดสิน', $by));
+    if (trim($reason) !== '') {
+        $extra[] = array($approved ? 'หมายเหตุจากผู้อนุมัติ' : 'เหตุผลที่ไม่อนุมัติ', $reason);
+    }
+
+    $body = $approved
+          ? '<p>ใบปรับยอดของคุณได้รับอนุมัติแล้ว ยอดคงเหลือถูกปรับตามที่นับไว้เรียบร้อย</p>'
+          : '<p>ใบปรับยอดของคุณไม่ได้รับอนุมัติ ยอดคงเหลือไม่เปลี่ยน กรุณาดูเหตุผลด้านล่าง แล้วทำใบใหม่ได้</p>';
+
+    return notify_deliver($people, array(
+        'type'      => $approved ? 'adjust_approved' : 'adjust_rejected',
+        'title'     => ($approved ? 'อนุมัติใบปรับยอด ' : 'ไม่อนุมัติใบปรับยอด ') . $doc['doc_no'],
+        'message'   => $approved
+                       ? 'ผู้อนุมัติเห็นชอบแล้ว ยอดคงเหลือถูกปรับเรียบร้อย'
+                       : 'เหตุผล: ' . ($reason !== '' ? $reason : 'ไม่ได้ระบุ'),
+        'link_page' => 'adjust_history',
+        'doc_id'    => $doc['doc_id'],
+        'actor'     => $actor,
+        'subject'   => ($approved ? '[อนุมัติแล้ว] ' : '[ไม่อนุมัติ] ') . 'ใบปรับยอด ' . $doc['doc_no'],
+        'heading'   => $approved ? 'ใบปรับยอดได้รับการอนุมัติ' : 'ใบปรับยอดไม่ได้รับการอนุมัติ',
+        'button'    => 'เปิดใบปรับยอด',
+        'ref_type'  => $approved ? 'adjust_approved' : 'adjust_rejected',
+        'body_html' => $body
+                     . mail_detail_table(notify_adjust_pairs($doc, $extra))
+                     . notify_items_html($doc['items'])
+    ));
+}
+
+
 /* ============================================================
  *  เหตุการณ์ที่ 3 — คลังบันทึกจ่ายของ
  *  ปลายทาง: ผู้ขอเบิก (ต้องมาเซ็นรับ)
@@ -468,6 +622,34 @@ function notify_event_doc_cancelled($doc_id, $reason, $actor)
 {
     $doc = doc_find($doc_id);
     if ($doc === null) { return 0; }
+
+    /* ---------- ใบปรับยอด: เตือนผู้สร้างใบ (ถ้าไม่ใช่คนกดยกเลิกเอง) ---------- */
+    if ($doc['doc_type'] === 'adjust') {
+        $people = ($doc['created_by'] !== '' && $doc['created_by'] !== $actor)
+                  ? notify_person($doc['created_by']) : array();
+        if (count($people) === 0) { return 0; }
+
+        return notify_deliver($people, array(
+            'type'      => 'adjust_rejected',
+            'title'     => 'ยกเลิกใบปรับยอด ' . $doc['doc_no'],
+            'message'   => 'เหตุผล: ' . (trim($reason) !== '' ? $reason : 'ไม่ได้ระบุ'),
+            'link_page' => 'adjust_history',
+            'doc_id'    => $doc['doc_id'],
+            'actor'     => $actor,
+            'subject'   => '[ยกเลิก] ใบปรับยอด ' . $doc['doc_no'],
+            'heading'   => 'มีการยกเลิกใบปรับยอด',
+            'button'    => 'เปิดเอกสาร',
+            'ref_type'  => 'adjust_rejected',
+            'body_html' => '<p>ใบปรับยอดที่คุณสร้างไว้ถูกยกเลิก กรุณาดูเหตุผลด้านล่าง</p>'
+                         . mail_detail_table(array(
+                               array('เลขที่เอกสาร', $doc['doc_no']),
+                               array('วันที่ตรวจนับ', thai_date_long($doc['doc_date'])),
+                               array('ผู้ยกเลิก', $actor),
+                               array('เหตุผล', trim($reason) !== '' ? $reason : 'ไม่ได้ระบุ')
+                           ))
+        ));
+    }
+
     if ($doc['doc_type'] !== 'request' && $doc['doc_type'] !== 'issue') { return 0; }
 
     $is_request = ($doc['doc_type'] === 'request');

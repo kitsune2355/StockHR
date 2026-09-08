@@ -31,7 +31,8 @@ function doc_types()
     return array(
         'receive' => array('label' => 'รับสินค้าเข้า', 'prefix' => 'RC'),
         'request' => array('label' => 'ใบเบิกสินค้า',  'prefix' => 'RQ'),
-        'issue'   => array('label' => 'ใบจ่ายสินค้า',  'prefix' => 'IS')
+        'issue'   => array('label' => 'ใบจ่ายสินค้า',  'prefix' => 'IS'),
+        'adjust'  => array('label' => 'ใบปรับยอดสินค้า', 'prefix' => 'ADJ')
     );
 }
 
@@ -406,6 +407,13 @@ function doc_can_read($doc, $actor, $actor_role)
 
     if (in_array($actor_role, array('super_admin', 'admin'))) {
         return true;
+    }
+
+    /* ใบปรับยอดไม่มีหน่วยงานและไม่มีผู้ขอ — ไม่เข้ากติกาหน่วยงานด้านล่าง
+       เปิดให้ผู้ดูแลระบบ (ครอบด้านบนแล้ว) และคนที่อยู่ในรายชื่อผู้อนุมัติที่ตั้งไว้ */
+    if ($doc['doc_type'] === 'adjust') {
+        require_once dirname(__FILE__) . '/adjust_approver.php';
+        return adjust_approver_can($actor, $actor_role);
     }
 
     if ($doc['requester'] !== '' && $doc['requester'] === $actor) {

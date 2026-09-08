@@ -27,6 +27,7 @@ require_once dirname(__FILE__) . '/_bootstrap.php';
 require_once dirname(dirname(__FILE__)) . '/backend/receive.php';
 require_once dirname(dirname(__FILE__)) . '/backend/request.php';
 require_once dirname(dirname(__FILE__)) . '/backend/issue.php';
+require_once dirname(dirname(__FILE__)) . '/backend/adjust.php';
 require_once dirname(dirname(__FILE__)) . '/backend/department.php';
 
 api_require_post();
@@ -55,6 +56,11 @@ $doc_type = isset($input['doc_type']) ? $input['doc_type'] : '';
 function doc_read_roles_for($doc_type)
 {
     if ($doc_type === 'request' || $doc_type === 'issue') {
+        return array('super_admin', 'admin', 'approver', 'general');
+    }
+    /* ใบปรับยอด: ด่าน role กว้างไว้ (ผู้อนุมัติที่ตั้งไว้อาจเป็น role ใดก็ได้)
+       ตัวกรองจริงคือ adjust_approver_can() ใน action list และ doc_can_read() */
+    if ($doc_type === 'adjust') {
         return array('super_admin', 'admin', 'approver', 'general');
     }
     return array('super_admin', 'admin', 'approver');
@@ -151,7 +157,18 @@ if ($action === 'list') {
      * บังคับจากฝั่งเซิร์ฟเวอร์เสมอ ไม่ใช่ให้หน้าจอส่งมา
      * ไม่งั้นแก้ค่าใน request แล้วดูของหน่วยงานอื่นได้
      */
-    $scope = doc_scope_for($actor, $actor_role);
+    /* ใบปรับยอดไม่มีหน่วยงาน/ผู้ขอ — ไม่เข้ากติกา doc_scope_for()
+       ผู้ดูแลระบบ (super_admin/admin) และผู้อนุมัติที่ตั้งไว้ เห็นทุกใบ
+       นอกนั้นเห็นไม่ได้เลย (แม้ role approver ที่ไม่ได้ถูกเลือกให้อนุมัติ) */
+    if ($doc_type === 'adjust') {
+        if (!in_array($actor_role, array('super_admin', 'admin'))
+            && !adjust_approver_can($actor, $actor_role)) {
+            api_fail('คุณไม่มีสิทธิ์ดูใบปรับยอด', 403);
+        }
+        $scope = array();
+    } else {
+        $scope = doc_scope_for($actor, $actor_role);
+    }
     foreach ($scope as $k => $v) {
         $options[$k] = $v;
     }
@@ -189,6 +206,11 @@ if ($action === 'get') {
        ใช้ฟังก์ชันตัวเดียวกับที่ print_doc.php ใช้ กติกาจึงตรงกันเสมอ */
     if (!doc_can_read($doc, $actor, $actor_role)) {
         api_fail('คุณไม่มีสิทธิ์ดูเอกสารใบนี้', 403);
+    }
+
+    /* ใบปรับยอด: แนบยอดเดิม/นับได้/ส่วนต่าง ต่อบรรทัด ให้กล่องรายละเอียดแสดงได้ตรง */
+    if ($doc['doc_type'] === 'adjust') {
+        $doc['adjust_lines'] = adjust_doc_lines($doc);
     }
 
     api_ok(array('doc' => $doc));
@@ -243,12 +265,17 @@ if ($action === 'decide') {
 
     api_require_csrf($input);
 
-    $res = request_decide(
-        isset($input['doc_id'])   ? (int)$input['doc_id'] : 0,
-        isset($input['decision']) ? $input['decision']    : '',
-        isset($input['reason'])   ? $input['reason']      : '',
-        $actor, $actor_role
-    );
+    $decide_id = isset($input['doc_id'])   ? (int)$input['doc_id'] : 0;
+    $decision  = isset($input['decision']) ? $input['decision']    : '';
+    $reason    = isset($input['reason'])   ? $input['reason']      : '';
+
+    /* ใบเบิกกับใบปรับยอดคนละฟังก์ชัน — ตัดสินจากประเภทของเอกสารจริง */
+    $decide_doc = doc_find($decide_id);
+    if ($decide_doc !== null && $decide_doc['doc_type'] === 'adjust') {
+        $res = adjust_decide($decide_id, $decision, $reason, $actor, $actor_role);
+    } else {
+        $res = request_decide($decide_id, $decision, $reason, $actor, $actor_role);
+    }
 
     if (!$res['ok']) { api_fail($res['message']); }
     api_ok(array('message' => $res['message']));
@@ -416,21 +443,33 @@ if ($action === 'approve_link') {
     require_once dirname(dirname(__FILE__)) . '/backend/approve_link.php';
 
     $doc = doc_find(isset($input['doc_id']) ? (int)$input['doc_id'] : 0);
-    if ($doc === null)                  { api_fail('ไม่พบเอกสารที่ต้องการ'); }
-    if ($doc['doc_type'] !== 'request') { api_fail('ลิงก์อนุมัติมีเฉพาะใบเบิกเท่านั้น'); }
+    if ($doc === null) { api_fail('ไม่พบเอกสารที่ต้องการ'); }
+    if (!in_array($doc['doc_type'], array('request', 'adjust'))) {
+        api_fail('ลิงก์อนุมัติมีเฉพาะใบเบิกและใบปรับยอดเท่านั้น');
+    }
     if ($doc['status'] !== 'waiting')   {
-        api_fail('ใบเบิกนี้ถูกตัดสินไปแล้ว (สถานะปัจจุบัน: ' . $doc['status_label'] . ') '
+        api_fail($doc['doc_type_label'] . 'นี้ถูกตัดสินไปแล้ว (สถานะปัจจุบัน: ' . $doc['status_label'] . ') '
                . 'จึงไม่มีลิงก์ให้ส่งแล้ว');
+    }
+
+    /* ใบปรับยอด: ผู้รับลิงก์ = คนในรายชื่อผู้อนุมัติ ถ้ายังว่างต้องบอกให้ชัดว่าต้องไปตั้งก่อน
+       ไม่งั้นจะไปรวมกับกรณี site_url ไม่ได้ตั้ง ซึ่งคนละเรื่องกัน */
+    if ($doc['doc_type'] === 'adjust') {
+        require_once dirname(dirname(__FILE__)) . '/backend/adjust_approver.php';
+        if (count(adjust_approver_usernames()) === 0) {
+            api_fail('ยังไม่ได้ตั้งผู้อนุมัติใบปรับยอด — ไปที่เมนู "ตั้งค่าระบบ › ตั้งค่าอนุมัติ" '
+                   . 'แล้วเลือกผู้อนุมัติอย่างน้อย 1 คนก่อน');
+        }
     }
 
     $links = approve_link_all($doc['doc_id'], $actor);
     if (count($links) === 0) {
-        api_fail('สร้างลิงก์ไม่สำเร็จ — อาจยังไม่ได้ตั้งค่า "ที่อยู่เว็บ" (site_url) '
-               . 'ที่หน้าตั้งค่าระบบ หรือหน่วยงานนี้ยังไม่มีผู้อนุมัติ');
+        api_fail('สร้างลิงก์ไม่สำเร็จ — ยังไม่ได้ตั้งค่า "ที่อยู่เว็บ" (site_url) '
+               . 'ที่หน้าตั้งค่าระบบ ลิงก์ในอีเมลจึงประกอบเป็น URL เต็มไม่ได้');
     }
 
     api_ok(array(
-        'message' => 'ลิงก์อนุมัติใบเบิก ' . $doc['doc_no'],
+        'message' => 'ลิงก์อนุมัติ' . $doc['doc_type_label'] . ' ' . $doc['doc_no'],
         'doc_no'  => $doc['doc_no'],
         'links'   => $links,
         'days'    => APPROVE_LINK_DAYS
@@ -474,6 +513,31 @@ if ($action === 'resend_mail') {
                    . '— ถ้าต้องการแจ้งเรื่องการรับของ ให้ส่งจากใบจ่ายแทน');
         }
 
+    } elseif ($doc['doc_type'] === 'adjust') {
+
+        if ($doc['status'] === 'waiting') {
+            require_once dirname(dirname(__FILE__)) . '/backend/adjust_approver.php';
+            if (count(adjust_approver_usernames()) === 0) {
+                api_fail('ยังไม่ได้ตั้งผู้อนุมัติใบปรับยอด — ไปที่เมนู "ตั้งค่าระบบ › ตั้งค่าอนุมัติ" '
+                       . 'แล้วเลือกผู้อนุมัติอย่างน้อย 1 คนก่อน');
+            }
+            /* ส่งซ้ำ = ออกลิงก์อนุมัติชุดใหม่ให้ผู้อนุมัติทุกคน (ลิงก์เดิมถูกเขียนทับ) */
+            $sent = notify_event_adjust_submitted($doc['doc_id'], $doc['created_by']);
+            $what = 'แจ้งผู้อนุมัติว่ามีใบปรับยอดรอพิจารณา';
+
+        } elseif ($doc['status'] === 'approved' || $doc['status'] === 'rejected') {
+            $sent = notify_event_adjust_decided($doc['doc_id'],
+                        $doc['status'], $doc['approve_note'], '');
+            $what = 'แจ้งผู้บันทึกว่าใบถูกตัดสินแล้ว';
+
+        } elseif ($doc['status'] === 'cancelled') {
+            $sent = notify_event_doc_cancelled($doc['doc_id'], $doc['cancel_note'], '');
+            $what = 'แจ้งเรื่องการยกเลิก';
+
+        } else {
+            api_fail('เอกสารสถานะนี้ยังไม่มีเมลที่ต้องส่ง');
+        }
+
     } else {
 
         if ($doc['status'] === 'issued') {
@@ -495,7 +559,7 @@ if ($action === 'resend_mail') {
 
     if ($sent === 0) {
         api_fail('ไม่มีผู้รับที่ส่งได้ — ปลายทางอาจยังไม่ได้กรอกอีเมล '
-               . 'หรือหน่วยงานนี้ยังไม่มีผู้อนุมัติ');
+               . 'หรือยังไม่ได้ตั้งผู้อนุมัติ');
     }
 
     api_ok(array(
@@ -525,6 +589,9 @@ if ($action === 'cancel') {
         $res = receive_cancel($doc_id, $reason, $actor);
     } elseif ($doc['doc_type'] === 'request') {
         $res = request_cancel($doc_id, $reason, $actor, $actor_role);
+    } elseif ($doc['doc_type'] === 'adjust') {
+        api_require_role(array('super_admin', 'admin'));
+        $res = adjust_cancel($doc_id, $reason, $actor, $actor_role);
     } else {
         $res = issue_cancel($doc_id, $reason, $actor, $actor_role);
     }

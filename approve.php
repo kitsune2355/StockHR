@@ -55,6 +55,7 @@ require_once dirname(__FILE__) . '/backend/thai_date.php';
 require_once dirname(__FILE__) . '/backend/approve_link.php';
 require_once dirname(__FILE__) . '/backend/document.php';
 require_once dirname(__FILE__) . '/backend/request.php';
+require_once dirname(__FILE__) . '/backend/adjust.php';   // ลิงก์อนุมัติใช้กับใบปรับยอดด้วย
 
 function ap_esc($text)
 {
@@ -86,7 +87,7 @@ if (!$check['ok']) {
         $fatal = 'ลิงก์นี้หมดอายุแล้ว (ลิงก์อนุมัติมีอายุ ' . APPROVE_LINK_DAYS . ' วัน) '
                . 'กรุณาเข้าระบบเพื่ออนุมัติ หรือแจ้งผู้ดูแลระบบให้ส่งลิงก์ใหม่';
     } elseif ($check['reason'] === 'used') {
-        $fatal = 'ลิงก์นี้ถูกใช้ไปแล้ว ใบเบิกใบนี้ได้รับการตัดสินเรียบร้อยแล้ว '
+        $fatal = 'ลิงก์นี้ถูกใช้ไปแล้ว เอกสารใบนี้ได้รับการตัดสินเรียบร้อยแล้ว '
                . 'ไม่ต้องทำอะไรเพิ่ม';
     } else {
         $fatal = 'ลิงก์นี้ใช้ไม่ได้ อาจถูกพิมพ์มาไม่ครบ หรือมีการส่งลิงก์ใหม่ทับไปแล้ว '
@@ -96,8 +97,8 @@ if (!$check['ok']) {
 } else {
 
     $doc = doc_find($check['doc_id']);
-    if ($doc === null || $doc['doc_type'] !== 'request') {
-        $fatal = 'ไม่พบใบเบิกที่ลิงก์นี้อ้างถึง';
+    if ($doc === null || !in_array($doc['doc_type'], array('request', 'adjust'))) {
+        $fatal = 'ไม่พบเอกสารที่ลิงก์นี้อ้างถึง';
     } else {
         $approver = user_find($check['username']);
 
@@ -127,13 +128,11 @@ if ($fatal === '' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
 
         /* ตัดสินใน "นาม" ของผู้อนุมัติที่กุญแจออกให้
-           request_decide จะบังคับกฎที่เหลือเองทั้งหมด ทั้งเรื่องสิทธิ์
-           ขอบเขตหน่วยงาน ห้ามอนุมัติใบตัวเอง และกันสองคนกดพร้อมกัน
-           หน้านี้จึงไม่ต้องทำซ้ำ และไม่มีทางหลุดกฎข้อไหนไปได้ */
-        $res = request_decide(
-            $doc['doc_id'], $decision, $reason,
-            $approver['username'], $approver['role']
-        );
+           ฟังก์ชัน *_decide จะบังคับกฎที่เหลือเองทั้งหมด ทั้งเรื่องสิทธิ์
+           ห้ามอนุมัติใบตัวเอง และกันสองคนกดพร้อมกัน หน้านี้จึงไม่ต้องทำซ้ำ */
+        $res = ($doc['doc_type'] === 'adjust')
+             ? adjust_decide($doc['doc_id'], $decision, $reason, $approver['username'], $approver['role'])
+             : request_decide($doc['doc_id'], $decision, $reason, $approver['username'], $approver['role']);
 
         if ($res['ok']) {
             /* เผากุญแจทุกดอกของใบนี้ รวมของผู้อนุมัติคนอื่นด้วย
@@ -169,7 +168,8 @@ if (isset($_GET['ok']) && ($_GET['ok'] === 'approved' || $_GET['ok'] === 'reject
 
     if ($doc === null) { $doc = doc_find($check['doc_id']); }
 
-    if ($doc !== null && $doc['doc_type'] === 'request' && $doc['status'] === $_GET['ok']) {
+    if ($doc !== null && in_array($doc['doc_type'], array('request', 'adjust'))
+        && $doc['status'] === $_GET['ok']) {
         $done  = $_GET['ok'];
         $fatal = '';
     }
@@ -178,12 +178,17 @@ if (isset($_GET['ok']) && ($_GET['ok'] === 'approved' || $_GET['ok'] === 'reject
 /* ตาข่ายกันหน้าขาว: ส่วนล่างวาดจาก $doc ตรง ๆ ถ้าไม่มีใบให้วาดต้องบอกไปเลย
    เกิดได้ถ้าเอกสารถูกลบระหว่างที่ผู้ใช้ค้างหน้านี้ไว้แล้วเพิ่งกดส่ง */
 if ($fatal === '' && $doc === null) {
-    $fatal = 'ไม่พบใบเบิกที่ลิงก์นี้อ้างถึง อาจถูกลบไปแล้ว';
+    $fatal = 'ไม่พบเอกสารที่ลิงก์นี้อ้างถึง อาจถูกลบไปแล้ว';
 }
 
 $can_decide = ($fatal === '' && $done === '' && $doc['status'] === 'waiting');
 
-$page_title = ($doc !== null) ? ('อนุมัติใบเบิก ' . $doc['doc_no']) : 'อนุมัติใบเบิก';
+/* ข้อความให้เปลี่ยนตามชนิดเอกสาร — ใบเบิก vs ใบปรับยอด */
+$is_adjust  = ($doc !== null && $doc['doc_type'] === 'adjust');
+$doc_noun   = $is_adjust ? 'ใบปรับยอด' : 'ใบเบิก';
+$adj_lines  = $is_adjust ? adjust_doc_lines($doc) : array();
+
+$page_title = ($doc !== null) ? ('อนุมัติ' . $doc_noun . ' ' . $doc['doc_no']) : ('อนุมัติ' . $doc_noun);
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -356,11 +361,11 @@ textarea:focus { outline: none; border-color: #029488; box-shadow: 0 0 0 4px #d5
   <div class="card">
     <div class="head">
       <h1>เปิดลิงก์ไม่ได้</h1>
-      <p>ลิงก์อนุมัติใบเบิก</p>
+      <p>ลิงก์อนุมัติ<?php echo ap_esc($doc_noun); ?></p>
     </div>
     <div class="body">
       <div class="note note-bad"><span><?php echo ap_esc($fatal); ?></span></div>
-      <p class="foot">ถ้าต้องการความช่วยเหลือ กรุณาติดต่อผู้ดูแลระบบพร้อมแจ้งเลขที่ใบเบิกที่อยู่ในอีเมล</p>
+      <p class="foot">ถ้าต้องการความช่วยเหลือ กรุณาติดต่อผู้ดูแลระบบพร้อมแจ้งเลขที่เอกสารที่อยู่ในอีเมล</p>
     </div>
   </div>
 
@@ -371,55 +376,92 @@ textarea:focus { outline: none; border-color: #029488; box-shadow: 0 0 0 4px #d5
       <h1><?php
           if ($done === 'approved')      { echo 'อนุมัติเรียบร้อยแล้ว'; }
           elseif ($done === 'rejected')  { echo 'บันทึกการไม่อนุมัติแล้ว'; }
-          else                           { echo 'ใบเบิกรอการอนุมัติ'; }
+          else                           { echo ap_esc($doc_noun) . 'รอการอนุมัติ'; }
       ?></h1>
-      <p>ใบเบิก <?php echo ap_esc($doc['doc_no']); ?></p>
+      <p><?php echo ap_esc($doc_noun . ' ' . $doc['doc_no']); ?></p>
     </div>
 
     <div class="body">
 
 <?php if ($done === 'approved') { ?>
       <div class="note note-ok">
-        <span><b>อนุมัติเรียบร้อยแล้ว</b> ระบบแจ้งผู้ขอเบิกให้ทราบแล้ว
-              ขั้นต่อไปคลังจะจัดของและบันทึกจ่ายออก</span>
+        <span><b>อนุมัติเรียบร้อยแล้ว</b>
+        <?php echo $is_adjust
+            ? 'ยอดคงเหลือถูกปรับให้ตรงกับที่นับไว้เรียบร้อย ระบบแจ้งผู้บันทึกให้ทราบแล้ว'
+            : 'ระบบแจ้งผู้ขอเบิกให้ทราบแล้ว ขั้นต่อไปคลังจะจัดของและบันทึกจ่ายออก'; ?></span>
       </div>
 <?php } elseif ($done === 'rejected') { ?>
       <div class="note note-warn">
-        <span><b>บันทึกว่าไม่อนุมัติแล้ว</b> ระบบส่งเหตุผลไปให้ผู้ขอเบิกแล้ว
-              เขาจะได้รู้ว่าต้องแก้อะไรก่อนทำใบใหม่</span>
+        <span><b>บันทึกว่าไม่อนุมัติแล้ว</b>
+        <?php echo $is_adjust
+            ? 'ยอดคงเหลือไม่เปลี่ยน ระบบส่งเหตุผลไปให้ผู้บันทึกแล้ว'
+            : 'ระบบส่งเหตุผลไปให้ผู้ขอเบิกแล้ว เขาจะได้รู้ว่าต้องแก้อะไรก่อนทำใบใหม่'; ?></span>
       </div>
 <?php } elseif ($error !== '') { ?>
       <div class="note note-bad"><span><?php echo ap_esc($error); ?></span></div>
 <?php } elseif (!$can_decide) { ?>
       <div class="note note-warn">
-        <span>ใบเบิกนี้อยู่ในสถานะ <b><?php echo ap_esc($doc['status_label']); ?></b>
+        <span><?php echo ap_esc($doc_noun); ?>นี้อยู่ในสถานะ <b><?php echo ap_esc($doc['status_label']); ?></b>
               ซึ่งตัดสินไม่ได้แล้ว อาจมีผู้อนุมัติคนอื่นตัดสินไปก่อน</span>
       </div>
 <?php } else { ?>
       <div class="note note-info">
         <span>กรุณาตรวจรายการด้านล่างให้ครบก่อนตัดสินใจ
-              การอนุมัติคือการยืนยันว่าของทั้งใบสมเหตุสมผล</span>
+        <?php echo $is_adjust
+            ? 'อนุมัติแล้วยอดคงเหลือจะถูกปรับให้ตรงกับ "นับได้จริง" ทันที'
+            : 'การอนุมัติคือการยืนยันว่าของทั้งใบสมเหตุสมผล'; ?></span>
       </div>
 <?php } ?>
 
       <!-- ---------- หัวเอกสาร ---------- -->
       <table class="pairs">
         <tr><th>เลขที่เอกสาร</th><td><?php echo ap_esc($doc['doc_no']); ?></td></tr>
-        <tr><th>วันที่ขอเบิก</th><td><?php echo ap_esc(thai_date_long($doc['doc_date'])); ?></td></tr>
-<?php   if ($doc['department_name'] !== '') { ?>
+        <tr><th><?php echo $is_adjust ? 'วันที่ตรวจนับ' : 'วันที่ขอเบิก'; ?></th><td><?php echo ap_esc(thai_date_long($doc['doc_date'])); ?></td></tr>
+<?php   if (!$is_adjust && $doc['department_name'] !== '') { ?>
         <tr><th>หน่วยงาน</th><td><?php echo ap_esc($doc['department_name']); ?></td></tr>
 <?php   } ?>
-<?php   if ($doc['requester_name'] !== '' || $doc['requester'] !== '') { ?>
+<?php   if ($is_adjust && $doc['created_by'] !== '') { ?>
+        <tr><th>ผู้บันทึก</th><td><?php echo ap_esc($doc['created_by']); ?></td></tr>
+<?php   } elseif (!$is_adjust && ($doc['requester_name'] !== '' || $doc['requester'] !== '')) { ?>
         <tr><th>ผู้ขอเบิก</th><td><?php
             echo ap_esc($doc['requester_name'] !== '' ? $doc['requester_name'] : $doc['requester']); ?></td></tr>
 <?php   } ?>
 <?php   if ($doc['note'] !== '') { ?>
-        <tr><th>หมายเหตุ</th><td><?php echo ap_esc($doc['note']); ?></td></tr>
+        <tr><th><?php echo $is_adjust ? 'เหตุผลการปรับยอด' : 'หมายเหตุ'; ?></th><td><?php echo ap_esc($doc['note']); ?></td></tr>
 <?php   } ?>
 <?php   if ($doc['status'] !== 'waiting' && $doc['approve_note'] !== '') { ?>
         <tr><th>เหตุผล/หมายเหตุ</th><td><?php echo ap_esc($doc['approve_note']); ?></td></tr>
 <?php   } ?>
       </table>
+
+<?php if ($is_adjust) { ?>
+
+      <!-- ---------- รายการปรับยอด ---------- -->
+      <h2>รายการปรับยอด</h2>
+      <table class="items">
+        <thead>
+          <tr><th>สินค้า</th><th class="num">ยอดเดิม</th><th class="num">นับได้จริง</th><th class="num">ส่วนต่าง</th></tr>
+        </thead>
+        <tbody>
+<?php   for ($i = 0; $i < count($adj_lines); $i++) { $ln = $adj_lines[$i];
+            $dv = (float)$ln['diff']; ?>
+          <tr>
+            <td><?php echo ap_esc($ln['product_name']); ?>
+                <div class="code"><?php echo ap_esc($ln['product_code']); ?></div>
+<?php           if (trim($ln['note']) !== '') { ?>
+                <div class="hint"><?php echo ap_esc($ln['note']); ?></div>
+<?php           } ?>
+            </td>
+            <td class="num"><?php echo ap_qty($ln['before']); ?></td>
+            <td class="num"><b><?php echo ap_qty($ln['counted']); ?></b> <?php echo ap_esc($ln['unit_name']); ?></td>
+            <td class="num" style="color:<?php echo $dv > 0 ? '#059669' : ($dv < 0 ? '#dc2626' : '#64748b'); ?>">
+                <b><?php echo ($dv > 0 ? '+' : '') . ap_qty($dv); ?></b></td>
+          </tr>
+<?php   } ?>
+        </tbody>
+      </table>
+
+<?php } else { ?>
 
       <!-- ---------- รายการที่ขอเบิก ---------- -->
       <h2>รายการที่ขอเบิก</h2>
@@ -428,10 +470,8 @@ textarea:focus { outline: none; border-color: #029488; box-shadow: 0 0 0 4px #d5
           <tr><th>สินค้า</th><th>รหัส</th><th class="num">จำนวน</th></tr>
         </thead>
         <tbody>
-<?php   $lines = 0;
-        for ($i = 0; $i < count($doc['items']); $i++) {
-            $it = $doc['items'][$i];
-            $lines++; ?>
+<?php   for ($i = 0; $i < count($doc['items']); $i++) {
+            $it = $doc['items'][$i]; ?>
           <tr>
             <td><?php echo ap_esc($it['product_name']); ?>
                 <div class="code"><?php echo ap_esc($it['product_code']); ?></div>
@@ -446,6 +486,8 @@ textarea:focus { outline: none; border-color: #029488; box-shadow: 0 0 0 4px #d5
 <?php   } ?>
         </tbody>
       </table>
+
+<?php } ?>
 
 <?php if ($can_decide) { ?>
 
@@ -463,12 +505,14 @@ textarea:focus { outline: none; border-color: #029488; box-shadow: 0 0 0 4px #d5
 
         <label for="reason">เหตุผลหรือหมายเหตุ</label>
         <textarea id="reason" name="reason" maxlength="500"
-                  placeholder="ถ้าไม่อนุมัติ ต้องระบุเหตุผลเสมอ เพราะผู้ขอเบิกจะได้รู้ว่าต้องแก้อะไร"><?php
+                  placeholder="<?php echo $is_adjust
+                      ? 'ถ้าไม่อนุมัติ ต้องระบุเหตุผลเสมอ เพราะผู้บันทึกจะได้รู้ว่าต้องแก้อะไร'
+                      : 'ถ้าไม่อนุมัติ ต้องระบุเหตุผลเสมอ เพราะผู้ขอเบิกจะได้รู้ว่าต้องแก้อะไร'; ?>"><?php
             echo ap_esc(isset($_POST['reason']) ? $_POST['reason'] : ''); ?></textarea>
         <p class="hint">อนุมัติจะใส่หมายเหตุหรือไม่ก็ได้ · ไม่อนุมัติต้องระบุเหตุผล</p>
 
         <button type="submit" name="decision" value="approved" class="btn btn-main">
-          อนุมัติใบเบิกนี้
+          อนุมัติ<?php echo ap_esc($doc_noun); ?>นี้
         </button>
         <button type="submit" name="decision" value="rejected" class="btn btn-bad">
           ไม่อนุมัติ
@@ -480,7 +524,7 @@ textarea:focus { outline: none; border-color: #029488; box-shadow: 0 0 0 4px #d5
 
 <?php } else { ?>
 
-      <p class="foot">เปิดระบบเพื่อดูใบเบิกทั้งหมดได้ที่เมนู รายการใบเบิก</p>
+      <p class="foot">เปิดระบบเพื่อดู<?php echo ap_esc($doc_noun); ?>ทั้งหมดได้จากในระบบ</p>
 
 <?php } ?>
 

@@ -91,6 +91,21 @@ $APP_NAV = array(
                 array('key' => 'issue_history', 'title' => 'ประวัติการจ่ายออก', 'roles' => $ROLE_ALL,   'file' => 'pages/issue_history.php', 'full' => true),
             )),
 
+            /* ปรับยอดให้ตรงกับการตรวจนับจริง — เป็นเอกสารมีเลขที่ (doc_type='adjust')
+               เดินเส้นทาง waiting -> approved | rejected เหมือนใบเบิก
+               ยอดคงเหลือเปลี่ยน "ตอนอนุมัติ" เท่านั้น
+
+               บันทึกปรับยอด: สร้างใบได้เฉพาะ $ROLE_ADMIN (บังคับที่ api/adjust.php)
+               ประวัติ/อนุมัติ: เปิดถึง approver ด้วย เพราะผู้อนุมัติที่ตั้งไว้ในหน้า
+                 "ตั้งค่าอนุมัติ" อาจเป็น role approver — ตัวกรองสิทธิ์จริงคือ
+                 adjust_approver_can() ที่ api/documents.php (ผู้อนุมัติที่เป็น role
+                 general เข้าหน้านี้ผ่านลิงก์ในกระดิ่งแจ้งเตือน) */
+            array('key' => 'stock_adjust', 'title' => 'ปรับยอดสินค้า', 'icon' => 'scale',
+                  'roles' => $ROLE_STAFF, 'children' => array(
+                array('key' => 'adjust_new',     'title' => 'บันทึกปรับยอด',      'roles' => $ROLE_ADMIN, 'file' => 'pages/adjust_new.php',     'full' => true),
+                array('key' => 'adjust_history', 'title' => 'ประวัติการปรับยอด', 'roles' => $ROLE_STAFF, 'file' => 'pages/adjust_history.php', 'full' => true),
+            )),
+
             array('key' => 'reports', 'title' => 'รายงาน', 'icon' => 'bar-chart-3',
                   'roles' => $ROLE_ALL, 'children' => array(
                 array('key' => 'report_stock',    'title' => 'ยอดคงเหลือ',    'roles' => $ROLE_ALL, 'file' => 'pages/report_stock.php',    'full' => true),
@@ -144,6 +159,12 @@ $APP_NAV = array(
                 array('key' => 'settings',       'title' => 'อีเมลแจ้งเตือน',  'icon' => 'mail',        'roles' => $ROLE_ADMIN, 'file' => 'pages/settings.php', 'full' => true),
                 array('key' => 'settings_guide', 'title' => 'คู่มือการใช้งาน', 'icon' => 'circle-help', 'roles' => $ROLE_ADMIN, 'file' => 'pages/settings.php', 'full' => true),
             )),
+
+            /* กำหนดรายชื่อคนที่อนุมัติใบปรับยอดสินค้าได้ (นอกจาก super_admin/admin ที่อนุมัติได้เสมอ)
+               ตั้งได้หลายคน เก็บใน tb_adjust_approver — จำกัดที่ $ROLE_ADMIN ให้ตรงกับ
+               สิทธิ์ที่ api/approval_settings.php บังคับ */
+            array('key' => 'adjust_approval', 'title' => 'ตั้งค่าอนุมัติ', 'icon' => 'shield-check',
+                  'roles' => $ROLE_ADMIN, 'file' => 'pages/approval_settings.php', 'full' => true),
 
             /* กล่องกระดิ่งเลื่อนดูของเก่าได้ก็จริง แต่ค้นไม่ได้ กรองไม่ได้
                และสูงแค่ครึ่งจอ คนที่ตามหาเรื่องเมื่อสองสัปดาห์ก่อนต้องมีที่ที่กว้างกว่านั้น
