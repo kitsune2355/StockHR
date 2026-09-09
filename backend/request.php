@@ -467,7 +467,7 @@ function request_update($doc_id, $data, $actor, $actor_role = '')
         $qty       = (float)$items[$i]['qty'];
         $item_note = isset($items[$i]['note']) ? trim($items[$i]['note']) : '';
 
-        mysqli_stmt_bind_param($stmt, 'iiidss', $id, $line_no, $pid, $qty, $item_note, $actor, $actor);
+        mysqli_stmt_bind_param($stmt, 'iiidsss', $id, $line_no, $pid, $qty, $item_note, $actor, $actor);
         if (!mysqli_stmt_execute($stmt)) {
             $errno = mysqli_stmt_errno($stmt);
             mysqli_stmt_close($stmt);

@@ -115,11 +115,20 @@
             }
 
             if (!hasNl) {
-                /* ไม่มีอะไรต้องแตกแถว — แค่ตั้งความกว้างคอลัมน์ (เก็บชนิดเซลล์เดิมไว้ครบ) */
+                /* ไม่มีอะไรต้องแตกแถว — แค่ตั้งความกว้างคอลัมน์ (เก็บชนิดเซลล์เดิมไว้ครบ)
+                   พร้อมตัด !ref ให้พอดีเซลล์จริง กันคอลัมน์/แถวว่างงอกท้ายตาราง
+                   (Tabulator ตั้ง e.r เกินมาหนึ่ง) */
+                var mr = -1, mc = -1;
                 for (key in ws) {
                     if (!ws.hasOwnProperty(key) || key.charAt(0) === '!') { continue; }
                     var a = X.utils.decode_cell(key), l = lenOf(ws[key].v);
+                    if (a.r > mr) { mr = a.r; }
+                    if (a.c > mc) { mc = a.c; }
                     if (!width[a.c] || l > width[a.c]) { width[a.c] = l; }
+                }
+                if (mr >= 0) {
+                    ws['!ref'] = X.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: mr, c: mc } });
+                    maxC = mc;
                 }
             } else {
                 /* ---------- แตกเซลล์หลายบรรทัดออกเป็นหลายแถว ----------
