@@ -91,41 +91,221 @@
      *    2) ตั้งความกว้างคอลัมน์ตามความยาวข้อความจริง ไม่งั้นชื่อบริษัทยาว ๆ
      *       จะโดนตัดเหลือ ##### ต้องมานั่งลากขยายเองทุกครั้ง
      * ============================================================ */
+    function lenOf(v) { return (v === undefined || v === null) ? 0 : String(v).length; }
+
     function tidyWorkbook(buffer) {
         var X = window.XLSX;
         var wb = X.read(new Uint8Array(buffer), { type: 'array' });
 
         for (var s = 0; s < wb.SheetNames.length; s++) {
-            var ws    = wb.Sheets[wb.SheetNames[s]];
-            var maxR  = -1, maxC = -1;
-            var width = [];
-            var key, at, len;
+            var name = wb.SheetNames[s];
+            var ws   = wb.Sheets[name];
+            if (!ws || !ws['!ref']) { continue; }   // ชีตว่าง ปล่อยไว้อย่างนั้น
 
-            for (key in ws) {
+            var rng  = X.utils.decode_range(ws['!ref']);
+            var maxC = rng.e.c;
+            var r, c, k, width = [];
+
+            /* มีเซลล์หลายบรรทัดหรือไม่ (เช่น "หน่วยงานที่ดูแล" ของผู้อนุมัติที่ดูแลหลายหน่วยงาน) */
+            var hasNl = false;
+            for (var key in ws) {
                 if (!ws.hasOwnProperty(key) || key.charAt(0) === '!') { continue; }
-
-                at = X.utils.decode_cell(key);
-                if (at.r > maxR) { maxR = at.r; }
-                if (at.c > maxC) { maxC = at.c; }
-
-                len = String(ws[key].v === undefined ? '' : ws[key].v).length;
-                if (!width[at.c] || len > width[at.c]) { width[at.c] = len; }
+                var cv = ws[key].v;
+                if (typeof cv === 'string' && cv.indexOf('\n') !== -1) { hasNl = true; break; }
             }
 
-            if (maxR < 0) { continue; }   // ชีตว่าง ปล่อยไว้อย่างนั้น
+            if (!hasNl) {
+                /* ไม่มีอะไรต้องแตกแถว — แค่ตั้งความกว้างคอลัมน์ (เก็บชนิดเซลล์เดิมไว้ครบ) */
+                for (key in ws) {
+                    if (!ws.hasOwnProperty(key) || key.charAt(0) === '!') { continue; }
+                    var a = X.utils.decode_cell(key), l = lenOf(ws[key].v);
+                    if (!width[a.c] || l > width[a.c]) { width[a.c] = l; }
+                }
+            } else {
+                /* ---------- แตกเซลล์หลายบรรทัดออกเป็นหลายแถว ----------
+                 * แถวแรกของกลุ่มมีค่าครบทุกคอลัมน์ แถวที่เหลือมีเฉพาะคอลัมน์ที่แตก
+                 * (ไม่ merge ตามที่ผู้ใช้เลือก) — เก็บชนิดค่าเดิมไว้ (ตัวเลขยังเป็นตัวเลข)
+                 */
+                var out = [];
+                for (r = rng.s.r; r <= rng.e.r; r++) {
+                    var cells = [];
+                    for (c = 0; c <= maxC; c++) {
+                        var cc = ws[X.utils.encode_cell({ r: r, c: c })];
+                        cells.push(cc && cc.v !== undefined && cc.v !== null ? cc.v : '');
+                    }
 
-            ws['!ref'] = X.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: maxR, c: maxC } });
+                    var groupN = 1;
+                    for (c = 0; c <= maxC; c++) {
+                        if (typeof cells[c] === 'string' && cells[c].indexOf('\n') !== -1) {
+                            var nn = cells[c].split('\n').length;
+                            if (nn > groupN) { groupN = nn; }
+                        }
+                    }
+
+                    if (groupN === 1) { out.push(cells); continue; }
+
+                    for (k = 0; k < groupN; k++) {
+                        var line = [];
+                        for (c = 0; c <= maxC; c++) {
+                            if (typeof cells[c] === 'string' && cells[c].indexOf('\n') !== -1) {
+                                var parts = cells[c].split('\n');
+                                line.push(parts[k] !== undefined ? parts[k] : '');
+                            } else {
+                                line.push(k === 0 ? cells[c] : '');
+                            }
+                        }
+                        out.push(line);
+                    }
+                }
+
+                for (r = 0; r < out.length; r++) {
+                    for (c = 0; c <= maxC; c++) {
+                        var lc = lenOf(out[r][c]);
+                        if (!width[c] || lc > width[c]) { width[c] = lc; }
+                    }
+                }
+
+                ws = X.utils.aoa_to_sheet(out);
+                wb.Sheets[name] = ws;
+            }
 
             var cols = [];
-            for (var c = 0; c <= maxC; c++) {
+            for (c = 0; c <= maxC; c++) {
                 /* +4 เผื่อระยะขอบ ต่ำสุด 12 กว้างสุด 60 กันคอลัมน์เดียวกินทั้งจอ */
-                var w = (width[c] || 0) + 4;
-                cols.push({ wch: Math.max(12, Math.min(60, w)) });
+                cols.push({ wch: Math.max(12, Math.min(60, (width[c] || 0) + 4)) });
             }
             ws['!cols'] = cols;
         }
 
-        return X.write(wb, { bookType: 'xlsx', bookSST: true, type: 'array' });
+        var out2 = X.write(wb, { bookType: 'xlsx', bookSST: true, type: 'array' });
+
+        /* SheetJS ฉบับฟรีเขียน cell style ไม่ได้ — แก้ XML ในไฟล์ zip โดยตรง
+           ให้ทุกเซลล์จัดกึ่งกลางแนวตั้ง (middle align) ล้มเหลว = คืนไฟล์เดิม */
+        try { out2 = applyMiddleAlign(out2); } catch (err) { /* ปล่อยไฟล์ธรรมดา */ }
+        return out2;
+    }
+
+    /* ============================================================
+     *  เปิด "ตัดคำ" ให้เซลล์ที่มีหลายบรรทัด (แก้ XML ในไฟล์ .xlsx โดยตรง)
+     * ============================================================
+     *  ไฟล์ที่ SheetJS เขียนออกมาเป็น zip แบบ Stored (ไม่บีบอัด) จึงแยกไฟล์ย่อย
+     *  ออกมาแก้ข้อความแล้วประกอบกลับได้เอง โดยไม่ต้องมีตัวบีบอัด
+     * ============================================================ */
+    var CRC_TAB = (function () {
+        var t = [], c, n, k;
+        for (n = 0; n < 256; n++) {
+            c = n;
+            for (k = 0; k < 8; k++) { c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); }
+            t[n] = c >>> 0;
+        }
+        return t;
+    })();
+    function crc32(str) {
+        var c = 0xFFFFFFFF;
+        for (var i = 0; i < str.length; i++) {
+            c = CRC_TAB[(c ^ (str.charCodeAt(i) & 0xFF)) & 0xFF] ^ (c >>> 8);
+        }
+        return (c ^ 0xFFFFFFFF) >>> 0;
+    }
+    function le16(n) { return String.fromCharCode(n & 0xFF, (n >>> 8) & 0xFF); }
+    function le32(n) {
+        n >>>= 0;
+        return String.fromCharCode(n & 0xFF, (n >>> 8) & 0xFF, (n >>> 16) & 0xFF, (n >>> 24) & 0xFF);
+    }
+
+    /* แปลงไบต์เป็นสตริงแบบ 1 ไบต์ = 1 อักขระ (charCode 0..255)
+       ห้ามใช้ TextDecoder('latin1') เพราะเบราว์เซอร์ตีความเป็น windows-1252
+       ไบต์ 0x80-0x9F จะเพี้ยน แล้วประกอบ zip กลับไม่ได้ */
+    function bytesToBinary(bytes) {
+        var s = '';
+        for (var i = 0; i < bytes.length; i += 8192) {
+            s += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+        }
+        return s;
+    }
+
+    function unzipStored(bin) {
+        var entries = [], p = 0;
+        while (bin.substr(p, 4) === 'PK\x03\x04') {
+            var method   = bin.charCodeAt(p + 8)  | (bin.charCodeAt(p + 9)  << 8);
+            var size     = (bin.charCodeAt(p + 22) | (bin.charCodeAt(p + 23) << 8) |
+                            (bin.charCodeAt(p + 24) << 16) | (bin.charCodeAt(p + 25) << 24)) >>> 0;
+            var nameLen  = bin.charCodeAt(p + 26) | (bin.charCodeAt(p + 27) << 8);
+            var extraLen = bin.charCodeAt(p + 28) | (bin.charCodeAt(p + 29) << 8);
+            if (method !== 0) { return null; }   // ไม่ใช่ Stored — เลิก ปล่อยไฟล์เดิม
+            var name   = bin.substr(p + 30, nameLen);
+            var dataAt = p + 30 + nameLen + extraLen;
+            entries.push({ name: name, data: bin.substr(dataAt, size) });
+            p = dataAt + size;
+        }
+        return entries.length ? entries : null;
+    }
+
+    function zipStored(entries) {
+        var local = '', central = '', offset = 0, i;
+        for (i = 0; i < entries.length; i++) {
+            var e = entries[i], crc = crc32(e.data), sz = e.data.length;
+            var lh = 'PK\x03\x04' + le16(20) + le16(0) + le16(0) + le16(0) + le16(0) +
+                     le32(crc) + le32(sz) + le32(sz) + le16(e.name.length) + le16(0) + e.name + e.data;
+            /* central directory header: ... namelen, extralen(0), commentlen(0),
+               disk#(0), internal-attr(0, 2B), external-attr(0, 4B), local-offset(4B) */
+            central += 'PK\x01\x02' + le16(20) + le16(20) + le16(0) + le16(0) + le16(0) + le16(0) +
+                       le32(crc) + le32(sz) + le32(sz) + le16(e.name.length) +
+                       le16(0) + le16(0) + le16(0) + le16(0) + le32(0) + le32(offset) + e.name;
+            local  += lh;
+            offset += lh.length;
+        }
+        var eocd = 'PK\x05\x06' + le16(0) + le16(0) + le16(entries.length) + le16(entries.length) +
+                   le32(central.length) + le32(local.length) + le16(0);
+        var all = local + central + eocd;
+        var bytes = new Uint8Array(all.length);
+        for (i = 0; i < all.length; i++) { bytes[i] = all.charCodeAt(i) & 0xFF; }
+        return bytes;
+    }
+
+    function applyMiddleAlign(buffer) {
+        var bin = bytesToBinary(new Uint8Array(buffer));
+        var entries = unzipStored(bin);
+        if (!entries) { return buffer; }
+
+        var byName = {}, i;
+        for (i = 0; i < entries.length; i++) { byName[entries[i].name] = entries[i]; }
+
+        var sty = byName['xl/styles.xml'];
+        if (!sty) { return buffer; }
+
+        /* เพิ่ม cellXf ตัวใหม่ที่จัดกึ่งกลางแนวตั้ง แล้วจำ index ไว้ */
+        var centerXf = -1;
+        sty.data = sty.data.replace(/<cellXfs count="(\d+)">([\s\S]*?)<\/cellXfs>/, function (all, n, body) {
+            centerXf = parseInt(n, 10);
+            return '<cellXfs count="' + (centerXf + 1) + '">' + body +
+                   '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1">' +
+                   '<alignment vertical="center"/></xf></cellXfs>';
+        });
+        if (centerXf < 0) { return buffer; }
+
+        /* ใส่ style ระดับคอลัมน์ให้ทุก <col> ในทุกชีต — เซลล์ที่ไม่มี s ของตัวเอง
+           จะรับสไตล์ของคอลัมน์ (จัดกึ่งกลางแนวตั้ง) */
+        var touched = 0;
+        for (i = 0; i < entries.length; i++) {
+            var e = entries[i];
+            if (e.name.indexOf('xl/worksheets/sheet') !== 0) { continue; }
+            e.data = e.data.replace(/<col ([^>]*?)\s*\/>/g, function (all, attrs) {
+                touched++;
+                attrs = attrs.replace(/\s*style="[^"]*"/, '').replace(/\s+$/, '');
+                return '<col ' + attrs + ' style="' + centerXf + '"/>';
+            });
+        }
+        if (touched === 0) { return buffer; }   // ไม่มี <col> ให้แก้ ไม่ต้องประกอบใหม่
+
+        var rebuilt = zipStored(entries);
+
+        /* กันพลาด: ประกอบกลับแล้วต้องยังเป็น zip ที่อ่านไฟล์ย่อยได้ครบเท่าเดิม
+           ถ้าเพี้ยน คืนไฟล์เดิม (ยังเปิดได้ แค่ไม่จัดกึ่งกลาง) */
+        var check = unzipStored(bytesToBinary(rebuilt));
+        if (!check || check.length !== entries.length) { return buffer; }
+
+        return rebuilt;
     }
 
     /* ---------- กล่องข้อความ (ถ้า swal โหลดไม่ขึ้นก็ยังใช้งานได้) ---------- */

@@ -522,16 +522,23 @@
 
       /* หน่วยงานที่ดูแล — เลือกได้หลายหน่วยงานสำหรับผู้อนุมัติหนึ่งคน */
       G.col(
-        G.labelled(function (v) {
-          var ids = normalizeDeptIds(v);
-          var names = [];
-          for (var i = 0; i < ids.length; i++) {
-            if (depts[ids[i]]) {
-              names.push(depts[ids[i]]);
+        /* ผู้อนุมัติหนึ่งคนดูแลได้หลายหน่วยงาน พอชื่อยาว ๆ ต่อกันด้วยจุลภาค
+           ในไฟล์ Excel จะอ่านยาก จึงส่งออกแบบขึ้นบรรทัดใหม่ต่อหนึ่งหน่วยงาน
+           (grid-export.js เปิด "ตัดคำ" ให้เซลล์ที่มีหลายบรรทัดเอง)
+           ส่วนคัดลอกไปวาง ยังใช้จุลภาคเพื่อไม่ให้แตกเป็นหลายแถวตอน paste */
+        (function () {
+          var names = function (v) {
+            var ids = normalizeDeptIds(v), out = [];
+            for (var i = 0; i < ids.length; i++) {
+              if (depts[ids[i]]) { out.push(depts[ids[i]]); }
             }
-          }
-          return names.join(", ");
-        }),
+            return out;
+          };
+          return {
+            accessorDownload: function (v) { return names(v).join("\n"); },
+            accessorClipboard: function (v) { return names(v).join(", "); },
+          };
+        })(),
         G.filterOwn(),
         {
           title: "หน่วยงานที่ดูแล",
