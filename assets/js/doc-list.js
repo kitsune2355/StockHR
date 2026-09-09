@@ -336,6 +336,20 @@
           tone: "bad",
         });
       }
+      /* ประวัติเอกสาร — เปิดเป็น modal · โชว์เฉพาะใบที่มีประวัติจริง
+         (list API แนบ has_history มาให้ / openDoc มี history array แล้ว)
+         แถวสาธิตคู่มือโชว์เสมอ เพื่อให้คู่มือชี้ได้ */
+      var hasHist = doc.history
+        ? doc.history.length > 0
+        : doc.has_history === 1 || doc.has_history === true;
+      if (hasHist || demo) {
+        out.push({
+          key: "history",
+          label: "ประวัติเอกสาร",
+          icon: "history",
+          tone: "ghost",
+        });
+      }
     }
 
     if (doc.doc_type === "issue") {
@@ -1276,74 +1290,120 @@
     }
     el("docActions").innerHTML = html;
     setHidden(el("docActions"), acts.length === 0);
-
-    renderTimeline(doc);
   }
 
   /* ============================================================
-   *  ไทม์ไลน์เหตุการณ์ของเอกสาร
+   *  ประวัติเอกสาร (ไทม์ไลน์) — เปิดจากเมนู ⋮ เป็นกล่อง modal
    * ============================================================
    *  ยื่น / แก้ไข / อนุมัติ / ไม่อนุมัติ / ส่งกลับ / ยื่นใหม่ / ยกเลิก / จ่ายครบ
    *  มาจาก tb_doc_history (API แนบ doc.history มากับ action get)
-   *  ระบบเก่าที่ยังไม่มีตารางนี้ -> history ว่าง -> ซ่อนกล่องทั้งก้อน
    * ============================================================ */
-  var TIMELINE_LABEL = {
-    submitted: "ยื่นใบเบิก",
-    edited: "แก้ไขรายการ",
-    resubmitted: "แก้ไขแล้วยื่นใหม่",
-    approved: "อนุมัติ",
-    rejected: "ไม่อนุมัติ",
-    returned: "ส่งกลับให้แก้ไข",
-    cancelled: "ยกเลิก",
-    issued: "จ่ายของครบแล้ว",
+  /* ป้าย + ไอคอน + โทนสี ต่อชนิดเหตุการณ์ */
+  var EVENT_META = {
+    submitted:   { label: "ยื่นใบเบิก",       icon: "send",           tone: "brand" },
+    edited:      { label: "แก้ไขรายการ",       icon: "pencil",         tone: "brand" },
+    resubmitted: { label: "แก้ไขแล้วยื่นใหม่", icon: "rotate-cw",      tone: "brand" },
+    approved:    { label: "อนุมัติ",           icon: "circle-check",   tone: "ok" },
+    rejected:    { label: "ไม่อนุมัติ",        icon: "circle-x",       tone: "bad" },
+    returned:    { label: "ส่งกลับให้แก้ไข",   icon: "corner-up-left", tone: "warn" },
+    cancelled:   { label: "ยกเลิก",            icon: "ban",            tone: "bad" },
+    issued:      { label: "จ่ายของครบแล้ว",    icon: "package-check",  tone: "done" },
   };
 
-  function renderTimeline(doc) {
-    var wrap = el("docTimelineWrap");
-    var ol = el("docTimeline");
-    if (!wrap || !ol) {
-      return;
-    }
-
-    var hist = (doc && doc.history) || [];
-    if (hist.length === 0) {
-      ol.innerHTML = "";
-      setHidden(wrap, true);
-      return;
+  function timelineListHtml(hist) {
+    if (!hist || hist.length === 0) {
+      return (
+        '<div class="dh-empty">' +
+        '<i data-lucide="history" aria-hidden="true"></i>' +
+        "<span>ยังไม่มีประวัติสำหรับเอกสารนี้</span>" +
+        "</div>"
+      );
     }
 
     var dt = function (v) {
       return window.ThaiDate ? window.ThaiDate.dateTime(v, "") : v;
     };
 
-    var html = "";
+    var html = '<div class="dh-count">' + hist.length + " เหตุการณ์</div>";
+    html += '<ol class="dh-list">';
     for (var i = 0; i < hist.length; i++) {
       var h = hist[i];
-      var label = TIMELINE_LABEL[h.event] || h.event;
+      var m = EVENT_META[h.event] || {
+        label: h.event,
+        icon: "circle",
+        tone: "brand",
+      };
       var who = h.actor_name || h.actor || "";
 
       html +=
-        '<li class="doc-tl-item is-' +
-        escapeHtml(h.event) +
+        '<li class="dh-item is-' +
+        m.tone +
         '">' +
-        '<span class="doc-tl-dot" aria-hidden="true"></span>' +
-        '<span class="doc-tl-head"><b>' +
-        escapeHtml(label) +
-        "</b>" +
-        (who
-          ? ' <span class="doc-tl-who">· ' + escapeHtml(who) + "</span>"
-          : "") +
-        ' <span class="doc-tl-time">· ' +
+        '<span class="dh-rail" aria-hidden="true">' +
+        '<span class="dh-badge"><i data-lucide="' +
+        m.icon +
+        '"></i></span></span>' +
+        '<div class="dh-body">' +
+        '<div class="dh-top"><b class="dh-label">' +
+        escapeHtml(m.label) +
+        '</b><span class="dh-time">' +
         escapeHtml(dt(h.created_at)) +
-        "</span></span>" +
-        (h.note
-          ? '<span class="doc-tl-note">' + escapeHtml(h.note) + "</span>"
-          : "") +
+        "</span></div>" +
+        (who ? '<div class="dh-by">โดย ' + escapeHtml(who) + "</div>" : "") +
+        (h.note ? '<div class="dh-note">' + escapeHtml(h.note) + "</div>" : "") +
+        "</div>" +
         "</li>";
     }
+    return html + "</ol>";
+  }
 
-    ol.innerHTML = html;
-    setHidden(wrap, false);
+  function historyModal(doc) {
+    var docNo = doc && doc.doc_no ? doc.doc_no : "";
+
+    if (!window.Swal) {
+      window.alert("ประวัติเอกสาร " + docNo);
+      return;
+    }
+    window.Swal.fire({
+      title: "ประวัติเอกสาร " + docNo,
+      html: timelineListHtml(doc && doc.history),
+      width: "34rem",
+      showConfirmButton: false,
+      showCloseButton: true,
+      buttonsStyling: false,
+      heightAuto: false,
+      customClass: {
+        popup: "app-swal doc-hist-swal",
+        closeButton: "doc-hist-x",
+      },
+      didOpen: function () {
+        /* SweetAlert ไม่แปลง <i data-lucide> ให้เอง วาดไอคอนในกล่องนี้เพิ่ม */
+        if (typeof window.renderIcons === "function") {
+          var box = document.querySelector(".doc-hist-swal");
+          window.renderIcons(box || undefined);
+        } else if (window.lucide) {
+          window.lucide.createIcons();
+        }
+      },
+    });
+  }
+
+  /* doc จากแถวตารางไม่มี history — ต้องยิง get ก่อน ส่วน openDoc (เปิดกล่องแล้ว) มีอยู่แล้ว */
+  function showHistory(doc) {
+    if (!doc) {
+      return;
+    }
+    if (doc.history) {
+      historyModal(doc);
+      return;
+    }
+    post(
+      { action: "get", doc_id: doc.doc_id },
+      function (res) {
+        historyModal(res.doc || doc);
+      },
+      bad,
+    );
   }
 
   /* ============================================================
@@ -1382,6 +1442,10 @@
     }
     if (key === "sendback") {
       sendBack();
+      return;
+    }
+    if (key === "history") {
+      showHistory(openDoc);
       return;
     }
   }

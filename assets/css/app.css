@@ -1789,35 +1789,89 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 .doc-act.is-bad { background: #fff; color: #b91c1c; border: 1px solid #fecaca; }
 .doc-act.is-bad:hover { background: #fef2f2; border-color: #f87171; }
 
-/* ---------- ไทม์ไลน์เหตุการณ์ของเอกสาร ---------- */
-.doc-timeline-wrap { margin-top: 1rem; }
-.doc-timeline-title { font-size: 0.8125rem; font-weight: 600; color: #475569; margin: 0 0 .5rem; }
+/* ============================================================
+   กล่อง modal "ประวัติเอกสาร" (เปิดจากเมนู ⋮ ในหน้ารายการใบเบิก)
+   ============================================================ */
+.doc-hist-swal .swal2-html-container { margin: .25rem 0 0; text-align: left; }
 
-.doc-timeline { list-style: none; margin: 0; padding: 0; }
-.doc-tl-item {
-    position: relative; padding: 0 0 .75rem 1.25rem;
-    border-left: 2px solid #e2e8f0;
-    font-size: 0.8125rem; line-height: 1.5; color: #0f172a;
+/* ปิดด้วยกากบาทมุมขวาบน (ไม่มีปุ่ม "ปิด") */
+.doc-hist-swal { padding-bottom: 1.25rem; }
+.doc-hist-x.swal2-close {
+    position: absolute; top: .5rem; right: .5rem;
+    width: 2rem; height: 2rem; margin: 0;
+    font-size: 1.75rem; line-height: 1; color: #94a3b8;
+    border-radius: .5rem; transition: background .15s, color .15s;
 }
-.doc-tl-item:last-child { padding-bottom: 0; border-left-color: transparent; }
-.doc-tl-dot {
-    position: absolute; left: -6px; top: .28rem;
-    width: 10px; height: 10px; border-radius: 50%;
-    background: #94a3b8; box-shadow: 0 0 0 3px #fff;
+.doc-hist-x.swal2-close:hover,
+.doc-hist-x.swal2-close:focus { background: #f1f5f9; color: #0f172a; outline: none; box-shadow: none; }
+.dark .doc-hist-x.swal2-close:hover,
+.dark .doc-hist-x.swal2-close:focus { background: #1e293b; color: #f1f5f9; }
+
+.dh-count {
+    margin: 0 0 .625rem; text-align: center;
+    font-size: 0.75rem; font-weight: 600; color: #64748b;
 }
-.doc-tl-item.is-approved  .doc-tl-dot { background: #059669; }
-.doc-tl-item.is-rejected  .doc-tl-dot,
-.doc-tl-item.is-cancelled .doc-tl-dot { background: #dc2626; }
-.doc-tl-item.is-returned  .doc-tl-dot { background: #d97706; }
-.doc-tl-item.is-issued    .doc-tl-dot { background: #4f46e5; }
-.doc-tl-head { display: block; }
-.doc-tl-head b { font-weight: 600; }
-.doc-tl-who  { color: #475569; }
-.doc-tl-time { color: #94a3b8; }
-.doc-tl-note {
-    display: block; margin-top: .125rem;
-    color: #64748b; word-break: break-word;
+
+.dh-list {
+    list-style: none; margin: 0; padding: .25rem .25rem 0;
+    max-height: 58vh; overflow-y: auto;
 }
+
+.dh-item { position: relative; display: flex; gap: .75rem; padding-bottom: 1rem; }
+.dh-item:last-child { padding-bottom: .25rem; }
+
+/* รางเส้นเชื่อม + วงกลมไอคอน */
+.dh-rail { position: relative; flex: none; width: 28px; }
+.dh-item:not(:last-child) .dh-rail::after {
+    content: ""; position: absolute; left: 50%; top: 32px; bottom: -1rem;
+    width: 2px; transform: translateX(-50%); background: #e2e8f0;
+}
+.dh-badge {
+    position: relative; z-index: 1;
+    display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 999px;
+    background: #eff6ff; color: #2563eb;
+}
+.dh-badge > svg { width: 15px; height: 15px; }
+.dh-item.is-ok   .dh-badge { background: #ecfdf5; color: #059669; }
+.dh-item.is-bad  .dh-badge { background: #fef2f2; color: #dc2626; }
+.dh-item.is-warn .dh-badge { background: #fffbeb; color: #d97706; }
+.dh-item.is-done .dh-badge { background: #eef2ff; color: #4f46e5; }
+
+.dh-body { flex: 1 1 auto; min-width: 0; padding-top: .15rem; }
+.dh-top { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
+.dh-label { font-size: 0.875rem; font-weight: 600; color: #0f172a; }
+.dh-time {
+    margin-left: auto; flex: none;
+    font-size: 0.6875rem; color: #94a3b8; font-variant-numeric: tabular-nums;
+}
+.dh-by { margin-top: .125rem; font-size: 0.75rem; color: #64748b; }
+.dh-note {
+    margin-top: .375rem; padding: .375rem .625rem;
+    background: #f8fafc; border: 1px solid #eef2f7; border-radius: .5rem;
+    font-size: 0.75rem; color: #475569;
+    word-break: break-word; white-space: pre-wrap;
+}
+
+.dh-empty {
+    display: flex; flex-direction: column; align-items: center; gap: .5rem;
+    padding: 2rem 1rem; font-size: 0.8125rem; color: #94a3b8;
+}
+.dh-empty > svg { width: 28px; height: 28px; color: #cbd5e1; }
+
+.dark .dh-count { color: #94a3b8; }
+.dark .dh-item:not(:last-child) .dh-rail::after { background: #1e293b; }
+.dark .dh-badge { background: rgba(59, 130, 246, .18); color: #93c5fd; }
+.dark .dh-item.is-ok   .dh-badge { background: rgba(16, 185, 129, .16); color: #34d399; }
+.dark .dh-item.is-bad  .dh-badge { background: rgba(239, 68, 68, .16);  color: #f87171; }
+.dark .dh-item.is-warn .dh-badge { background: rgba(245, 158, 11, .16); color: #fbbf24; }
+.dark .dh-item.is-done .dh-badge { background: rgba(99, 102, 241, .2);  color: #a5b4fc; }
+.dark .dh-label { color: #f1f5f9; }
+.dark .dh-time  { color: #64748b; }
+.dark .dh-by    { color: #94a3b8; }
+.dark .dh-note  { background: #0f172a; border-color: #1e293b; color: #cbd5e1; }
+.dark .dh-empty { color: #64748b; }
+.dark .dh-empty > svg { color: #334155; }
 
 /* ---------- แถบสรุปหัวรายงาน ---------- */
 .rep-tiles { display: flex; flex-wrap: wrap; gap: .5rem; }
@@ -1880,19 +1934,6 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 
 .dark .doc-act.is-bad { background: #0f172a; color: #fca5a5; border-color: rgba(239, 68, 68, .35); }
 .dark .doc-act.is-bad:hover { background: rgba(239, 68, 68, .12); border-color: #f87171; }
-
-.dark .doc-timeline-title { color: #94a3b8; }
-.dark .doc-tl-item { color: #e2e8f0; border-left-color: #1e293b; }
-.dark .doc-tl-item:last-child { border-left-color: transparent; }
-.dark .doc-tl-dot { background: #64748b; box-shadow: 0 0 0 3px #0f172a; }
-.dark .doc-tl-item.is-approved  .doc-tl-dot { background: #34d399; }
-.dark .doc-tl-item.is-rejected  .doc-tl-dot,
-.dark .doc-tl-item.is-cancelled .doc-tl-dot { background: #f87171; }
-.dark .doc-tl-item.is-returned  .doc-tl-dot { background: #fbbf24; }
-.dark .doc-tl-item.is-issued    .doc-tl-dot { background: #a5b4fc; }
-.dark .doc-tl-who  { color: #94a3b8; }
-.dark .doc-tl-time { color: #64748b; }
-.dark .doc-tl-note { color: #94a3b8; }
 
 .dark .rep-tile { background: #0b1220; border-color: #1e293b; }
 .dark .rep-tile-label { color: #94a3b8; }

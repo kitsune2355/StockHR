@@ -237,8 +237,28 @@ if ($action === 'list') {
         $options['requester'] = $actor;
     }
 
+    $docs = doc_list($options);
+
+    /* ใบเบิก: แนบ has_history ให้หน้าจอตัดสินว่าจะโชว์คำสั่ง "ประวัติเอกสาร" ในเมนู ⋮ ไหม
+       ยิงครั้งเดียวสำหรับทุกใบในหน้า — @ กันกรณี tb_doc_history ยังไม่มี (ระบบก่อน sql/061) */
+    if ($doc_type === 'request' && count($docs) > 0) {
+        $ids = array();
+        for ($i = 0; $i < count($docs); $i++) { $ids[] = (int)$docs[$i]['doc_id']; }
+
+        $have = array();
+        $hres = @mysqli_query(db_connect(),
+            "SELECT DISTINCT `doc_id` FROM `tb_doc_history` WHERE `doc_id` IN (" . implode(',', $ids) . ")");
+        if ($hres) {
+            while ($hr = mysqli_fetch_row($hres)) { $have[(int)$hr[0]] = true; }
+            mysqli_free_result($hres);
+        }
+        for ($i = 0; $i < count($docs); $i++) {
+            $docs[$i]['has_history'] = isset($have[(int)$docs[$i]['doc_id']]) ? 1 : 0;
+        }
+    }
+
     api_ok(array(
-        'docs'     => doc_list($options),
+        'docs'     => $docs,
         'statuses' => doc_statuses(),
         'me'       => $actor,
         'canSeeAll'=> $can_see_all
