@@ -213,6 +213,7 @@ function doc_list($options = array())
                       (ห้ามใส่อัญประกาศคู่ในคอมเมนต์นี้ สตริง SQL คร่อมด้วยอัญประกาศคู่อยู่) */
                    cp.`company_name`,
                    ru.`full_name` AS `requester_name`,
+                   au.`full_name` AS `approved_by_name`,
                    r.`doc_no`     AS `ref_doc_no`,
                    (SELECT COUNT(*)          FROM `tb_doc_item` i WHERE i.`doc_id` = h.`doc_id`) AS `line_count`,
                    (SELECT COALESCE(SUM(i.`qty`),0) FROM `tb_doc_item` i WHERE i.`doc_id` = h.`doc_id`) AS `total_qty`,
@@ -224,6 +225,7 @@ function doc_list($options = array())
             LEFT JOIN `tb_department` dp ON dp.`department_id` = h.`department_id`
             LEFT JOIN `tb_company`    cp ON cp.`company_id`    = dp.`company_id`
             LEFT JOIN `tb_user`       ru ON ru.`username`      = h.`requester`
+            LEFT JOIN `tb_user`       au ON au.`username`      = h.`approved_by`
             LEFT JOIN `tb_doc_header` r  ON r.`doc_id`         = h.`ref_doc_id`";
 
     if (count($where) > 0) {
@@ -250,7 +252,7 @@ function doc_list($options = array())
         $approved_by, $approved_at, $approve_note,
         $received_by, $received_at, $receiver_name,
         $cancel_note, $created_at, $created_by,
-        $department_name, $company_name, $requester_name, $ref_doc_no, $line_count, $total_qty, $total_cost);
+        $department_name, $company_name, $requester_name, $approved_by_name, $ref_doc_no, $line_count, $total_qty, $total_cost);
 
     $rows = array();
     while (mysqli_stmt_fetch($stmt)) {
@@ -273,6 +275,7 @@ function doc_list($options = array())
             'ref_doc_no'      => ($ref_doc_no === null) ? '' : $ref_doc_no,
             'note'            => $note,
             'approved_by'     => ($approved_by === null) ? '' : $approved_by,
+            'approved_by_name'=> ($approved_by_name === null) ? '' : $approved_by_name,
             'approved_at'     => ($approved_at === null) ? '' : $approved_at,
             'approve_note'    => $approve_note,
             'received_by'     => ($received_by === null) ? '' : $received_by,
@@ -304,11 +307,15 @@ function doc_find($doc_id)
                 h.`approved_by`, h.`approved_at`, h.`approve_note`,
                 h.`received_by`, h.`received_at`, h.`receiver_name`,
                 h.`cancel_note`, h.`created_at`, h.`created_by`,
-                dp.`department_name`, cp.`company_name`, ru.`full_name`, r.`doc_no`
+                dp.`department_name`, cp.`company_name`,
+                ru.`full_name` AS `requester_name`,
+                au.`full_name` AS `approved_by_name`,
+                r.`doc_no` AS `ref_doc_no`
          FROM `tb_doc_header` h
          LEFT JOIN `tb_department` dp ON dp.`department_id` = h.`department_id`
          LEFT JOIN `tb_company`    cp ON cp.`company_id`    = dp.`company_id`
          LEFT JOIN `tb_user`       ru ON ru.`username`      = h.`requester`
+         LEFT JOIN `tb_user`       au ON au.`username`      = h.`approved_by`
          LEFT JOIN `tb_doc_header` r  ON r.`doc_id`         = h.`ref_doc_id`
          WHERE h.`doc_id` = ? LIMIT 1");
     if (!$stmt) { return null; }
@@ -321,7 +328,7 @@ function doc_find($doc_id)
         $approved_by, $approved_at, $approve_note,
         $received_by, $received_at, $receiver_name,
         $cancel_note, $created_at, $created_by,
-        $department_name, $company_name, $requester_name, $ref_doc_no);
+        $department_name, $company_name, $requester_name, $approved_by_name, $ref_doc_no);
     $found = mysqli_stmt_fetch($stmt);
     mysqli_stmt_close($stmt);
 
@@ -346,6 +353,7 @@ function doc_find($doc_id)
         'ref_doc_no'      => ($ref_doc_no === null) ? '' : $ref_doc_no,
         'note'            => $note,
         'approved_by'     => ($approved_by === null) ? '' : $approved_by,
+        'approved_by_name'=> ($approved_by_name === null) ? '' : $approved_by_name,
         'approved_at'     => ($approved_at === null) ? '' : $approved_at,
         'approve_note'    => $approve_note,
         'received_by'     => ($received_by === null) ? '' : $received_by,

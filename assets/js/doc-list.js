@@ -715,6 +715,9 @@
       cols.push({ key: "department_name", label: "หน่วยงาน" });
       cols.push({ key: "requester_name", label: "ผู้ขอเบิก" });
     }
+    if (TYPE === "request") {
+      cols.push({ key: "approved_by", label: "ผู้อนุมัติ" });
+    }
     if (TYPE === "issue") {
       cols.push({ key: "ref_doc_no", label: "อ้างอิงใบเบิก" });
     }
@@ -1123,10 +1126,28 @@
     meta += line("อ้างใบเบิก", doc.ref_doc_no);
     meta += line("ผู้บันทึก", doc.created_by);
     meta += line("เวลาบันทึก", dt(doc.created_at));
-    meta += line(
-      "ผู้อนุมัติ",
-      doc.approved_by ? doc.approved_by + " · " + dt(doc.approved_at) : "",
-    );
+    /* ผู้อนุมัติ กับ เวลาอนุมัติ แยกกันคนละบรรทัด (เหมือนผู้ขอเบิก/เวลาบันทึก)
+       ใบเบิกโชว์ทุกสถานะ — ยังรออนุมัติก็บอกว่ารอใครของหน่วยงานพิจารณา */
+    if (doc.doc_type === "request") {
+      meta += line(
+        "ผู้อนุมัติ",
+        doc.approved_by
+          ? doc.approved_by_name || doc.approved_by
+          : doc.dept_approvers && doc.dept_approvers.length
+            ? doc.dept_approvers.join(", ")
+            : "— ยังไม่ได้กำหนดผู้อนุมัติของหน่วยงานนี้ —",
+      );
+      meta += line("เวลาอนุมัติ", doc.approved_at ? dt(doc.approved_at) : "—");
+    } else {
+      meta += line(
+        "ผู้อนุมัติ",
+        doc.approved_by ? doc.approved_by_name || doc.approved_by : "",
+      );
+      meta += line(
+        "เวลาอนุมัติ",
+        doc.approved_by && doc.approved_at ? dt(doc.approved_at) : "",
+      );
+    }
     meta += line("หมายเหตุการอนุมัติ", doc.approve_note);
     meta += line(
       "ผู้รับของ",

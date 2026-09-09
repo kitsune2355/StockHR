@@ -1789,6 +1789,32 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 .doc-act.is-bad { background: #fff; color: #b91c1c; border: 1px solid #fecaca; }
 .doc-act.is-bad:hover { background: #fef2f2; border-color: #f87171; }
 
+/* ---------- กล่องรายละเอียดเอกสาร บนจอมือถือ ---------- */
+@media (max-width: 640px) {
+    .doc-sheet { max-height: 94vh; }
+    .doc-sheet-head { padding: .875rem 1rem; }
+    .doc-sheet-body { padding: .875rem 1rem; }
+
+    /* ข้อมูลหัวเอกสาร: ป้ายชิดบน ค่าอยู่ใต้ ได้ความกว้างเต็มบรรทัด อ่านง่ายกว่าบีบเป็นสองคอลัมน์ */
+    .doc-meta { gap: .625rem; margin-bottom: .875rem; }
+    .doc-meta-row { flex-direction: column; gap: .0625rem; }
+    .doc-meta-row dt { width: auto; font-size: 0.6875rem; }
+    .doc-meta-row dd { font-weight: 500; }
+
+    /* ปุ่มท้ายกล่อง: กริดสองคอลัมน์เท่ากัน กดง่ายด้วยนิ้ว
+       ปุ่มสุดท้าย (ถ้าจำนวนคี่) ยืดเต็มแถว ไม่ให้เหลือช่องว่างข้าง ๆ */
+    .doc-sheet-foot {
+        display: grid; grid-template-columns: 1fr 1fr;
+        gap: .5rem; padding: .875rem 1rem;
+        padding-bottom: calc(.875rem + env(safe-area-inset-bottom, 0px));
+    }
+    .doc-sheet-foot .doc-act {
+        width: 100%; justify-content: center;
+        padding: .625rem .5rem; font-size: 0.8125rem;
+    }
+    .doc-sheet-foot .doc-act:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+
 /* ============================================================
    กล่อง modal "ประวัติเอกสาร" (เปิดจากเมนู ⋮ ในหน้ารายการใบเบิก)
    ============================================================ */

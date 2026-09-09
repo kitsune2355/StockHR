@@ -799,6 +799,38 @@ function user_approvers_for_dept($dept_id, $exclude = '')
 }
 
 
+/* ---------- ชื่อผู้อนุมัติของหน่วยงาน (ไว้โชว์ในกล่องรายละเอียดใบเบิกที่ยังรออนุมัติ) ----------
+ * เอาเฉพาะ role approver ที่ผูกกับหน่วยงานนี้และยังเปิดบัญชีอยู่ — ไม่ถอยไปหาผู้ดูแลระบบ
+ * เพราะตรงนี้ใช้บอก "ใบนี้รอใครพิจารณา" ไม่ใช่ "แจ้งเตือนไปหาใคร"
+ * คืนเป็นรายชื่อล้วน (ชื่อ-นามสกุล ถ้าไม่มีค่อยใช้ username)
+ */
+function user_approver_names_for_dept($dept_id)
+{
+    $dept_id = (int)$dept_id;
+    if ($dept_id <= 0) { return array(); }
+
+    $connect = db_connect();
+    $out     = array();
+
+    $stmt = mysqli_prepare($connect,
+        "SELECT u.`username`, u.`full_name`
+         FROM `tb_user` u
+         INNER JOIN `tb_user_department` ud ON ud.`username` = u.`username`
+         WHERE u.`role` = 'approver' AND u.`is_active` = 1 AND ud.`department_id` = ?
+         ORDER BY u.`full_name` ASC, u.`username` ASC");
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, 'i', $dept_id);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_bind_result($stmt, $u, $fn);
+        while (mysqli_stmt_fetch($stmt)) {
+            $out[] = ($fn !== null && trim($fn) !== '') ? $fn : $u;
+        }
+        mysqli_stmt_close($stmt);
+    }
+    return $out;
+}
+
+
 /* ---------- ผู้ดูแลระบบทั้งหมดที่ยังใช้งานอยู่ ----------
  * ใช้เป็นปลายทางสำรองเมื่อไม่มีผู้อนุมัติของหน่วยงาน
  * และใช้กับแจ้งเตือนระดับระบบที่ไม่มีเจ้าของชัดเจน

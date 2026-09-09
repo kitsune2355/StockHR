@@ -293,6 +293,14 @@ if ($action === 'get') {
        ตารางอาจยังไม่มีในระบบเก่า — doc_history() คืน array() เปล่าเอง ไม่ error */
     $doc['history'] = doc_history($doc['doc_id']);
 
+    /* ใบเบิกที่ยังรออนุมัติ: แนบรายชื่อผู้อนุมัติของหน่วยงาน ให้กล่องรายละเอียด
+       บอกได้ว่า "ใบนี้รอใครพิจารณา" (backend/user.php มาแล้วผ่าน request.php) */
+    $doc['dept_approvers'] = array();
+    if ($doc['doc_type'] === 'request'
+        && $doc['status'] === 'waiting' && $doc['approved_by'] === '') {
+        $doc['dept_approvers'] = user_approver_names_for_dept($doc['department_id']);
+    }
+
     api_ok(array('doc' => $doc));
 }
 
@@ -512,7 +520,7 @@ if ($action === 'export_lines') {
                     'doc_date'     => $doc['doc_date'],
                     'status_label' => $doc['status_label'],
                     'created_by'   => $doc['created_by'],
-                    'approved_by'  => $doc['approved_by'],
+                    'approved_by'  => ($doc['approved_by_name'] !== '') ? $doc['approved_by_name'] : $doc['approved_by'],
                     'line_no'      => $j + 1,
                     'product_code' => $ln['product_code'],
                     'product_name' => $ln['product_name'],
@@ -537,6 +545,7 @@ if ($action === 'export_lines') {
                 'company_name'    => $doc['company_name'],
                 'department_name' => $doc['department_name'],
                 'requester_name'  => ($doc['requester_name'] !== '') ? $doc['requester_name'] : $doc['requester'],
+                'approved_by'     => ($doc['approved_by_name'] !== '') ? $doc['approved_by_name'] : $doc['approved_by'],
                 'ref_doc_no'      => $doc['ref_doc_no'],
                 'line_no'         => $j + 1,
                 'product_code'    => $it['product_code'],
