@@ -235,20 +235,61 @@
     }
   }
 
-  function syncQuickStatusFromTable(filters) {
-    var status = "";
-    var hasStatusFilter = false;
-    for (var i = 0; i < filters.length; i++) {
-      if (filters[i].field !== "status") {
-        continue;
-      }
-      hasStatusFilter = true;
-      if (typeof filters[i].value === "string") {
-        status = filters[i].value;
-      }
-      break;
+  /* ---------- ให้ตัวกรองสถานะ 2 ทาง (ชิปเร็ว + หัวคอลัมน์) ไม่ตีกัน ----------
+   * ชิป = กรองที่เซิร์ฟเวอร์ (โหลดใหม่เฉพาะสถานะนั้น)
+   * หัวคอลัมน์ = กรองฝั่งตาราง (client)
+   * ถ้าตั้งทั้งคู่คนละค่า ผลลัพธ์จะว่างเปล่าและชิปโชว์ไม่ตรง
+   * กติกา: อันที่กดล่าสุดชนะ อีกอันถูกล้าง
+   */
+  var syncingStatus = false;
+
+  function clearStatusHeaderFilter() {
+    if (!table) {
+      return;
     }
-    updateQuickStatus(hasStatusFilter ? status : "");
+    var col = table.getColumn("status");
+    if (!col || typeof col.setHeaderFilterValue !== "function") {
+      return;
+    }
+    col.setHeaderFilterValue("");
+    /* พับช่องกรองหัวคอลัมน์ที่กางค้างไว้ให้ด้วย (enableFilterToggles ใน grid-common
+       เอา filter-open ออกเองไม่ได้เมื่อล้างค่าด้วยโค้ด) */
+    var ce = typeof col.getElement === "function" ? col.getElement() : null;
+    if (ce) {
+      ce.classList.remove("filter-open");
+    }
+  }
+
+  function syncQuickStatusFromTable(filters) {
+    var headerStatus = "";
+    for (var i = 0; i < filters.length; i++) {
+      if (filters[i].field === "status" && typeof filters[i].value === "string") {
+        headerStatus = filters[i].value;
+        break;
+      }
+    }
+
+    if (headerStatus !== "") {
+      /* ผู้ใช้เพิ่งกรองที่หัวคอลัมน์ = พฤติกรรมล่าสุด
+         ถ้าเซิร์ฟเวอร์ยังกรองสถานะอื่นค้างจากการกดชิปก่อนหน้า ให้ล้างแล้วโหลด
+         ข้อมูลทุกสถานะกลับมา ตัวกรองหัวคอลัมน์จะได้ทำงานกับข้อมูลครบ */
+      if (
+        !syncingStatus &&
+        el("filterStatus") &&
+        el("filterStatus").value !== ""
+      ) {
+        syncingStatus = true;
+        el("filterStatus").value = "";
+        load();
+        syncingStatus = false;
+      }
+      updateQuickStatus(headerStatus);
+      return;
+    }
+
+    /* ไม่มีตัวกรองหัวคอลัมน์ — ยึดค่าที่ยิงไปเซิร์ฟเวอร์ (ชิปเร็ว)
+       ไม่งั้นชิปจะเด้งกลับ "ทั้งหมด" ทุกครั้งที่โหลดเสร็จ */
+    updateQuickStatus(el("filterStatus") ? el("filterStatus").value || "" : "");
   }
 
   /* ---------- ป้ายสถานะ ---------- */
@@ -2379,6 +2420,8 @@
         if (el("filterStatus")) {
           el("filterStatus").value = status;
         }
+        /* กดชิป = พฤติกรรมล่าสุด ล้างตัวกรองสถานะที่หัวคอลัมน์ทิ้ง ไม่ให้ตีกัน */
+        clearStatusHeaderFilter();
         updateQuickStatus(status);
         load();
       });

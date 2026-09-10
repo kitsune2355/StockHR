@@ -191,7 +191,7 @@ body {
 
 /* ---------- หัวกระดาษ ---------- */
 .ph { display: flex; align-items: flex-start; gap: 14px; border-bottom: 2px solid #111827; padding-bottom: 9px; }
-.ph-logo { max-height: 74px; max-width: 190px; object-fit: contain; flex: none; }
+.ph-logo { max-height: 50px; max-width: 100px; object-fit: contain; flex: none; }
 .ph-text { flex: 1; min-width: 0; }
 .ph-co   { font-size: 17px; font-weight: 700; line-height: 1.35; }
 .ph-sub  { font-size: 12px; color: #4b5563; }
