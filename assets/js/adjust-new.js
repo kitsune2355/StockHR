@@ -1,10 +1,15 @@
 /* ============================================================
  *  adjust-new.js — ฟอร์มยื่นใบปรับยอดสินค้า (ใบตรวจนับ)
  *
- *  1) กดปุ่ม "เพิ่มรายการ" -> เพิ่มบรรทัดว่าง แล้วเลือกสินค้าในช่องแรกของบรรทัด
- *     (พิมพ์ค้นได้) แบบเดียวกับหน้าบันทึกรับเข้า
+ *  ตารางเป็น Tabulator แบบเดียวกับหน้าบันทึกรับเข้า (ดู buildTable ใน doc-form.js)
+ *  ทำงานแบบ Excel: คลิกช่องเพื่อแก้ ลากคลุมเลือกหลายช่อง Ctrl+C คัดลอกได้
+ *  (ค่าตั้งต้นร่วมมาจาก grid-common.js) — ไม่ใช้ตาราง HTML ธรรมดาเหมือนเดิมอีกแล้ว
+ *
+ *  1) กดปุ่ม "เพิ่มรายการ" -> เพิ่มบรรทัดว่างตามจำนวนที่กรอกไว้ข้าง ๆ ปุ่ม
+ *     กรอก 1 = เปิดช่องเลือกสินค้าให้เลย (เหมือนหน้าบันทึกรับเข้า)
  *  2) เลือกสินค้าแล้ว ช่อง "นับได้จริง" ตั้งค่าเริ่มเท่ายอดในระบบ
  *     ผู้ใช้แก้เฉพาะตัวที่ไม่ตรง ระบบคิดส่วนต่างให้สด ๆ
+ *     เลือกสินค้าที่มีอยู่ในใบแล้ว — ย้อนค่ากลับ แล้วกะพริบชี้ไปที่บรรทัดเดิม
  *  3) กดยื่น -> ยืนยัน -> ยิงไป api/adjust.php (action=save)
  *     สร้างเอกสาร doc_type='adjust' สถานะ waiting ยอดยังไม่เปลี่ยนจนกว่าจะอนุมัติ
  * ============================================================ */
@@ -27,6 +32,11 @@
             .replace(/"/g, '&quot;');
     }
 
+    function num(v) {
+        var n = Number(v);
+        return isNaN(n) ? 0 : n;
+    }
+
     /* จำนวนแบบไม่มี .00 ห้อยท้ายเวลาที่เป็นจำนวนเต็ม + คั่นหลักพัน (ให้ตรงกับ stock_format() ฝั่ง PHP) */
     function fmtQty(n) {
         n = Number(n);
@@ -41,21 +51,19 @@
         return (neg ? '-' : '') + p.join('.');
     }
 
-    function trimNum(n) {
-        n = Number(n) || 0;
-        return (Math.abs(n - Math.round(n)) < 1e-9)
-               ? String(Math.round(n))
-               : String(parseFloat(n.toFixed(2)));
-    }
-
+    var LIST     = [];       // สินค้าทั้งหมด เรียงตามที่ API ส่งมา (ใช้สร้างช่องเลือก)
     var PRODUCTS = {};       // product_id -> ข้อมูลสินค้า
-    var OPT_HTML = '';       // <option> ของสินค้าทุกตัว สร้างครั้งเดียว ใช้ซ้ำทุกบรรทัด
-    var ROWS = [];           // { pid, tr, sel, unitCell, sysCell, countInput, noteInput, diffCell, sysQty, code, name }
-    var saved = false;
+    var table    = null;
+    var seq      = 0;
+    var saved    = false;
 
-    var CELL_SELECT = 'input-control h-9 w-full min-w-[13rem] rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100';
-    var CELL_NUM   = 'num h-9 w-28 rounded-lg border border-slate-200 bg-white px-2 text-right text-sm text-slate-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100 disabled:bg-slate-50 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:disabled:bg-slate-900';
-    var CELL_TEXT  = 'h-9 w-full min-w-[10rem] rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100';
+    /* Tabulator 6 สั่ง addRow/setData ก่อน tableBuilt ไม่ได้ พักคำสั่งไว้ก่อนแล้วยิงตอนพร้อม
+       (ตารางสร้างเสร็จเร็วมาก แต่กันไว้เผื่อผู้ใช้กด "เพิ่มรายการ" ทันทีที่หน้าโผล่) */
+    var ready   = false;
+    var pending = [];
+    function whenReady(fn) {
+        if (ready) { fn(); } else { pending.push(fn); }
+    }
 
 
     /* ============================================================
@@ -71,22 +79,16 @@
                 return;
             }
 
-            var parts = [];
-            for (var i = 0; i < res.rows.length; i++) {
-                var r = res.rows[i];
-                PRODUCTS[r.product_id] = r;
-                parts.push(
-                    '<option value="' + r.product_id + '" data-sub="' +
-                    esc('คงเหลือ ' + fmtQty(r.qty) + (r.unit_name ? ' ' + r.unit_name : '')) + '">' +
-                    esc(r.product_code + ' — ' + r.product_name) + '</option>'
-                );
-            }
-            OPT_HTML = parts.join('');
+            LIST = res.rows || [];
+            for (var i = 0; i < LIST.length; i++) { PRODUCTS[LIST[i].product_id] = LIST[i]; }
 
             setHidden(el('formLoading'), true);
             setHidden(el('formBody'), false);
-            if (window.renderIcons) { window.renderIcons(el('formBody')); }
+
+            buildTable();
             bind();
+
+            if (window.lucide) { window.lucide.createIcons(); }
         });
     }
 
@@ -98,7 +100,7 @@
             var n = parseInt(el('addCount').value, 10);
             if (isNaN(n) || n < 1) { n = 1; }
             if (n > 50) { n = 50; }
-            for (var i = 0; i < n; i++) { addBlankRow(n === 1); }
+            addBlankRows(n);
         });
         el('btnClear').addEventListener('click', clearAll);
         el('btnSave').addEventListener('click', save);
@@ -114,257 +116,328 @@
 
 
     /* ============================================================
-     *  บรรทัดในใบ
+     *  ตาราง (Tabulator แบบเดียวกับหน้าบันทึกรับเข้า)
      * ============================================================ */
-    function addBlankRow(openPicker) {
-        var tr = document.createElement('tr');
-        tr.className = 'align-middle';
-
-        /* สินค้า — ช่องเลือก (พิมพ์ค้นได้) */
-        var tdProd = document.createElement('td');
-        tdProd.className = 'px-4 py-2';
-        var sel = document.createElement('select');
-        sel.className = CELL_SELECT;
-        sel.setAttribute('data-search', '');
-        sel.setAttribute('data-search-placeholder', 'พิมพ์รหัสหรือชื่อสินค้า');
-        sel.innerHTML = '<option value="">— เลือกสินค้า —</option>' + OPT_HTML;
-        tdProd.appendChild(sel);
-
-        /* หน่วย */
-        var tdUnit = document.createElement('td');
-        tdUnit.className = 'px-3 py-2 text-slate-400 dark:text-slate-500';
-        tdUnit.textContent = '—';
-
-        /* ยอดในระบบ */
-        var tdSys = document.createElement('td');
-        tdSys.className = 'num px-3 py-2 text-right text-slate-400 dark:text-slate-500';
-        tdSys.textContent = '—';
-
-        /* นับได้จริง */
-        var tdCount = document.createElement('td');
-        tdCount.className = 'px-3 py-2 text-right';
-        var input = document.createElement('input');
-        input.type = 'number';
-        input.step = 'any';
-        input.min = '0';
-        input.disabled = true;
-        input.placeholder = '—';
-        input.className = CELL_NUM;
-        tdCount.appendChild(input);
-
-        /* ส่วนต่าง */
-        var tdDiff = document.createElement('td');
-        tdDiff.className = 'num px-3 py-2 text-right font-medium text-slate-300 dark:text-slate-600';
-        tdDiff.textContent = '—';
-
-        /* หมายเหตุบรรทัด */
-        var tdNote = document.createElement('td');
-        tdNote.className = 'px-3 py-2';
-        var note = document.createElement('input');
-        note.type = 'text';
-        note.maxLength = 300;
-        note.placeholder = 'ไม่บังคับ';
-        note.className = CELL_TEXT;
-        tdNote.appendChild(note);
-
-        /* ปุ่มลบ */
-        var tdDel = document.createElement('td');
-        tdDel.className = 'px-3 py-2 text-right';
-        var del = document.createElement('button');
-        del.type = 'button';
-        del.className = 'inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10';
-        del.setAttribute('aria-label', 'ลบรายการนี้');
-        del.innerHTML = '<i data-lucide="trash-2" class="h-4 w-4" aria-hidden="true"></i>';
-        tdDel.appendChild(del);
-
-        tr.appendChild(tdProd);
-        tr.appendChild(tdUnit);
-        tr.appendChild(tdSys);
-        tr.appendChild(tdCount);
-        tr.appendChild(tdDiff);
-        tr.appendChild(tdNote);
-        tr.appendChild(tdDel);
-
-        var row = {
-            pid: 0, code: '', name: '', sysQty: 0,
-            tr: tr, sel: sel, unitCell: tdUnit, sysCell: tdSys,
-            countInput: input, noteInput: note, diffCell: tdDiff
-        };
-        ROWS.push(row);
-        el('rows').appendChild(tr);
-
-        if (window.SelectSearch) { window.SelectSearch.enhance(sel); }
-        sel.addEventListener('change', function () { onPick(row); });
-        input.addEventListener('input', function () { paintDiff(row); refreshSummary(); clearError(); });
-        del.addEventListener('click', function () { removeRow(row); });
-
-        if (window.renderIcons) { window.renderIcons(tr); }
-        refreshSummary();
-        clearError();
-
-        tr.scrollIntoView({ block: 'nearest' });
-        if (openPicker && sel.__ss) {
-            sel.__ss.btn.click();          // กางรายการให้เลือกทันที
+    function productValues() {
+        var out = [];
+        for (var i = 0; i < LIST.length; i++) {
+            var p = LIST[i];
+            out.push({
+                label: p.product_code + ' — ' + p.product_name +
+                       '  (คงเหลือ ' + fmtQty(p.qty) + ' ' + p.unit_name + ')',
+                value: p.product_id
+            });
         }
+        return out;
     }
 
-    function onPick(row) {
-        var pid = parseInt(row.sel.value, 10);
+    function buildTable() {
+        var G = window.GridCommon;
 
-        if (!pid) {
-            resetRow(row);
+        table = new Tabulator('#items', G.options({
+            data: [],
+            layout: 'fitColumns',
+            height: '100%',
+            placeholder: 'ยังไม่มีรายการ — กรอกจำนวนแล้วกด "เพิ่มรายการ" (เพิ่มพร้อมกันได้หลายบรรทัด)',
+            index: '_id',
+
+            /* ตารางนี้เป็นฟอร์ม ไม่ใช่ตารางข้อมูล จึงไม่ต้องแบ่งหน้าและไม่ต้องเรียง
+               ลำดับบรรทัดคือลำดับที่ผู้ใช้กรอก ซึ่งจะกลายเป็นลำดับในเอกสาร */
+            pagination: false,
+            movableRows: true,
+
+            /* ห้ามยุบคอลัมน์บนจอแคบ (ค่าปริยายของทั้งระบบคือ 'collapse')
+               ตารางนี้เป็นฟอร์มที่ต้องกรอกทุกช่อง ช่องที่ถูกยุบแก้ไม่ได้
+               ปิดการยุบแล้วให้เลื่อนแนวนอนในกรอบตารางแทน */
+            responsiveLayout: false,
+
+            /* ฟอร์มเปล่าที่ต้องกรอกเกือบทุกช่องอยู่แล้ว คลิกเดียวแก้ได้เลย
+               เหมือนหน้าบันทึกรับเข้า (ค่าปริยายของตารางอื่นในระบบคือดับเบิลคลิก) */
+            editTriggerEvent: 'click',
+
+            columns: buildColumns()
+        }));
+
+        table.on('tableBuilt', function () {
+            ready = true;
+            while (pending.length > 0) { pending.shift()(); }
+        });
+
+        table.on('cellEdited', onCellEdited);
+        table.on('rowMoved', refreshSummary);
+        table.on('dataChanged', refreshSummary);
+
+        G.guardRanges(table);
+    }
+
+    function buildColumns() {
+        var G = window.GridCommon;
+
+        return [
+            G.col(G.control, {
+                title: '#',
+                field: '_seq',
+                width: 46,
+                hozAlign: 'right',
+                headerSort: false,
+                resizable: false,
+                formatter: function (cell) {
+                    return cell.getRow().getPosition(true);
+                }
+            }),
+
+            {
+                title: 'สินค้า',
+                field: 'product_id',
+                minWidth: 240,
+                editor: 'list',
+                editorParams: G.pickerParams(productValues()),
+                formatter: function (cell) {
+                    var p = PRODUCTS[cell.getValue()];
+                    if (!p) {
+                        return '<span class="grid-empty">— เลือกสินค้า —</span>';
+                    }
+                    return '<span class="grid-user">' + esc(p.product_code) + '</span> ' + esc(p.product_name);
+                }
+            },
+
+            G.col(G.control, {
+                title: 'หน่วย',
+                field: '_unit',
+                width: 92,
+                headerSort: false,
+                formatter: function (cell) {
+                    var p = PRODUCTS[cell.getRow().getData().product_id];
+                    return p ? esc(p.unit_name) : '';
+                }
+            }),
+
+            /* ยอดในระบบ ณ ตอนเลือกสินค้าเข้ามา (แช่แข็งไว้ที่ sysQty ของแถว
+               ไม่อ่านยอดสดจาก PRODUCTS อีกที เผื่อมีคนอื่นบันทึกรับเข้า/จ่ายออกคาบเกี่ยว) */
+            G.col(G.control, {
+                title: 'ยอดในระบบ',
+                field: 'sysQty',
+                width: 112,
+                hozAlign: 'right',
+                headerSort: false,
+                formatter: function (cell) {
+                    var d = cell.getRow().getData();
+                    if (num(d.product_id) <= 0) {
+                        return '<span class="grid-empty">—</span>';
+                    }
+                    return '<span class="doc-stock">' + fmtQty(cell.getValue()) + '</span>';
+                }
+            }),
+
+            {
+                title: 'นับได้จริง',
+                field: 'qty',
+                width: 120,
+                hozAlign: 'right',
+                editor: 'number',
+                editorParams: { min: 0, step: 1, selectContents: true },
+                /* กรอกได้ต่อเมื่อเลือกสินค้าแล้ว — ไม่งั้นไม่รู้จะเทียบยอดกับอะไร */
+                editable: function (cell) {
+                    return num(cell.getRow().getData().product_id) > 0;
+                },
+                formatter: function (cell) {
+                    var d = cell.getRow().getData();
+                    if (num(d.product_id) <= 0) {
+                        return '<span class="grid-empty">—</span>';
+                    }
+                    var v = cell.getValue();
+                    if (v === '' || v === null || v === undefined) {
+                        return '<span class="grid-empty">— ยังไม่นับ —</span>';
+                    }
+                    return '<span class="doc-qty">' + fmtQty(v) + '</span>';
+                }
+            },
+
+            G.col(G.control, {
+                title: 'ส่วนต่าง',
+                field: '_diff',
+                width: 112,
+                hozAlign: 'right',
+                headerSort: false,
+                formatter: function (cell) {
+                    var d = cell.getRow().getData();
+                    if (num(d.product_id) <= 0 || d.qty === '' || d.qty === null || d.qty === undefined) {
+                        return '<span class="grid-empty">—</span>';
+                    }
+                    var diff = num(d.qty) - num(d.sysQty);
+                    if (Math.abs(diff) < 0.005) {
+                        return '<span class="grid-empty">0</span>';
+                    }
+                    return '<b class="' + (diff > 0 ? 'doc-in' : 'doc-out') + '">' +
+                           (diff > 0 ? '+' : '') + fmtQty(diff) + '</b>';
+                }
+            }),
+
+            {
+                title: 'หมายเหตุ',
+                field: 'note',
+                minWidth: 150,
+                editor: 'input',
+                formatter: function (cell) {
+                    var v = cell.getValue();
+                    return v && String(v).trim() !== '' ? esc(v) : '<span class="grid-empty">—</span>';
+                }
+            },
+
+            G.col(G.control, {
+                title: '',
+                field: '_remove',
+                width: 46,
+                hozAlign: 'center',
+                headerSort: false,
+                resizable: false,
+                formatter: function () {
+                    return '<button type="button" class="grid-remove" title="เอาบรรทัดนี้ออก">&#10005;</button>';
+                },
+                cellClick: function (e, cell) {
+                    cell.getRow().delete();
+                    refreshSummary();
+                }
+            })
+        ];
+    }
+
+    /* ---------- แก้ไขในตาราง ---------- */
+    function onCellEdited(cell) {
+        var row = cell.getRow();
+
+        if (cell.getField() !== 'product_id') {
+            row.reformat();
+            refreshSummary();
+            clearError();
             return;
         }
 
-        /* สินค้าซ้ำกับบรรทัดอื่น — ย้อนค่ากลับ แล้วชี้ไปที่บรรทัดเดิม */
-        for (var i = 0; i < ROWS.length; i++) {
-            if (ROWS[i] !== row && ROWS[i].pid === pid) {
-                var dupTr = ROWS[i].tr;
-                var dupNo = i + 1;
+        var pid = num(cell.getValue());
 
-                row.sel.value = row.pid ? String(row.pid) : '';
-                if (window.SelectSearch) { window.SelectSearch.refresh(row.sel); }
-
-                if (typeof window.appWarning === 'function') {
-                    /* กะพริบหลังผู้ใช้ปิดกล่องข้อความ ไม่งั้นเอฟเฟกต์อยู่หลังกล่องที่บังจอ */
-                    window.appWarning('สินค้านี้อยู่ในใบแล้ว (บรรทัดที่ ' + dupNo + ')')
-                        .then(function () { flash(dupTr); });
-                } else {
-                    flash(dupTr);
-                }
-                return;
-            }
+        if (pid <= 0) {
+            row.update({ sysQty: 0, qty: '' });
+            row.reformat();
+            refreshSummary();
+            clearError();
+            return;
         }
 
-        var p = PRODUCTS[pid];
-        if (!p) { resetRow(row); return; }
+        /* สินค้าซ้ำกับบรรทัดอื่น — ย้อนค่ากลับ แล้วกะพริบชี้ไปที่บรรทัดเดิม */
+        var dupRow = findRowByProduct(pid, row);
+        if (dupRow) {
+            row.update({ product_id: cell.getOldValue() || 0 });
+            row.reformat();
 
-        row.pid = pid;
-        row.code = p.product_code;
-        row.name = p.product_name;
-        row.sysQty = Number(p.qty) || 0;
+            var dupNo = dupRow.getPosition(true);
+            if (typeof window.appWarning === 'function') {
+                /* กะพริบหลังผู้ใช้ปิดกล่องข้อความ ไม่งั้นเอฟเฟกต์อยู่หลังกล่องที่บังจอ */
+                window.appWarning('สินค้านี้อยู่ในใบแล้ว (บรรทัดที่ ' + dupNo + ')')
+                    .then(function () { flashRow(dupRow); });
+            } else {
+                flashRow(dupRow);
+            }
+            return;
+        }
 
-        row.unitCell.className = 'px-3 py-2 text-slate-500 dark:text-slate-400';
-        row.unitCell.textContent = p.unit_name || '-';
-        row.sysCell.className = 'num px-3 py-2 text-right text-slate-600 dark:text-slate-300';
-        row.sysCell.textContent = fmtQty(p.qty);
-
-        row.countInput.disabled = false;
-        row.countInput.placeholder = '';
-        row.countInput.value = trimNum(p.qty);
-
-        paintDiff(row);
+        var p  = PRODUCTS[pid];
+        var sq = p ? num(p.qty) : 0;
+        row.update({ sysQty: sq, qty: sq });
+        row.reformat();
         refreshSummary();
         clearError();
 
-        row.countInput.focus();
-        row.countInput.select();
+        /* เปิดช่อง "นับได้จริง" ให้แก้ต่อทันที ส่วนใหญ่นับได้ไม่ตรงกับระบบ */
+        setTimeout(function () {
+            try { row.getCell('qty').edit(); } catch (e) { /* แก้ไม่ได้ก็ไม่เป็นไร */ }
+        }, 0);
     }
 
-    function resetRow(row) {
-        row.pid = 0; row.code = ''; row.name = ''; row.sysQty = 0;
-        row.unitCell.className = 'px-3 py-2 text-slate-400 dark:text-slate-500';
-        row.unitCell.textContent = '—';
-        row.sysCell.className = 'num px-3 py-2 text-right text-slate-400 dark:text-slate-500';
-        row.sysCell.textContent = '—';
-        row.countInput.value = '';
-        row.countInput.disabled = true;
-        row.countInput.placeholder = '—';
-        paintDiff(row);
-        refreshSummary();
+    function findRowByProduct(pid, exceptRow) {
+        var rows = table.getRows();
+        for (var i = 0; i < rows.length; i++) {
+            if (rows[i] === exceptRow) { continue; }
+            if (num(rows[i].getData().product_id) === pid) { return rows[i]; }
+        }
+        return null;
     }
 
-    function removeRow(row) {
-        var i = ROWS.indexOf(row);
-        if (i === -1) { return; }
-        ROWS.splice(i, 1);
-        if (row.tr.parentNode) { row.tr.parentNode.removeChild(row.tr); }
-        refreshSummary();
+    /* กะพริบแถวครั้งเดียวแล้วจาง + เลื่อนให้เห็น (คลาสเดียวกับ .row-scanned ของหน้าบันทึกรับเข้า) */
+    function flashRow(row) {
+        var rowEl = row.getElement();
+        if (!rowEl) { return; }
+
+        rowEl.classList.remove('row-scanned');
+        void rowEl.offsetWidth; /* บังคับให้ animation เริ่มใหม่ */
+        rowEl.classList.add('row-scanned');
+
+        try {
+            row.scrollTo().then(function () {}, function () {});
+        } catch (e) { /* ไม่สำคัญ */ }
+    }
+
+    /* ---------- เพิ่ม/ลบ/ล้างบรรทัด ---------- */
+    function addBlankRows(n) {
+        whenReady(function () {
+            var last = null;
+            for (var i = 0; i < n; i++) {
+                last = table.addRow({ _id: ++seq, product_id: 0, sysQty: 0, qty: '', note: '' });
+            }
+            if (!last) { return; }
+            last.then(function (row) {
+                refreshSummary();
+                clearError();
+                if (n === 1) {
+                    row.getCell('product_id').edit(); // เปิดช่องเลือกสินค้าให้เลย
+                }
+                try { row.getElement().scrollIntoView({ block: 'nearest' }); } catch (e) { /* ไม่สำคัญ */ }
+            });
+        });
     }
 
     function clearAll() {
-        if (ROWS.length === 0) { return; }
+        if (!table || table.getDataCount() === 0) { return; }
+        var n = table.getDataCount();
+
         var go = function () {
-            for (var i = ROWS.length - 1; i >= 0; i--) { removeRow(ROWS[i]); }
+            table.clearData().then(refreshSummary);
         };
         if (typeof window.appConfirm === 'function') {
             window.appConfirm({
                 title: 'ล้างรายการทั้งหมด',
-                text: 'จะเอาทุกบรรทัดออกจากใบตรวจนับ (' + ROWS.length + ' บรรทัด)',
+                text: 'จะเอาทุกบรรทัดออกจากใบตรวจนับ (' + n + ' บรรทัด)',
                 confirmText: 'ล้างรายการ'
             }).then(function (ok) { if (ok) { go(); } });
         } else { go(); }
     }
 
-
-    /* ---------- ส่วนต่างของบรรทัด ---------- */
-    function rowDiff(row) {
-        if (row.pid <= 0) { return null; }
-        var v = row.countInput.value;
-        if (v === '' || isNaN(Number(v))) { return null; }
-        return Number(v) - row.sysQty;
-    }
-
-    function paintDiff(row) {
-        var d = rowDiff(row);
-        var c = row.diffCell;
-        c.className = 'num px-3 py-2 text-right font-medium';
-
-        if (d === null) {
-            c.textContent = '—';
-            c.className += ' text-slate-300 dark:text-slate-600';
-            row.tr.classList.remove('bg-amber-50/60', 'dark:bg-amber-500/5');
-            return;
-        }
-        if (Math.abs(d) < 0.005) {
-            c.textContent = '0';
-            c.className += ' text-slate-400 dark:text-slate-500';
-            row.tr.classList.remove('bg-amber-50/60', 'dark:bg-amber-500/5');
-            return;
-        }
-
-        c.textContent = (d > 0 ? '+' : '') + fmtQty(d);
-        c.className += (d > 0)
-            ? ' text-emerald-600 dark:text-emerald-400'
-            : ' text-red-600 dark:text-red-400';
-        row.tr.classList.add('bg-amber-50/60', 'dark:bg-amber-500/5');
-    }
-
+    /* ---------- สรุปท้ายตาราง ---------- */
     function chosenCount() {
+        var rows = table ? table.getData() : [];
         var n = 0;
-        for (var i = 0; i < ROWS.length; i++) { if (ROWS[i].pid > 0) { n++; } }
+        for (var i = 0; i < rows.length; i++) {
+            if (num(rows[i].product_id) > 0) { n++; }
+        }
         return n;
     }
 
     function changedCount() {
+        var rows = table ? table.getData() : [];
         var n = 0;
-        for (var i = 0; i < ROWS.length; i++) {
-            var d = rowDiff(ROWS[i]);
-            if (d !== null && Math.abs(d) >= 0.005) { n++; }
+        for (var i = 0; i < rows.length; i++) {
+            if (num(rows[i].product_id) <= 0) { continue; }
+            var qv = rows[i].qty;
+            if (qv === '' || qv === null || qv === undefined) { continue; }
+            if (Math.abs(num(qv) - num(rows[i].sysQty)) >= 0.005) { n++; }
         }
         return n;
     }
 
     function refreshSummary() {
-        el('sumLines').textContent = fmtQty(chosenCount());
+        var chosen = chosenCount();
+        el('sumLines').textContent = fmtQty(chosen);
         el('sumChanged').textContent = fmtQty(changedCount());
-        setHidden(el('emptyRows'), ROWS.length > 0);
-        el('btnSave').disabled = (chosenCount() === 0);
-    }
-
-    /* กะพริบแถวครั้งเดียวแล้วจาง + เลื่อนให้เห็น (แบบเดียวกับ flashRow ในหน้าบันทึกรับเข้า)
-       ใช้ตอนผู้ใช้เลือกสินค้าที่มีอยู่ในใบแล้ว จะได้รู้ทันทีว่าไปดูบรรทัดไหน */
-    function flash(tr) {
-        if (!tr) { return; }
-        tr.classList.remove('is-flash');
-        void tr.offsetWidth;                 // บังคับให้ animation เริ่มใหม่ทุกครั้งที่เรียกซ้ำ
-        tr.classList.add('is-flash');
-        setTimeout(function () { tr.classList.remove('is-flash'); }, 1300);
-        try {
-            tr.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        } catch (e) {
-            tr.scrollIntoView(false);
-        }
+        if (el('btnSave')) { el('btnSave').disabled = chosen === 0; }
     }
 
 
@@ -384,42 +457,53 @@
         setHidden(b.querySelector('.btn-spinner'), !on);
     }
 
+    function collect() {
+        var rows   = table.getData();
+        var out    = [];
+        var seen   = {};
+        var lineNo = 0;
+
+        for (var i = 0; i < rows.length; i++) {
+            var r   = rows[i];
+            var pid = num(r.product_id);
+            if (pid <= 0) { continue; } // บรรทัดว่างที่ยังไม่ได้เลือกสินค้า — ข้าม
+            lineNo++;
+
+            var p    = PRODUCTS[pid];
+            var who  = p ? ' (' + p.product_code + ')' : '';
+            var qv   = r.qty;
+
+            if (qv === '' || qv === null || qv === undefined || isNaN(Number(qv))) {
+                return { error: 'บรรทัดที่ ' + lineNo + who + ': ยังไม่ได้กรอกจำนวนที่นับได้' };
+            }
+            if (Number(qv) < 0) {
+                return { error: 'บรรทัดที่ ' + lineNo + who + ': จำนวนติดลบไม่ได้' };
+            }
+            if (seen[pid]) {
+                return { error: 'บรรทัดที่ ' + lineNo + ': สินค้าซ้ำกับบรรทัดที่ ' + seen[pid] };
+            }
+            seen[pid] = lineNo;
+
+            out.push({ product_id: pid, counted: Number(qv), note: r.note || '' });
+        }
+
+        if (out.length === 0) {
+            return { error: 'กรุณาเลือกสินค้าในบรรทัดอย่างน้อย 1 รายการ' };
+        }
+        return { items: out };
+    }
+
     function save() {
         clearError();
 
-        if (chosenCount() === 0) {
-            showError('ยังไม่ได้เลือกสินค้าในบรรทัดใดเลย');
+        var got = collect();
+        if (got.error) {
+            showError(got.error);
             return;
         }
 
         var date = el('docDate').value;
         if (!date) { showError('กรุณาเลือกวันที่ตรวจนับ'); el('docDate').focus(); return; }
-
-        var items = [];
-        var lineNo = 0;
-        for (var i = 0; i < ROWS.length; i++) {
-            var row = ROWS[i];
-            if (row.pid <= 0) { continue; }          // บรรทัดว่างที่ยังไม่ได้เลือกสินค้า — ข้าม
-            lineNo++;
-
-            var v = row.countInput.value;
-            if (v === '' || isNaN(Number(v))) {
-                showError('บรรทัดที่ ' + lineNo + ' (' + row.code + '): ยังไม่ได้กรอกจำนวนที่นับได้');
-                row.countInput.focus();
-                return;
-            }
-            if (Number(v) < 0) {
-                showError('บรรทัดที่ ' + lineNo + ' (' + row.code + '): จำนวนติดลบไม่ได้');
-                row.countInput.focus();
-                return;
-            }
-            items.push({
-                product_id: row.pid,
-                counted: Number(v),
-                note: row.noteInput.value,
-                product_code: row.code
-            });
-        }
 
         var changed = changedCount();
         if (changed === 0) {
@@ -447,7 +531,7 @@
                 csrf_token: CFG.csrfToken,
                 doc_date: date,
                 note: el('docNote').value,
-                items: items
+                items: got.items
             });
         });
     }
@@ -469,9 +553,11 @@
             }
 
             saved = true;
-            for (var i = ROWS.length - 1; i >= 0; i--) { removeRow(ROWS[i]); }
+            table.clearData().then(function () {
+                refreshSummary();
+                saved = false;
+            });
             el('docNote').value = '';
-            saved = false;
 
             var msg = res.message || 'ยื่นใบปรับยอดเรียบร้อย';
             if (typeof window.appSuccess === 'function') {

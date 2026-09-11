@@ -62,10 +62,12 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
       </div>
     </form>
 
-    <!-- ===== แถบเครื่องมือ ===== -->
-    <div class="flex flex-none flex-wrap items-center gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+    <!-- ===== แถบเครื่องมือ =====
+         คลาส grid-toolbar / grid-toolbar-actions ใช้ร่วมกับหน้าอื่นที่มีตารางแบบฟอร์ม
+         (รับเข้า/เบิก/จ่าย) เพื่อให้ได้ responsive แบบเดียวกันบนจอแคบ (ดู app.css) -->
+    <div class="grid-toolbar flex flex-none flex-wrap items-center gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
 
-      <div class="ml-auto flex flex-wrap items-center gap-2">
+      <div class="grid-toolbar-actions ml-auto flex flex-wrap items-center gap-2">
         <div class="flex items-center gap-2">
           <input type="number" id="addCount" value="1" min="1" max="50" aria-label="จำนวนบรรทัดที่จะเพิ่ม"
                  class="num h-11 w-16 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:ring-brand-900">
@@ -87,27 +89,9 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
     </div>
 
     <!-- ===== ตารางใบตรวจนับ ===== -->
-    <div class="min-h-0 flex-1 overflow-auto">
-      <table class="w-full border-collapse text-sm">
-        <thead>
-          <tr class="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            <th class="sticky top-0 z-10 bg-slate-50 px-4 py-2.5 dark:bg-slate-800">สินค้า</th>
-            <th class="sticky top-0 z-10 bg-slate-50 px-3 py-2.5 dark:bg-slate-800">หน่วย</th>
-            <th class="sticky top-0 z-10 bg-slate-50 px-3 py-2.5 text-right dark:bg-slate-800">ยอดในระบบ</th>
-            <th class="sticky top-0 z-10 bg-slate-50 px-3 py-2.5 text-right dark:bg-slate-800">นับได้จริง</th>
-            <th class="sticky top-0 z-10 bg-slate-50 px-3 py-2.5 text-right dark:bg-slate-800">ส่วนต่าง</th>
-            <th class="sticky top-0 z-10 bg-slate-50 px-3 py-2.5 dark:bg-slate-800">หมายเหตุ</th>
-            <th class="sticky top-0 z-10 bg-slate-50 px-3 py-2.5 dark:bg-slate-800"></th>
-          </tr>
-        </thead>
-        <tbody id="rows" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
-      </table>
-
-      <div id="emptyRows" class="flex flex-col items-center gap-2 p-12 text-center text-sm text-slate-400 dark:text-slate-500">
-        <i data-lucide="clipboard-list" class="h-8 w-8" aria-hidden="true"></i>
-        ยังไม่มีรายการ — กรอกจำนวนแล้วกด "เพิ่มรายการ" (เพิ่มพร้อมกันได้หลายบรรทัด) แล้วเลือกสินค้าในแต่ละบรรทัด
-      </div>
-    </div>
+    <!-- ตารางแบบ Excel เหมือนหน้าบันทึกรับเข้า (Tabulator) — ดู buildTable() ใน adjust-new.js
+         ข้อความ "ยังไม่มีรายการ" มาจากตัวเลือก placeholder ของ Tabulator เอง ไม่ต้องมี div แยก -->
+    <div id="items" class="min-h-0 flex-1"></div>
 
     <!-- ===== สรุปท้ายใบ ===== -->
     <div class="flex flex-none flex-wrap items-center gap-x-6 gap-y-1 border-t border-slate-200 px-4 py-3 text-sm dark:border-slate-800">
@@ -131,5 +115,6 @@ window.ADJUST = {
     today:     <?php echo adj_json(date('Y-m-d')); ?>
 };
 </script>
-<script src="<?php echo asset_url('assets/js/select-search.js', $ASSET_BASE); ?>"></script>
+<script src="<?php echo asset_url('assets/js/tabulator.min.js', $ASSET_BASE); ?>"></script>
+<script src="<?php echo asset_url('assets/js/grid-common.js', $ASSET_BASE); ?>"></script>
 <script src="<?php echo asset_url('assets/js/adjust-new.js', $ASSET_BASE); ?>"></script>
