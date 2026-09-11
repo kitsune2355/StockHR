@@ -612,7 +612,16 @@
                    ลบทิ้งกลางคันแล้วมันจะไปอ้างถึงบรรทัดที่ไม่มีอยู่แล้ว */
         var dupPid = cell.getValue();
         setTimeout(function () {
-          mergeDuplicate(row, dupPid);
+          var merged = mergeDuplicate(row, dupPid);
+          /* ไม่ซ้ำ = บรรทัดนี้ยังอยู่ตามเดิม เปิดช่องจำนวนให้กรอกต่อทันที
+                   (กรณีซ้ำ mergeDuplicate เปิดช่องจำนวนของบรรทัดที่เก็บไว้ให้แล้ว) */
+          if (!merged && num(dupPid) > 0) {
+            try {
+              row.getCell("qty").edit();
+            } catch (e) {
+              /* แก้ไม่ได้ก็ไม่เป็นไร */
+            }
+          }
         }, 0);
       }
       row.reformat();
