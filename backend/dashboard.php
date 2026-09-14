@@ -18,6 +18,7 @@ require_once dirname(__FILE__) . '/stock.php';
 require_once dirname(__FILE__) . '/document.php';
 require_once dirname(__FILE__) . '/request.php';
 require_once dirname(__FILE__) . '/issue.php';
+require_once dirname(__FILE__) . '/adjust.php';
 require_once dirname(__FILE__) . '/user.php';
 require_once dirname(__FILE__) . '/thai_date.php';
 
@@ -164,6 +165,33 @@ function dashboard_my_tasks($username, $role, $limit = 6)
                            . ' · ' . (int)$r['line_count'] . ' รายการ',
                 'date'    => $r['doc_date'],
                 'page'    => 'request_list'
+            );
+            if (count($tasks) >= $limit) { return $tasks; }
+        }
+    }
+
+    /* ---------- ใบปรับยอดที่รอเราอนุมัติ ----------
+       ผู้อนุมัติใบปรับยอดตั้งเป็นรายชื่อเฉพาะ ไม่ผูกกับ role (ดู adjust_approver_can)
+       จึงเช็คสิทธิ์แยกจาก dashboard_is_staff() ข้างบน */
+    if (adjust_approver_can($username, $role)) {
+        $rows = doc_list(array('doc_type' => 'adjust', 'status' => 'waiting', 'limit' => 50));
+
+        for ($i = 0; $i < count($rows); $i++) {
+            $r = $rows[$i];
+
+            /* อนุมัติใบที่ตัวเองสร้างไม่ได้ — กฎเดียวกับ adjust_decide() */
+            if ($r['created_by'] === $username) { continue; }
+
+            $tasks[] = array(
+                'kind'   => 'adjust',
+                'label'  => 'รออนุมัติปรับยอด',
+                'icon'   => 'scale',
+                'tone'   => 'violet',
+                'doc_no' => $r['doc_no'],
+                'title'  => 'ใบปรับยอดสินค้า',
+                'sub'    => 'ผู้บันทึก ' . $r['created_by'] . ' · ' . (int)$r['line_count'] . ' รายการ',
+                'date'   => $r['doc_date'],
+                'page'   => 'adjust_history'
             );
             if (count($tasks) >= $limit) { return $tasks; }
         }

@@ -71,14 +71,15 @@ function db_can($key)
 $health = db_can('product_list') ? dashboard_data_health() : null;
 
 /* แยกจำนวนงานค้างตามชนิด ใช้แสดงเป็นบรรทัดย่อยในไทล์ใหญ่ */
-$by_kind = array('approve' => 0, 'ack' => 0, 'issue' => 0);
+$by_kind = array('approve' => 0, 'adjust' => 0, 'ack' => 0, 'issue' => 0);
 for ($i = 0; $i < count($tasks); $i++) {
     $by_kind[$tasks[$i]['kind']]++;
 }
 $kind_label = array(
-    'approve' => array('รออนุมัติ',    'amber'),
-    'ack'     => array('รอเซ็นรับของ', 'brand'),
-    'issue'   => array('รอจ่ายของ',    'sky')
+    'approve' => array('รออนุมัติ',        'amber'),
+    'adjust'  => array('รออนุมัติปรับยอด', 'violet'),
+    'ack'     => array('รอเซ็นรับของ',     'brand'),
+    'issue'   => array('รอจ่ายของ',        'sky')
 );
 
 $todo = count($tasks);
@@ -475,8 +476,8 @@ if (!$is_staff) {
     <div class="bn-tile-head"><h3>ทางลัด</h3></div>
     <div class="bn-link-grid">
       <?php
-      /* เรียงตามลำดับที่คนใช้จริงในหนึ่งวัน: ขอเบิก -> อนุมัติ -> จ่าย -> รับเข้า -> ดูยอด */
-      $shortcuts = array('request_new', 'request_list', 'issue_new', 'receive_new', 'report_stock', 'product_list');
+      /* เรียงตามลำดับที่คนใช้จริงในหนึ่งวัน: ขอเบิก -> อนุมัติ -> จ่าย -> รับเข้า -> ปรับยอด -> ดูยอด */
+      $shortcuts = array('request_new', 'request_list', 'issue_new', 'receive_new', 'adjust_new', 'report_stock', 'product_list');
       foreach ($shortcuts as $key) {
           if (!db_can($key)) { continue; }
           $item = $routes_all[$key];
@@ -504,11 +505,20 @@ if (!$is_staff) {
     <p class="bn-blank">ยังไม่มีความเคลื่อนไหว — เริ่มจากบันทึกรับสินค้าเข้าคลัง</p>
     <?php } else { ?>
     <ul class="bn-move-list">
-      <?php foreach ($moves as $m) { $in = ($m['qty_in'] > 0); ?>
+      <?php foreach ($moves as $m) {
+          $in = ($m['qty_in'] > 0);
+
+          /* ใบปรับยอดใช้ลูกศรเข้า/ออกแบบเดียวกับรับเข้า/จ่ายออกไม่ได้
+             เพราะหน้าตาจะเหมือนกันจนแยกไม่ออกว่าเป็นการนับยอดใหม่ ไม่ใช่ของเข้าออกจริง
+             จึงให้ไอคอนคันชั่งสีม่วงของเมนู "ปรับยอดสินค้า" คั่นสายตาไว้แทน */
+          $is_adjust = ($m['move_type'] === 'adjust');
+          $mark_tone = $is_adjust ? 'adjust' : ($in ? 'in' : 'out');
+          $mark_icon = $is_adjust ? 'scale'  : ($in ? 'arrow-down-left' : 'arrow-up-right');
+      ?>
       <li class="bn-move">
         <span class="bn-move-time"><?php echo db_esc(thai_date_format($m['move_date'], 'time', '')); ?></span>
-        <span class="bn-move-mark<?php echo $in ? ' is-in' : ' is-out'; ?>">
-          <i data-lucide="<?php echo $in ? 'arrow-down-left' : 'arrow-up-right'; ?>" class="h-3 w-3" aria-hidden="true"></i>
+        <span class="bn-move-mark is-<?php echo $mark_tone; ?>">
+          <i data-lucide="<?php echo $mark_icon; ?>" class="h-3 w-3" aria-hidden="true"></i>
         </span>
         <span class="bn-move-body">
           <span class="bn-move-name">
