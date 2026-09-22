@@ -25,6 +25,27 @@ require_once dirname(__FILE__) . '/stock.php';
 require_once dirname(__FILE__) . '/user.php';
 
 
+/* ============================================================
+ *  ชื่อเต็มของ username ณ ตอนนี้ — ใช้ "แช่แข็ง" ลงคอลัมน์ _name เท่านั้น
+ *
+ *  ห้ามใช้แทนการ join สดเวลาต้องการชื่อปัจจุบัน (คนละเจตนา) จุดประสงค์เดียว
+ *  ของฟังก์ชันนี้คือหยิบชื่อ ณ วินาทีที่มีคนทำรายการ แล้วเขียนลงแถวไปเลย
+ *  ถ้าใครเปลี่ยนชื่อใน tb_user ทีหลัง ค่าที่แช่แข็งไว้จะไม่ขยับตาม
+ *  (ก่อนหน้านี้หน้าจอ join สดทุกครั้งที่แสดงผล ทำให้เอกสารเก่าเปลี่ยนชื่อ
+ *  ไปเรื่อย ๆ ตามชื่อปัจจุบันของ username นั้น — ดู sql/071)
+ *
+ *  หาไม่เจอ (บัญชีถูกลบ/พิมพ์ผิด) คืน username แทน ดีกว่าเว้นว่างจนตามตัวไม่ได้เลย
+ * ============================================================ */
+function doc_user_name($username)
+{
+    $username = trim((string)$username);
+    if ($username === '') { return ''; }
+
+    $u = user_find($username);
+    return ($u !== null && trim($u['full_name']) !== '') ? $u['full_name'] : $username;
+}
+
+
 /* ---------- ชนิดเอกสาร : รหัส => array(ชื่อ, คำนำหน้าเลขที่) ---------- */
 function doc_types()
 {
@@ -212,8 +233,9 @@ function doc_list($options = array())
                       จะแยกไม่ออกว่าใบนี้เป็นของที่ไหน
                       (ห้ามใส่อัญประกาศคู่ในคอมเมนต์นี้ สตริง SQL คร่อมด้วยอัญประกาศคู่อยู่) */
                    cp.`company_name`,
-                   ru.`full_name` AS `requester_name`,
-                   au.`full_name` AS `approved_by_name`,
+                   /* ชื่อ 3 ชุดนี้แช่แข็งไว้ในแถวเองแล้ว (ดู sql/071) ไม่ join tb_user สด
+                      เพราะถ้าใครเปลี่ยนชื่อใน tb_user ภายหลัง เอกสารเก่าไม่ควรเปลี่ยนชื่อตาม */
+                   h.`requester_name`, h.`approved_by_name`, h.`created_by_name`,
                    r.`doc_no`     AS `ref_doc_no`,
                    (SELECT COUNT(*)          FROM `tb_doc_item` i WHERE i.`doc_id` = h.`doc_id`) AS `line_count`,
                    (SELECT COALESCE(SUM(i.`qty`),0) FROM `tb_doc_item` i WHERE i.`doc_id` = h.`doc_id`) AS `total_qty`,
@@ -224,8 +246,6 @@ function doc_list($options = array())
             FROM `tb_doc_header` h
             LEFT JOIN `tb_department` dp ON dp.`department_id` = h.`department_id`
             LEFT JOIN `tb_company`    cp ON cp.`company_id`    = dp.`company_id`
-            LEFT JOIN `tb_user`       ru ON ru.`username`      = h.`requester`
-            LEFT JOIN `tb_user`       au ON au.`username`      = h.`approved_by`
             LEFT JOIN `tb_doc_header` r  ON r.`doc_id`         = h.`ref_doc_id`";
 
     if (count($where) > 0) {
@@ -252,7 +272,9 @@ function doc_list($options = array())
         $approved_by, $approved_at, $approve_note,
         $received_by, $received_at, $receiver_name,
         $cancel_note, $created_at, $created_by,
-        $department_name, $company_name, $requester_name, $approved_by_name, $ref_doc_no, $line_count, $total_qty, $total_cost);
+        $department_name, $company_name,
+        $requester_name, $approved_by_name, $created_by_name,
+        $ref_doc_no, $line_count, $total_qty, $total_cost);
 
     $rows = array();
     while (mysqli_stmt_fetch($stmt)) {
@@ -284,6 +306,7 @@ function doc_list($options = array())
             'cancel_note'     => $cancel_note,
             'created_at'      => $created_at,
             'created_by'      => ($created_by === null) ? '' : $created_by,
+            'created_by_name' => ($created_by_name === null) ? '' : $created_by_name,
             'line_count'      => (int)$line_count,
             'total_qty'       => (float)$total_qty,
             'total_cost'      => (float)$total_cost
@@ -308,14 +331,13 @@ function doc_find($doc_id)
                 h.`received_by`, h.`received_at`, h.`receiver_name`,
                 h.`cancel_note`, h.`created_at`, h.`created_by`,
                 dp.`department_name`, cp.`company_name`,
-                ru.`full_name` AS `requester_name`,
-                au.`full_name` AS `approved_by_name`,
+                /* ชื่อ 3 ชุดนี้แช่แข็งไว้ในแถวเองแล้ว (ดู sql/071) ไม่ join tb_user สด —
+                   เหตุผลเดียวกับใน doc_list() */
+                h.`requester_name`, h.`approved_by_name`, h.`created_by_name`,
                 r.`doc_no` AS `ref_doc_no`
          FROM `tb_doc_header` h
          LEFT JOIN `tb_department` dp ON dp.`department_id` = h.`department_id`
          LEFT JOIN `tb_company`    cp ON cp.`company_id`    = dp.`company_id`
-         LEFT JOIN `tb_user`       ru ON ru.`username`      = h.`requester`
-         LEFT JOIN `tb_user`       au ON au.`username`      = h.`approved_by`
          LEFT JOIN `tb_doc_header` r  ON r.`doc_id`         = h.`ref_doc_id`
          WHERE h.`doc_id` = ? LIMIT 1");
     if (!$stmt) { return null; }
@@ -328,7 +350,9 @@ function doc_find($doc_id)
         $approved_by, $approved_at, $approve_note,
         $received_by, $received_at, $receiver_name,
         $cancel_note, $created_at, $created_by,
-        $department_name, $company_name, $requester_name, $approved_by_name, $ref_doc_no);
+        $department_name, $company_name,
+        $requester_name, $approved_by_name, $created_by_name,
+        $ref_doc_no);
     $found = mysqli_stmt_fetch($stmt);
     mysqli_stmt_close($stmt);
 
@@ -362,6 +386,7 @@ function doc_find($doc_id)
         'cancel_note'     => $cancel_note,
         'created_at'      => $created_at,
         'created_by'      => ($created_by === null) ? '' : $created_by,
+        'created_by_name' => ($created_by_name === null) ? '' : $created_by_name,
         'items'           => doc_items($doc_id)
     );
 }
@@ -608,17 +633,22 @@ function doc_insert($doc_type, $data, $status, $actor)
     $note          = isset($data['note']) ? trim($data['note']) : '';
     $receiver_name = isset($data['receiver_name']) ? trim($data['receiver_name']) : '';
 
+    /* แช่แข็งชื่อผู้ขอ/ผู้บันทึกไว้ตั้งแต่ตอนสร้าง — ดูเหตุผลที่ doc_user_name() */
+    $requester_name = ($requester !== null) ? doc_user_name($requester) : '';
+    $created_by_name = doc_user_name($actor);
+
     $stmt = mysqli_prepare($connect,
         "INSERT INTO `tb_doc_header`
          SET `doc_type` = ?, `doc_no` = ?, `doc_date` = ?, `status` = ?,
-             `department_id` = ?, `requester` = ?, `ref_doc_id` = ?,
+             `department_id` = ?, `requester` = ?, `requester_name` = ?, `ref_doc_id` = ?,
              `note` = ?, `receiver_name` = ?,
-             `created_at` = NOW(), `created_by` = ?");
+             `created_at` = NOW(), `created_by` = ?, `created_by_name` = ?");
     if (!$stmt) { return db_fail('เตรียมคำสั่งบันทึกเอกสารไม่สำเร็จ'); }
 
-    mysqli_stmt_bind_param($stmt, 'ssssisisss',
+    mysqli_stmt_bind_param($stmt, 'ssssississss',
         $doc_type, $doc_no, $doc_date, $status,
-        $department_id, $requester, $ref_doc_id, $note, $receiver_name, $actor);
+        $department_id, $requester, $requester_name, $ref_doc_id, $note, $receiver_name,
+        $actor, $created_by_name);
 
     if (!mysqli_stmt_execute($stmt)) {
         $errno = mysqli_stmt_errno($stmt);
@@ -705,17 +735,20 @@ function doc_history_add($doc_id, $event, $actor, $note = '')
 
     $actor = trim((string)$actor);
     $by    = ($actor === '') ? null : $actor;
+    /* แช่แข็งชื่อผู้ทำเหตุการณ์นี้ไว้ตอนเกิดจริง — ดูเหตุผลที่ doc_user_name()
+       ระบบ (เมื่อ $by เป็น null) ไม่มีชื่อให้แช่แข็ง ปล่อยว่างไว้แล้วให้ doc_history() เติม "ระบบ" ตอนอ่าน */
+    $actor_name = ($by !== null) ? doc_user_name($by) : '';
     $note  = (string)$note;
     if (db_text_length($note) > 500) {
         $note = function_exists('mb_substr') ? mb_substr($note, 0, 500, 'UTF-8') : substr($note, 0, 500);
     }
 
     $stmt = @mysqli_prepare($connect,
-        "INSERT INTO `tb_doc_history` (`doc_id`, `event`, `actor`, `note`, `created_at`)
-         VALUES (?, ?, ?, ?, NOW())");
+        "INSERT INTO `tb_doc_history` (`doc_id`, `event`, `actor`, `actor_name`, `note`, `created_at`)
+         VALUES (?, ?, ?, ?, ?, NOW())");
     if (!$stmt) { return false; }
 
-    mysqli_stmt_bind_param($stmt, 'isss', $doc_id, $event, $by, $note);
+    mysqli_stmt_bind_param($stmt, 'issss', $doc_id, $event, $by, $actor_name, $note);
     $ok = @mysqli_stmt_execute($stmt);
     mysqli_stmt_close($stmt);
 
@@ -724,7 +757,8 @@ function doc_history_add($doc_id, $event, $actor, $note = '')
 
 
 /* ---------- อ่าน timeline ของเอกสารใบหนึ่ง ----------
- * เรียงตามลำดับที่เกิด (hist_id) พร้อมชื่อเต็มของผู้ทำ
+ * เรียงตามลำดับที่เกิด (hist_id) พร้อมชื่อเต็มของผู้ทำ ณ ตอนที่ทำ (แช่แข็งไว้แล้ว
+ * ตอนเขียน — ดู doc_history_add() — ไม่ join tb_user สด)
  * @ กันกรณีตารางยังไม่ถูกสร้าง — คืน array ว่าง
  */
 function doc_history($doc_id)
@@ -733,9 +767,8 @@ function doc_history($doc_id)
     $doc_id  = (int)$doc_id;
 
     $res = @mysqli_query($connect,
-        "SELECT h.`event`, h.`actor`, u.`full_name`, h.`note`, h.`created_at`
+        "SELECT h.`event`, h.`actor`, h.`actor_name`, h.`note`, h.`created_at`
          FROM `tb_doc_history` h
-         LEFT JOIN `tb_user` u ON u.`username` = h.`actor`
          WHERE h.`doc_id` = " . $doc_id . "
          ORDER BY h.`hist_id` ASC");
     if (!$res) { return array(); }
@@ -745,8 +778,8 @@ function doc_history($doc_id)
         $rows[] = array(
             'event'      => $r['event'],
             'actor'      => ($r['actor'] === null) ? '' : $r['actor'],
-            'actor_name' => ($r['full_name'] !== null && trim($r['full_name']) !== '')
-                            ? $r['full_name']
+            'actor_name' => ($r['actor_name'] !== null && trim($r['actor_name']) !== '')
+                            ? $r['actor_name']
                             : (($r['actor'] === null) ? 'ระบบ' : $r['actor']),
             'note'       => $r['note'],
             'created_at' => $r['created_at']

@@ -104,7 +104,7 @@ if ($deny === '') {
     $receiver_sign = doc_receiver_sign($doc['doc_id']);
 
     /* ชื่อเต็มจาก username — ถ้าหาไม่เจอก็คืน username ไปดีกว่าเว้นว่าง
-       อย่างน้อยยังตามตัวคนได้ */
+       อย่างน้อยยังตามตัวคนได้ ใช้เป็น fallback สำรองเท่านั้น (ดูด้านล่าง) */
     function pd_full_name($username)
     {
         $username = trim((string)$username);
@@ -114,11 +114,17 @@ if ($deny === '') {
         return ($u !== null && trim($u['full_name']) !== '') ? $u['full_name'] : $username;
     }
 
-    $approver_name = pd_full_name($doc['approved_by']);
+    /* ชื่อบนเอกสารที่พิมพ์ต้องเป็นชื่อ ณ ตอนเซ็นจริง ไม่ใช่ชื่อปัจจุบันของ username นั้น
+       doc_find() คืนชื่อที่แช่แข็งไว้แล้ว (approved_by_name/created_by_name — ดู sql/071)
+       เผื่อ fallback ไป pd_full_name() เฉพาะเอกสารเก่าก่อน migration ที่ค่านี้ยังว่างอยู่ */
+    $approver_name = ($doc['approved_by_name'] !== '')
+                    ? $doc['approved_by_name'] : pd_full_name($doc['approved_by']);
 
     /* ผู้จ่ายของ = คนที่บันทึกใบจ่าย มีเฉพาะใบจ่ายออก
        ใบรับเข้ากับใบเบิกไม่มีการจ่ายของ ช่องนี้จึงเว้นไว้ให้เซ็นด้วยปากกา */
-    $issuer_name = ($doc['doc_type'] === 'issue') ? pd_full_name($doc['created_by']) : '';
+    $issuer_name = ($doc['doc_type'] === 'issue')
+                 ? (($doc['created_by_name'] !== '') ? $doc['created_by_name'] : pd_full_name($doc['created_by']))
+                 : '';
 
     $items = $doc['items'];
     $total_qty = 0;
@@ -137,7 +143,9 @@ if ($deny === '') {
     $adj_lines = $is_adjust ? adjust_doc_lines($doc) : array();
     $adj_diff_total = 0;
     for ($i = 0; $i < count($adj_lines); $i++) { $adj_diff_total += $adj_lines[$i]['diff']; }
-    $maker_name = $is_adjust ? pd_full_name($doc['created_by']) : '';
+    $maker_name = $is_adjust
+                ? (($doc['created_by_name'] !== '') ? $doc['created_by_name'] : pd_full_name($doc['created_by']))
+                : '';
 
     $title_map = array(
         'request' => 'ใบเบิกวัสดุ',

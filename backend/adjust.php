@@ -174,16 +174,19 @@ function adjust_decide($doc_id, $decision, $reason, $actor, $actor_role)
     $connect = db_connect();
     $id      = (int)$doc['doc_id'];
 
+    /* แช่แข็งชื่อผู้อนุมัติไว้ตอนตัดสินจริง — ดูเหตุผลที่ doc_user_name() */
+    $actor_name = doc_user_name($actor);
+
     /* ---------- ไม่อนุมัติ: อัปเดตหัวใบอย่างเดียว ---------- */
     if ($decision === 'rejected') {
         $stmt = mysqli_prepare($connect,
             "UPDATE `tb_doc_header`
-             SET `status` = 'rejected', `approved_by` = ?, `approved_at` = NOW(),
+             SET `status` = 'rejected', `approved_by` = ?, `approved_by_name` = ?, `approved_at` = NOW(),
                  `approve_note` = ?, `updated_by` = ?
              WHERE `doc_id` = ? AND `status` = 'waiting'");
         if (!$stmt) { return db_fail('บันทึกผลไม่สำเร็จ'); }
 
-        mysqli_stmt_bind_param($stmt, 'sssi', $actor, $reason, $actor, $id);
+        mysqli_stmt_bind_param($stmt, 'ssssi', $actor, $actor_name, $reason, $actor, $id);
         if (!mysqli_stmt_execute($stmt)) {
             $errno = mysqli_stmt_errno($stmt);
             mysqli_stmt_close($stmt);
@@ -211,12 +214,12 @@ function adjust_decide($doc_id, $decision, $reason, $actor, $actor_role)
 
     $stmt = mysqli_prepare($connect,
         "UPDATE `tb_doc_header`
-         SET `status` = 'approved', `approved_by` = ?, `approved_at` = NOW(),
+         SET `status` = 'approved', `approved_by` = ?, `approved_by_name` = ?, `approved_at` = NOW(),
              `approve_note` = ?, `updated_by` = ?
          WHERE `doc_id` = ? AND `status` = 'waiting'");
     if (!$stmt) { db_rollback(); return db_fail('บันทึกผลไม่สำเร็จ'); }
 
-    mysqli_stmt_bind_param($stmt, 'sssi', $actor, $reason, $actor, $id);
+    mysqli_stmt_bind_param($stmt, 'ssssi', $actor, $actor_name, $reason, $actor, $id);
     if (!mysqli_stmt_execute($stmt)) {
         $errno = mysqli_stmt_errno($stmt);
         mysqli_stmt_close($stmt);

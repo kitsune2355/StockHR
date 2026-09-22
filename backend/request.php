@@ -158,15 +158,18 @@ function request_decide($doc_id, $decision, $reason, $actor, $actor_role)
     }
 
     $connect = db_connect();
+    /* แช่แข็งชื่อผู้อนุมัติไว้ตอนตัดสินจริง — ดูเหตุผลที่ doc_user_name() */
+    $actor_name = doc_user_name($actor);
+
     $stmt = mysqli_prepare($connect,
         "UPDATE `tb_doc_header`
-         SET `status` = ?, `approved_by` = ?, `approved_at` = NOW(),
+         SET `status` = ?, `approved_by` = ?, `approved_by_name` = ?, `approved_at` = NOW(),
              `approve_note` = ?, `updated_by` = ?
          WHERE `doc_id` = ? AND `status` = 'waiting'");
     if (!$stmt) { return db_fail('บันทึกผลการอนุมัติไม่สำเร็จ'); }
 
     $id = (int)$doc['doc_id'];
-    mysqli_stmt_bind_param($stmt, 'ssssi', $decision, $actor, $reason, $actor, $id);
+    mysqli_stmt_bind_param($stmt, 'sssssi', $decision, $actor, $actor_name, $reason, $actor, $id);
 
     if (!mysqli_stmt_execute($stmt)) {
         $errno = mysqli_stmt_errno($stmt);
@@ -555,7 +558,7 @@ function request_return($doc_id, $reason, $actor, $actor_role)
 
     $stmt = mysqli_prepare($connect,
         "UPDATE `tb_doc_header`
-         SET `status` = 'waiting', `approved_by` = NULL, `approved_at` = NULL,
+         SET `status` = 'waiting', `approved_by` = NULL, `approved_by_name` = '', `approved_at` = NULL,
              `approve_note` = '', `updated_by` = ?
          WHERE `doc_id` = ? AND `status` = 'approved'");
     if (!$stmt) { db_rollback(); return db_fail('ส่งกลับใบเบิกไม่สำเร็จ'); }

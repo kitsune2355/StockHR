@@ -275,7 +275,9 @@ function cost_drill($from, $to, $filter = array())
                    (CASE WHEN m.`move_type` = 'issue'
                          THEN m.`total_cost` ELSE -m.`total_cost` END) AS `amount`,
                    m.`move_type` AS `move_type`,
-                   COALESCE(ru.`full_name`, COALESCE(h.`requester`, '')) AS `requester`,
+                   /* ชื่อผู้ขอแช่แข็งไว้ในตัวแถวเอกสารแล้ว (ดู sql/071) ไม่ join tb_user สด
+                      กันชื่อในรายงานเก่าเปลี่ยนไปถ้ามีคนแก้ชื่อใน tb_user ทีหลัง */
+                   COALESCE(NULLIF(h.`requester_name`, ''), h.`requester`, '') AS `requester`,
                    COALESCE(m.`created_by`, '') AS `by`
             FROM `tb_stock_movement` m
             INNER JOIN `tb_product`    p  ON p.`product_id`  = m.`product_id`
@@ -283,7 +285,6 @@ function cost_drill($from, $to, $filter = array())
             LEFT  JOIN `tb_doc_header` h  ON h.`doc_id`      = m.`doc_id`
             LEFT  JOIN `tb_department` dp ON dp.`department_id` = h.`department_id`
             LEFT  JOIN `tb_company`    c  ON c.`company_id`  = dp.`company_id`
-            LEFT  JOIN `tb_user`       ru ON ru.`username`   = h.`requester`
             WHERE " . implode(' AND ', $where) . "
             ORDER BY m.`move_date` ASC, m.`move_id` ASC
             LIMIT 500";
