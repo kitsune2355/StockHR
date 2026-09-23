@@ -65,7 +65,7 @@ unset($_SESSION['login_error']);
         </div>
 
         <h2 class="animate-fade-up mt-6 text-2xl font-bold leading-relaxed [animation-delay:120ms] lg:text-3xl">
-          ระบบบริหารคลังสินค้า
+          ระบบสต็อกธุรการ
         </h2>
         <p class="animate-fade-up mt-2 max-w-sm text-sm leading-relaxed text-white/85 [animation-delay:200ms]">
           จัดการรับเข้า จ่ายออก และยอดคงเหลือของสินค้าในคลัง พร้อมรายงานสรุปแบบเรียลไทม์
