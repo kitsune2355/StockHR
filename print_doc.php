@@ -117,8 +117,23 @@ if ($deny === '') {
     /* ชื่อบนเอกสารที่พิมพ์ต้องเป็นชื่อ ณ ตอนเซ็นจริง ไม่ใช่ชื่อปัจจุบันของ username นั้น
        doc_find() คืนชื่อที่แช่แข็งไว้แล้ว (approved_by_name/created_by_name — ดู sql/071)
        เผื่อ fallback ไป pd_full_name() เฉพาะเอกสารเก่าก่อน migration ที่ค่านี้ยังว่างอยู่ */
-    $approver_name = ($doc['approved_by_name'] !== '')
-                    ? $doc['approved_by_name'] : pd_full_name($doc['approved_by']);
+    /* ใบจ่ายไม่มีขั้นอนุมัติของตัวเอง (อนุมัติผ่านมาแล้วตอนใบเบิก — ดู backend/issue.php)
+       approved_by ของใบจ่ายจึงว่างเสมอ ถ้าว่างและมีใบเบิกอ้างอิง ดึงผู้อนุมัติจากใบเบิกต้นทางมาแสดงแทน
+       ไม่งั้นช่องผู้อนุมัติจะว่างทั้งที่จริงมีคนอนุมัติไปแล้วตอนใบเบิก */
+    $approved_by      = $doc['approved_by'];
+    $approved_by_name = $doc['approved_by_name'];
+    $approved_at      = $doc['approved_at'];
+    if ($doc['doc_type'] === 'issue' && $approved_by === '' && $doc['ref_doc_id'] > 0) {
+        $ref_request = doc_find($doc['ref_doc_id']);
+        if ($ref_request !== null) {
+            $approved_by      = $ref_request['approved_by'];
+            $approved_by_name = $ref_request['approved_by_name'];
+            $approved_at      = $ref_request['approved_at'];
+        }
+    }
+
+    $approver_name = ($approved_by_name !== '')
+                    ? $approved_by_name : pd_full_name($approved_by);
 
     /* ผู้จ่ายของ = คนที่บันทึกใบจ่าย มีเฉพาะใบจ่ายออก
        ใบรับเข้ากับใบเบิกไม่มีการจ่ายของ ช่องนี้จึงเว้นไว้ให้เซ็นด้วยปากกา */
@@ -362,8 +377,8 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
     <div><b>ผู้บันทึก:</b> <span><?php echo pd_esc($maker_name !== '' ? $maker_name : $doc['created_by']); ?></span></div>
     <div><b>สถานะ:</b> <span><?php echo pd_esc($doc['status_label']); ?></span></div>
 
-    <?php if ($doc['approved_by'] !== ''): ?>
-    <div><b>ผู้อนุมัติ:</b> <span><?php echo pd_esc($approver_name); ?> <?php echo pd_esc(thai_date_time($doc['approved_at'], '')); ?></span></div>
+    <?php if ($approved_by !== ''): ?>
+    <div><b>ผู้อนุมัติ:</b> <span><?php echo pd_esc($approver_name); ?> <?php echo pd_esc(thai_date_time($approved_at, '')); ?></span></div>
     <?php endif; ?>
 
     <?php if (trim($doc['note']) !== ''): ?>
@@ -383,8 +398,8 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
     <div><b>อ้างอิงใบเบิก:</b> <span><?php echo pd_esc($doc['ref_doc_no']); ?></span></div>
     <?php endif; ?>
 
-    <?php if ($doc['approved_by'] !== ''): ?>
-    <div><b>ผู้อนุมัติ:</b> <span><?php echo pd_esc($approver_name); ?> <?php echo pd_esc(thai_date_time($doc['approved_at'], '')); ?></span></div>
+    <?php if ($approved_by !== ''): ?>
+    <div><b>ผู้อนุมัติ:</b> <span><?php echo pd_esc($approver_name); ?> <?php echo pd_esc(thai_date_time($approved_at, '')); ?></span></div>
     <?php endif; ?>
 
     <?php if (trim($doc['note']) !== ''): ?>
@@ -558,7 +573,7 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
                     pd_esc(thai_date_long($doc['doc_date'])), '');
 
         pd_sign_box('ผู้อนุมัติ', $approver_name,
-                    $doc['approved_at'] !== '' ? pd_esc(thai_date_long($doc['approved_at'])) : '............', '');
+                    $approved_at !== '' ? pd_esc(thai_date_long($approved_at)) : '............', '');
 
     } else {
 
@@ -566,7 +581,7 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
                     pd_esc(thai_date_long($doc['doc_date'])), '');
 
         pd_sign_box('ผู้อนุมัติ', $approver_name,
-                    $doc['approved_at'] !== '' ? pd_esc(thai_date_long($doc['approved_at'])) : '............', '');
+                    $approved_at !== '' ? pd_esc(thai_date_long($approved_at)) : '............', '');
 
         pd_sign_box('ผู้จ่ายของ', $issuer_name,
                     ($issuer_name !== '' && $doc['doc_date'] !== '') ? pd_esc(thai_date_long($doc['doc_date'])) : '............', '');
