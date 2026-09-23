@@ -437,6 +437,29 @@ function mail_dispatch($limit = 20, $actor = 'system')
     $connect = db_connect();
     $max_try = ($cfg['max_try'] > 0) ? $cfg['max_try'] : 3;
 
+    /* ---------- กันตัวส่งสองตัวชนกันจนผู้รับได้เมลซ้ำ ----------
+     * mail_dispatch() ถูกเรียกได้ 3 ทาง: cron/mail_worker.php, ปุ่ม "ส่งคิวเดี๋ยวนี้"
+     * ที่หน้าตั้งค่า, และ mail_flush_instant() ที่ยิงเองหลังทุกเหตุการณ์ทางธุรกิจ
+     * (ใบเบิกรออนุมัติ ฯลฯ) ถ้าสองทางมาชนกันพอดีระหว่างที่อีกฝั่งกำลังส่ง SMTP
+     * อยู่ (วัดจริง 4-15 วินาทีต่อฉบับ) ทั้งคู่จะ SELECT เจอแถว pending แถว
+     * เดียวกัน แล้วส่งซ้ำให้ผู้รับสองฉบับ — เคยล็อกไว้แค่ฝั่ง cron/mail_worker.php
+     * เท่านั้น อีกสองทางที่เหลือเลยไม่ถูกป้องกันเลย ย้ายมาไว้ตรงนี้ให้ครอบคลุม
+     * ทั้ง 3 ทางพร้อมกันในจุดเดียว
+     *
+     * ล็อกผูกกับ connection ไม่ใช่ไฟล์ — กระบวนการตายกลางคันล็อกหลุดเองเมื่อ
+     * connection ปิด ไม่มีอะไรค้างให้ต้องมาไล่เคลียร์
+     *
+     * timeout 0 = ไม่รอคิวคนอื่น เจอคนอื่นถือล็อกอยู่ก็ข้ามรอบนี้ไปเลย ปล่อยให้
+     * รอบถัดไป (cron รอบหน้า หรือ flush ครั้งต่อไป) มาเก็บต่อ ดีกว่าคาผู้ใช้
+     * ที่กดปุ่ม/รอ instant-send ไว้เฉย ๆ ระหว่างรอ SMTP ของอีกฝั่ง
+     */
+    $lock_res = @mysqli_query($connect, "SELECT GET_LOCK('stockhl_mail_worker', 0) AS `got`");
+    $lock_got = $lock_res ? mysqli_fetch_assoc($lock_res) : null;
+    if (!$lock_got || (int)$lock_got['got'] !== 1) {
+        $out['message'] = 'มีตัวส่งเมลอีกตัวกำลังทำงานอยู่ ข้ามรอบนี้ไปก่อน';
+        return $out;
+    }
+
     /* หยิบรายการก่อน แล้วค่อยส่งทีละฉบับ
        ไม่ถือ result set ไว้ระหว่างส่ง เพราะการส่งใช้เวลาหลายวินาทีต่อฉบับ
        ถ้าคาไว้จะกิน connection ยาวโดยไม่จำเป็น */
@@ -446,6 +469,7 @@ function mail_dispatch($limit = 20, $actor = 'system')
          WHERE `status` = 'pending' AND `try_count` < ?
          ORDER BY `mail_id` ASC LIMIT " . $limit);
     if (!$stmt) {
+        @mysqli_query($connect, "SELECT RELEASE_LOCK('stockhl_mail_worker')");
         $out['message'] = 'อ่านคิวเมลไม่สำเร็จ';
         return $out;
     }
@@ -462,6 +486,7 @@ function mail_dispatch($limit = 20, $actor = 'system')
     mysqli_stmt_close($stmt);
 
     if (count($jobs) === 0) {
+        @mysqli_query($connect, "SELECT RELEASE_LOCK('stockhl_mail_worker')");
         $out['message'] = 'ไม่มีเมลค้างในคิว';
         return $out;
     }
@@ -479,6 +504,8 @@ function mail_dispatch($limit = 20, $actor = 'system')
             $out['failed']++;
         }
     }
+
+    @mysqli_query($connect, "SELECT RELEASE_LOCK('stockhl_mail_worker')");
 
     $out['message'] = 'ส่งสำเร็จ ' . $out['sent'] . ' ฉบับ'
                     . ($out['failed'] > 0 ? ' / ไม่สำเร็จ ' . $out['failed'] . ' ฉบับ' : '');
