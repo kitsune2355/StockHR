@@ -389,7 +389,7 @@
         width: 48,
         hozAlign: "right",
         headerSort: false,
-        resizable: false,
+        minWidth: 36,
         responsive: 6,
         formatter: function (cell) {
           if (cell.getRow().getData()._state === "new") {

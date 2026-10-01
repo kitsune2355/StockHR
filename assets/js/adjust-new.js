@@ -180,7 +180,7 @@
                 width: 46,
                 hozAlign: 'right',
                 headerSort: false,
-                resizable: false,
+                minWidth: 36,
                 formatter: function (cell) {
                     return cell.getRow().getPosition(true);
                 }

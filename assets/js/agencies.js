@@ -279,7 +279,7 @@
 
         cols.push(G.col(G.control, {
             title: '#', field: '_seq', width: 60, hozAlign: 'right', headerSort: false,
-            resizable: false, cssClass: 'cell-seq', responsive: 6,
+            minWidth: 36, cssClass: 'cell-seq', responsive: 6,
             formatter: function (cell) {
                 if (cell.getRow().getData()._state === 'new') {
                     return '<span class="grid-tag grid-tag-new">ใหม่</span>';
