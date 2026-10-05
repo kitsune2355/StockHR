@@ -29,6 +29,12 @@ function request_save($data, $actor, $actor_role = '')
     $error = doc_validate($data);
     if ($error !== '') { return db_fail($error); }
 
+    /* ธง "ต้องคืน" เป็นของใบพนักงานใหม่ (backend/new_staff.php ตั้งจากชุดของในฐานข้อมูล)
+       ใบเบิกธรรมดาไม่มีความหมายนี้ ล้างทิ้งกันคนยิง JSON มาตั้งเอง */
+    for ($i = 0; $i < count($data['items']); $i++) {
+        unset($data['items'][$i]['must_return']);
+    }
+
     /* ---------- หน่วยงานที่ขอเบิก ----------
      * คนทั่วไปเบิกได้เฉพาะในนามหน่วยงานที่ตัวเองสังกัด บังคับที่นี่ ไม่เชื่อค่าจากฟอร์ม
      * ไม่งั้นจะยิงใบเบิกในนามหน่วยงานอื่น แล้วไปโผล่ให้ผู้อนุมัติของหน่วยงานนั้นเซ็น
@@ -279,9 +285,20 @@ function request_cancel($doc_id, $reason, $actor, $actor_role)
  * ถ้านับทั้งหมด ผู้อนุมัติของหน่วยงาน ก. จะเห็นเลข 5 แล้วเปิดเข้าไปพบว่า
  * กดอะไรไม่ได้สักใบ เพราะทั้งหมดเป็นของหน่วยงาน ข.
  */
-function request_waiting_count($actor = '', $actor_role = '')
+function request_waiting_count($actor = '', $actor_role = '', $kind = '')
 {
     $connect = db_connect();
+
+    /* $kind แยกตัวเลขตามหน้าที่ใบไปแสดง (badge บนเมนูต้องตรงกับสิ่งที่เปิดเข้าไปเห็น)
+         'general'   ใบเบิกปกติ      -> เมนู "รายการใบเบิก"
+         'new_staff' ใบพนักงานใหม่   -> เมนู "ใบเบิกพนักงานใหม่"
+         ''          ทุกใบ (ผู้เรียกแบบเดิม เช่น หน้าภาพรวม) */
+    $kind_sql = '';
+    if ($kind === 'general') {
+        $kind_sql = " AND NOT EXISTS (SELECT 1 FROM `tb_doc_new_staff` ns WHERE ns.`doc_id` = `tb_doc_header`.`doc_id`)";
+    } elseif ($kind === 'new_staff') {
+        $kind_sql = " AND EXISTS (SELECT 1 FROM `tb_doc_new_staff` ns WHERE ns.`doc_id` = `tb_doc_header`.`doc_id`)";
+    }
 
     /* คนที่อนุมัติไม่ได้ ต้องได้ 0 เสมอ ไม่ใช่จำนวนใบที่รออยู่ทั้งระบบ
        ตอนนี้ main.php เรียกเฉพาะสิทธิ์ที่อนุมัติได้อยู่แล้ว แต่ถ้าวันหลัง
@@ -315,13 +332,13 @@ function request_waiting_count($actor = '', $actor_role = '')
             "SELECT COUNT(*) FROM `tb_doc_header`
              WHERE `doc_type` = 'request' AND `status` = 'waiting'
                AND `department_id` IN (" . implode(',', $marks) . ")
-               AND (`requester` IS NULL OR `requester` <> ?)");
+               AND (`requester` IS NULL OR `requester` <> ?)" . $kind_sql);
         if (!$stmt) { return 0; }
         user_bind($stmt, $types, $values);
     } else {
         $stmt = mysqli_prepare($connect,
             "SELECT COUNT(*) FROM `tb_doc_header`
-             WHERE `doc_type` = 'request' AND `status` = 'waiting'");
+             WHERE `doc_type` = 'request' AND `status` = 'waiting'" . $kind_sql);
         if (!$stmt) { return 0; }
     }
 
@@ -373,6 +390,13 @@ function request_update($doc_id, $data, $actor, $actor_role = '')
     $doc = doc_find($doc_id);
     if ($doc === null)                  { return db_fail('ไม่พบใบเบิกที่ต้องการแก้ไข'); }
     if ($doc['doc_type'] !== 'request') { return db_fail('เอกสารนี้ไม่ใช่ใบเบิก'); }
+
+    /* ใบพนักงานใหม่มีข้อมูลพนักงานและธง "ต้องคืน" ที่ฟอร์มแก้ไขใบเบิกธรรมดาไม่รู้จัก
+       ถ้าปล่อยให้แก้ผ่านทางนี้ ธงจะหายและสินค้าในชุดพื้นฐานจะติดสิทธิ์หน่วยงาน
+       ให้ยกเลิกแล้วทำใบใหม่แทน (หน้ารายการใบเบิกซ่อนปุ่มแก้ไขของใบประเภทนี้อยู่แล้ว) */
+    if (!empty($doc['is_new_staff'])) {
+        return db_fail('ใบเบิกพนักงานใหม่แก้ไขไม่ได้ — ถ้าต้องเปลี่ยน ให้ยกเลิกใบนี้แล้วทำใบใหม่');
+    }
 
     $is_owner   = ($doc['requester'] === $actor);
     $is_manager = in_array($actor_role, array('super_admin', 'admin'));

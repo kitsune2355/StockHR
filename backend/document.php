@@ -91,12 +91,18 @@ function doc_status_label($status)
  *  ใช้ FOR UPDATE เพื่อกันสองคนกดบันทึกพร้อมกันแล้วได้เลขซ้ำ
  *  (คอลัมน์ doc_no เป็น UNIQUE อยู่แล้ว ถ้าหลุดจริงจะบันทึกไม่ผ่าน
  *   ไม่ใช่เขียนทับกันเงียบ ๆ — การล็อกช่วยไม่ให้ผู้ใช้เจอ error เฉย ๆ)
+ *
+ *  $prefix_override ใช้กับเอกสารที่เป็นประเภทเดียวกันแต่ต้องมีชุดเลขของตัวเอง
+ *  เช่น ใบเบิกพนักงานใหม่ (doc_type='request') ใช้ NRQ แทน RQ
+ *  เลขรันนับแยกกันเอง เพราะ LIKE 'RQ-...' ไม่ตรงกับ 'NRQ-...' (ยึดต้นสตริง)
+ *  ผู้เรียกต้องส่งค่าคงที่จากโค้ดเท่านั้น ห้ามส่งค่าที่มาจากฟอร์ม
  * ============================================================ */
-function doc_next_no($doc_type, $doc_date)
+function doc_next_no($doc_type, $doc_date, $prefix_override = '')
 {
     $connect = db_connect();
     $types   = doc_types();
     $prefix  = isset($types[$doc_type]) ? $types[$doc_type]['prefix'] : 'DC';
+    if ($prefix_override !== '') { $prefix = $prefix_override; }
 
     /* ปี พ.ศ. 2 หลัก + เดือน 2 หลัก — ตรงกับที่คนไทยอ่านเอกสารจริง
      *
@@ -210,6 +216,15 @@ function doc_list($options = array())
         $values[] = (int)$options['department_id'];
     }
 
+    /* เฉพาะใบเบิกพนักงานใหม่ (มีแถวใน tb_doc_new_staff — join ไว้ด้านล่างเป็น ns) */
+    if (!empty($options['new_staff_only'])) {
+        $where[] = "ns.`doc_id` IS NOT NULL";
+    }
+    /* ตรงข้ามกัน — หน้า "รายการใบเบิก" แสดงเฉพาะใบเบิกปกติ ใบพนักงานใหม่ไปอยู่หน้าของตัวเอง */
+    if (!empty($options['exclude_new_staff'])) {
+        $where[] = "ns.`doc_id` IS NULL";
+    }
+
     if (isset($options['department_ids']) && is_array($options['department_ids'])
         && count($options['department_ids']) > 0) {
         $marks = array();
@@ -237,6 +252,10 @@ function doc_list($options = array())
                       เพราะถ้าใครเปลี่ยนชื่อใน tb_user ภายหลัง เอกสารเก่าไม่ควรเปลี่ยนชื่อตาม */
                    h.`requester_name`, h.`approved_by_name`, h.`created_by_name`,
                    r.`doc_no`     AS `ref_doc_no`,
+                   /* ใบเบิกพนักงานใหม่ = มีแถวใน tb_doc_new_staff (ดู sql/072) */
+                   ns.`employee_name` AS `new_staff_name`,
+                   ns.`position_name` AS `new_staff_position`,
+                   ns.`start_date`    AS `new_staff_start`,
                    (SELECT COUNT(*)          FROM `tb_doc_item` i WHERE i.`doc_id` = h.`doc_id`) AS `line_count`,
                    (SELECT COALESCE(SUM(i.`qty`),0) FROM `tb_doc_item` i WHERE i.`doc_id` = h.`doc_id`) AS `total_qty`,
                    /* มูลค่ารวมของใบ — หน้าประวัติการรับเข้าใช้ตอบว่าใบนี้เป็นเงินเท่าไร
@@ -246,7 +265,8 @@ function doc_list($options = array())
             FROM `tb_doc_header` h
             LEFT JOIN `tb_department` dp ON dp.`department_id` = h.`department_id`
             LEFT JOIN `tb_company`    cp ON cp.`company_id`    = dp.`company_id`
-            LEFT JOIN `tb_doc_header` r  ON r.`doc_id`         = h.`ref_doc_id`";
+            LEFT JOIN `tb_doc_header` r  ON r.`doc_id`         = h.`ref_doc_id`
+            LEFT JOIN `tb_doc_new_staff` ns ON ns.`doc_id`    = h.`doc_id`";
 
     if (count($where) > 0) {
         $sql .= ' WHERE ' . implode(' AND ', $where);
@@ -274,7 +294,8 @@ function doc_list($options = array())
         $cancel_note, $created_at, $created_by,
         $department_name, $company_name,
         $requester_name, $approved_by_name, $created_by_name,
-        $ref_doc_no, $line_count, $total_qty, $total_cost);
+        $ref_doc_no, $new_staff_name, $new_staff_position, $new_staff_start,
+        $line_count, $total_qty, $total_cost);
 
     $rows = array();
     while (mysqli_stmt_fetch($stmt)) {
@@ -307,6 +328,10 @@ function doc_list($options = array())
             'created_at'      => $created_at,
             'created_by'      => ($created_by === null) ? '' : $created_by,
             'created_by_name' => ($created_by_name === null) ? '' : $created_by_name,
+            'is_new_staff'    => ($new_staff_name !== null),
+            'new_staff_name'  => ($new_staff_name === null) ? '' : $new_staff_name,
+            'new_staff_position' => ($new_staff_position === null) ? '' : $new_staff_position,
+            'new_staff_start' => ($new_staff_start === null) ? '' : $new_staff_start,
             'line_count'      => (int)$line_count,
             'total_qty'       => (float)$total_qty,
             'total_cost'      => (float)$total_cost
@@ -334,11 +359,13 @@ function doc_find($doc_id)
                 /* ชื่อ 3 ชุดนี้แช่แข็งไว้ในแถวเองแล้ว (ดู sql/071) ไม่ join tb_user สด —
                    เหตุผลเดียวกับใน doc_list() */
                 h.`requester_name`, h.`approved_by_name`, h.`created_by_name`,
-                r.`doc_no` AS `ref_doc_no`
+                r.`doc_no` AS `ref_doc_no`,
+                ns.`employee_name`, ns.`employee_code`, ns.`position_name`, ns.`start_date`
          FROM `tb_doc_header` h
          LEFT JOIN `tb_department` dp ON dp.`department_id` = h.`department_id`
          LEFT JOIN `tb_company`    cp ON cp.`company_id`    = dp.`company_id`
          LEFT JOIN `tb_doc_header` r  ON r.`doc_id`         = h.`ref_doc_id`
+         LEFT JOIN `tb_doc_new_staff` ns ON ns.`doc_id`    = h.`doc_id`
          WHERE h.`doc_id` = ? LIMIT 1");
     if (!$stmt) { return null; }
 
@@ -352,11 +379,23 @@ function doc_find($doc_id)
         $cancel_note, $created_at, $created_by,
         $department_name, $company_name,
         $requester_name, $approved_by_name, $created_by_name,
-        $ref_doc_no);
+        $ref_doc_no,
+        $ns_name, $ns_code, $ns_position, $ns_start);
     $found = mysqli_stmt_fetch($stmt);
     mysqli_stmt_close($stmt);
 
     if (!$found) { return null; }
+
+    /* ใบเบิกพนักงานใหม่ (ดู sql/072) — null = ใบเบิกธรรมดา */
+    $new_staff = null;
+    if ($ns_name !== null) {
+        $new_staff = array(
+            'employee_name' => $ns_name,
+            'employee_code' => $ns_code,
+            'position_name' => $ns_position,
+            'start_date'    => $ns_start
+        );
+    }
 
     return array(
         'doc_id'          => (int)$id,
@@ -387,6 +426,8 @@ function doc_find($doc_id)
         'created_at'      => $created_at,
         'created_by'      => ($created_by === null) ? '' : $created_by,
         'created_by_name' => ($created_by_name === null) ? '' : $created_by_name,
+        'is_new_staff'    => ($new_staff !== null),
+        'new_staff'       => $new_staff,
         'items'           => doc_items($doc_id)
     );
 }
@@ -504,7 +545,7 @@ function doc_items($doc_id)
 
     $stmt = mysqli_prepare($connect,
         "SELECT i.`item_id`, i.`line_no`, i.`product_id`, i.`qty`, i.`qty_issued`, i.`note`,
-                i.`unit_cost`, i.`total_cost`,
+                i.`must_return`, i.`unit_cost`, i.`total_cost`,
                 p.`product_code`, p.`product_name`, u.`unit_name`,
                 COALESCE(b.`qty`, 0), p.`unit_cost`
          FROM `tb_doc_item` i
@@ -519,7 +560,7 @@ function doc_items($doc_id)
     mysqli_stmt_execute($stmt);
     mysqli_stmt_bind_result($stmt,
         $item_id, $line_no, $product_id, $qty, $qty_issued, $note,
-        $unit_cost, $total_cost,
+        $must_return, $unit_cost, $total_cost,
         $product_code, $product_name, $unit_name, $balance, $last_price);
 
     $rows = array();
@@ -546,6 +587,7 @@ function doc_items($doc_id)
             'qty_issued'   => (float)$qty_issued,
             'qty_pending'  => (float)$qty - (float)$qty_issued,
             'note'         => $note,
+            'must_return'  => ((int)$must_return === 1),
             'unit_cost'    => (float)$unit_cost,
             'total_cost'   => (float)$total_cost,
             'balance'      => (float)$balance,
@@ -619,7 +661,10 @@ function doc_insert($doc_type, $data, $status, $actor)
     $connect = db_connect();
 
     $doc_date = trim($data['doc_date']);
-    $doc_no   = doc_next_no($doc_type, $doc_date);
+    /* ชุดเลขเฉพาะ (เช่น NRQ ของใบพนักงานใหม่) — ตั้งโดย backend เท่านั้น
+       ชั้น api สร้าง $data จากคีย์ที่กำหนดเอง ค่านี้จึงมาจากฟอร์มไม่ได้ */
+    $doc_no   = doc_next_no($doc_type, $doc_date,
+                            isset($data['doc_prefix']) ? $data['doc_prefix'] : '');
     if ($doc_no === '') {
         return db_fail('ออกเลขที่เอกสารไม่สำเร็จ');
     }
@@ -671,7 +716,7 @@ function doc_insert($doc_type, $data, $status, $actor)
     $stmt  = mysqli_prepare($connect,
         "INSERT INTO `tb_doc_item`
          SET `doc_id` = ?, `line_no` = ?, `product_id` = ?, `qty` = ?,
-             `unit_cost` = ?, `total_cost` = ?, `note` = ?,
+             `unit_cost` = ?, `total_cost` = ?, `note` = ?, `must_return` = ?,
              `created_at` = NOW(), `created_by` = ?");
     if (!$stmt) { return db_fail('เตรียมคำสั่งบันทึกรายการไม่สำเร็จ'); }
 
@@ -682,9 +727,13 @@ function doc_insert($doc_type, $data, $status, $actor)
         $item_note  = isset($items[$i]['note']) ? trim($items[$i]['note']) : '';
         $unit_cost  = isset($items[$i]['unit_cost']) ? (float)$items[$i]['unit_cost'] : 0;
         $line_total = $qty * $unit_cost;
+        /* ธง "ต้องคืน" ใช้กับใบพนักงานใหม่เท่านั้น new_staff_save() เป็นคนตั้งจากชุดของในฐานข้อมูล
+           ผู้เรียกอื่นต้องไม่ส่งค่านี้มาจากฟอร์มตรง ๆ (request_save ล้างทิ้งก่อนถึงตรงนี้) */
+        $must_return = !empty($items[$i]['must_return']) ? 1 : 0;
 
-        mysqli_stmt_bind_param($stmt, 'iiidddss',
-            $doc_id, $line_no, $product_id, $qty, $unit_cost, $line_total, $item_note, $actor);
+        mysqli_stmt_bind_param($stmt, 'iiidddsis',
+            $doc_id, $line_no, $product_id, $qty, $unit_cost, $line_total, $item_note,
+            $must_return, $actor);
 
         if (!mysqli_stmt_execute($stmt)) {
             $errno = mysqli_stmt_errno($stmt);

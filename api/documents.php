@@ -237,6 +237,15 @@ if ($action === 'list') {
         $options['requester'] = $actor;
     }
 
+    /* แยกสองหน้า แคบลงได้อย่างเดียวเหมือน mine:
+         'new_staff' = หน้า "ใบเบิกพนักงานใหม่"  เฉพาะใบพนักงานใหม่
+         'general'   = หน้า "รายการใบเบิก"      เฉพาะใบเบิกปกติ
+         ไม่ส่งมา    = ทุกใบ (ผู้เรียกแบบเดิม) */
+    if ($doc_type === 'request' && isset($input['kind'])) {
+        if ($input['kind'] === 'new_staff') { $options['new_staff_only']    = true; }
+        if ($input['kind'] === 'general')   { $options['exclude_new_staff'] = true; }
+    }
+
     $docs = doc_list($options);
 
     /* ใบเบิก: แนบ has_history ให้หน้าจอตัดสินว่าจะโชว์คำสั่ง "ประวัติเอกสาร" ในเมนู ⋮ ไหม
@@ -502,6 +511,12 @@ if ($action === 'export_lines') {
 
     /* ติ๊ก "เฉพาะเอกสารของฉัน" บีบให้แคบลงได้อีกขั้น แต่ขยายกว้างขึ้นไม่ได้ */
     if (!empty($input['mine'])) { $opts['requester'] = $actor; }
+
+    /* ตัวกรองหน้าเดียวกับ action 'list' (ดูคำอธิบายที่นั่น) */
+    if ($doc_type === 'request' && isset($input['kind'])) {
+        if ($input['kind'] === 'new_staff') { $opts['new_staff_only']    = true; }
+        if ($input['kind'] === 'general')   { $opts['exclude_new_staff'] = true; }
+    }
 
     $docs  = doc_list($opts);
     $lines = array();

@@ -218,6 +218,8 @@ window.DOCLIST = {
     /* ใช้เฉพาะ docType='adjust' — คนนี้กดอนุมัติ/ไม่อนุมัติใบปรับยอดได้ไหม */
     adjustApprover: <?php echo dl_json(adjust_approver_can($sess_username, $sess_role)); ?>,
     exportName: <?php echo dl_json($export_name); ?>,
+    /* 'new_staff' = เฉพาะใบพนักงานใหม่ (new_staff_list.php), 'general' = เฉพาะใบปกติ (request_list.php), '' = ทุกใบ */
+    kind:       <?php echo dl_json(isset($list_kind) ? $list_kind : ''); ?>,
     /* ใช้กับแถวตัวอย่างของคู่มือ ให้วันที่ตรงกับเซิร์ฟเวอร์ ไม่ใช่นาฬิกาเครื่องผู้ใช้ */
     today:      <?php echo dl_json(date('Y-m-d')); ?>
 };

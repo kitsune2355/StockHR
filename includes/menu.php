@@ -82,6 +82,14 @@ $APP_NAV = array(
                   'roles' => $ROLE_ALL, 'children' => array(
                 array('key' => 'request_new',  'title' => 'ทำรายการเบิก', 'roles' => $ROLE_ALL, 'file' => 'pages/request_new.php',  'full' => true),
                 array('key' => 'request_list', 'title' => 'รายการใบเบิก', 'roles' => $ROLE_ALL, 'file' => 'pages/request_list.php', 'full' => true),
+                /* ใบเบิกอุปกรณ์พนักงานใหม่ — บันทึกแล้วเป็นใบเบิกธรรมดา ไปต่อที่ "รายการใบเบิก"
+                   ไม่ใช่ 'full' เพราะเป็นฟอร์มยาวหลายขั้น เลื่อนทั้งหน้าอ่านง่ายกว่า
+                   ชุดของพื้นฐานตั้งได้ที่เมนู "อุปกรณ์พนักงานใหม่" (new_staff_kit)
+                   (ดู sql/072 และ backend/new_staff.php) */
+                array('key' => 'new_staff_request', 'title' => 'เบิกพนักงานใหม่', 'icon' => 'user-plus', 'roles' => $ROLE_ALL, 'file' => 'pages/new_staff_request.php'),
+                /* เฉพาะใบเบิกพนักงานใหม่ (เลขที่ NRQ-) — หน้าเดียวกับ "รายการใบเบิก" แต่กรองไว้
+                   ใบเหล่านี้ยังโผล่ใน "รายการใบเบิก" ด้วย ผู้อนุมัติจึงไม่พลาดใบที่รออยู่ */
+                array('key' => 'new_staff_list', 'title' => 'ใบเบิกพนักงานใหม่', 'icon' => 'users', 'roles' => $ROLE_ALL, 'file' => 'pages/new_staff_list.php', 'full' => true),
             )),
 
             array('key' => 'issue', 'title' => 'จ่ายสินค้าออก', 'icon' => 'package-minus',
@@ -165,6 +173,11 @@ $APP_NAV = array(
                สิทธิ์ที่ api/approval_settings.php บังคับ */
             array('key' => 'adjust_approval', 'title' => 'ตั้งค่าอนุมัติ', 'icon' => 'shield-check',
                   'roles' => $ROLE_ADMIN, 'file' => 'pages/approval_settings.php', 'full' => true),
+
+            /* รายการพื้นฐานที่ใส่ให้อัตโนมัติในหน้า "เบิกพนักงานใหม่" + หมายเหตุท้ายฟอร์ม
+               จำกัดที่ $ROLE_ADMIN ให้ตรงกับ api/new_staff.php (kit_get / kit_save) */
+            array('key' => 'new_staff_kit', 'title' => 'อุปกรณ์พนักงานใหม่', 'icon' => 'package-check',
+                  'roles' => $ROLE_ADMIN, 'file' => 'pages/new_staff_kit.php'),
 
             /* กล่องกระดิ่งเลื่อนดูของเก่าได้ก็จริง แต่ค้นไม่ได้ กรองไม่ได้
                และสูงแค่ครึ่งจอ คนที่ตามหาเรื่องเมื่อสองสัปดาห์ก่อนต้องมีที่ที่กว้างกว่านั้น

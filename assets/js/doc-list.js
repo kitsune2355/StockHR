@@ -18,6 +18,8 @@
   }
 
   var TYPE = CFG.docType;
+  /* 'new_staff' = หน้าใบเบิกพนักงานใหม่ (กรองที่เซิร์ฟเวอร์ + คอลัมน์พนักงาน) */
+  var KIND = CFG.kind || "";
   var table = null;
   var STAT = {};
   var ME = CFG.me;
@@ -152,6 +154,7 @@
     var payload = {
       action: "list",
       doc_type: TYPE,
+      kind: KIND,
       status: el("filterStatus") ? el("filterStatus").value : "",
       date_from: el("dateFrom") ? el("dateFrom").value : "",
       date_to: el("dateTo") ? el("dateTo").value : "",
@@ -328,8 +331,12 @@
 
       /* แก้ไขใบเบิกที่ยังรออนุมัติ: ผู้ทำเบิกเอง หรือผู้ดูแลระบบ
          แก้เสร็จส่งให้ผู้อนุมัติพิจารณาใหม่ (เปิดหน้า "ทำรายการเบิก" โหมดแก้ไข) */
+      /* ใบพนักงานใหม่ไม่มีโหมดแก้ไข (ฟอร์มใบเบิกธรรมดาไม่รู้จักข้อมูลพนักงาน)
+         ต้องยกเลิกแล้วทำใหม่ — backend ปฏิเสธซ้ำใน request_update */
       if (
-        (doc.status === "waiting" && (doc.requester === ME || isManager())) ||
+        (doc.status === "waiting" &&
+          !doc.is_new_staff &&
+          (doc.requester === ME || isManager())) ||
         demo
       ) {
         out.push({
@@ -787,6 +794,7 @@
     var payload = {
       action: "export_lines",
       doc_type: TYPE,
+      kind: KIND,
       status: el("filterStatus") ? el("filterStatus").value : "",
       date_from: el("dateFrom") ? el("dateFrom").value : "",
       date_to: el("dateTo") ? el("dateTo").value : "",
@@ -826,10 +834,20 @@
         download: true,
         clipboard: true,
         formatter: function (cell) {
+          var d = cell.getRow().getData();
+          /* ใบเบิกพนักงานใหม่ติดป้ายไว้ ผู้อนุมัติ/คลังจะรู้ทันทีว่าเป็นชุดของคนใหม่
+             ชื่อพนักงานอยู่ใน title ให้ชี้ดูได้โดยไม่เปลืองความกว้างคอลัมน์ */
+          /* หน้ารายการพนักงานใหม่ทุกแถวเป็นพนักงานใหม่อยู่แล้ว ไม่ต้องติดป้ายซ้ำ */
+          var tag = d.is_new_staff && KIND !== "new_staff"
+            ? ' <span class="grid-tag grid-tag-new" title="พนักงานใหม่: ' +
+              escapeHtml(d.new_staff_name || "") +
+              '">พนักงานใหม่</span>'
+            : "";
           return (
             '<span class="grid-user doc-no">' +
             escapeHtml(cell.getValue()) +
-            "</span>"
+            "</span>" +
+            tag
           );
         },
       }),
@@ -870,6 +888,50 @@
         },
       ),
     ];
+
+    /* ---------- หน้าใบเบิกพนักงานใหม่ ----------
+     * ชื่อพนักงานคือสิ่งที่คนหาใบนี้จำได้ (ไม่ใช่ชื่อผู้ขอเบิกซึ่งเป็นหัวหน้า/HR)
+     * จึงวางไว้ก่อนบริษัท/หน่วยงาน */
+    if (KIND === "new_staff") {
+      cols.push(
+        G.col(G.filterText("ค้นชื่อพนักงาน"), {
+          title: "พนักงานใหม่",
+          field: "new_staff_name",
+          minWidth: 160,
+          responsive: 1,
+          download: true,
+          clipboard: true,
+          formatter: function (cell) {
+            var v = cell.getValue();
+            return v ? escapeHtml(v) : '<span class="grid-empty">—</span>';
+          },
+        }),
+      );
+      cols.push(
+        G.col(G.filterText("ค้นตำแหน่ง"), {
+          title: "ตำแหน่ง",
+          field: "new_staff_position",
+          minWidth: 130,
+          responsive: 3,
+          download: true,
+          clipboard: true,
+          formatter: function (cell) {
+            var v = cell.getValue();
+            return v ? escapeHtml(v) : '<span class="grid-empty">—</span>';
+          },
+        }),
+      );
+      cols.push({
+        title: "วันที่เริ่มงาน",
+        field: "new_staff_start",
+        width: 116,
+        responsive: 2,
+        download: true,
+        clipboard: true,
+        hozAlign: "center",
+        formatter: window.ThaiDate ? window.ThaiDate.cell : undefined,
+      });
+    }
 
     if (TYPE !== "receive") {
       /* ---------- บริษัท ----------
@@ -1163,6 +1225,15 @@
     meta += line("วันที่เอกสาร", d(doc.doc_date));
     meta += line("บริษัท", doc.company_name);
     meta += line("หน่วยงาน", doc.department_name);
+    if (doc.new_staff) {
+      var ns = doc.new_staff;
+      meta += line(
+        "พนักงานใหม่",
+        ns.employee_name + (ns.employee_code ? " (" + ns.employee_code + ")" : ""),
+      );
+      meta += line("ตำแหน่ง", ns.position_name);
+      meta += line("วันที่เริ่มงาน", d(ns.start_date));
+    }
     meta += line("ผู้ขอเบิก", doc.requester_name || doc.requester);
     meta += line("อ้างใบเบิก", doc.ref_doc_no);
     meta += line("ผู้บันทึก", doc.created_by);
@@ -1238,7 +1309,11 @@
         "</span><br>" +
         '<span class="doc-pname">' +
         escapeHtml(it.product_name) +
-        "</span></td>" +
+        "</span>" +
+        (it.must_return
+          ? ' <span class="grid-tag grid-tag-pwd">ต้องคืน</span>'
+          : "") +
+        "</td>" +
         '<td class="num"><b>' +
         fmt(it.qty) +
         "</b>" +

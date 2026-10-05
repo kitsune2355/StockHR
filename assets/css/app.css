@@ -7395,3 +7395,20 @@ button.bc-side-toggle { display: none; }
 }
 .pimg-ico.is-add  { -webkit-mask-image: var(--pimg-add);  mask-image: var(--pimg-add); }
 .pimg-ico.is-lock { -webkit-mask-image: var(--pimg-lock); mask-image: var(--pimg-lock); width: 1rem; height: 1rem; }
+
+/* ============================================================
+   หน้าทำรายการเบิกพนักงานใหม่ (pages/new_staff_request.php) — ขั้นที่ 3
+   ใช้ตัวเลือกสองฝั่งชุดเดียวกับหน้าทำรายการเบิก แต่หน้านี้เป็นหน้าเลื่อนได้ทั้งก้อน
+   ('full' ไม่ได้ตั้ง) .tf-wrap จึงไม่มีความสูงจากกรอบแม่ให้แบ่ง ต้องกำหนดเอง
+   ไม่งั้น .tf-list ที่เป็น flex 1 จะหดเหลือ 0 แล้วรายการสินค้าหายทั้งหมด
+   ============================================================ */
+.ns-transfer .tf-wrap { height: 36rem; padding: 1rem; }
+
+@media (max-width: 1023px) {
+    /* จอเล็กเห็นทีละฝั่งผ่านแท็บ (tf-tabs.js) ให้แต่ละฝั่งสูงตามที่กำหนดเอง
+       แบบเดียวกับ #formBody.is-transfer ของหน้าทำรายการเบิก */
+    .ns-transfer .tf-wrap { display: block; height: auto; }
+    .ns-transfer .tf-pane { margin-bottom: .75rem; }
+    .ns-transfer .tf-pane-src .tf-list { height: 55vh; }
+    .ns-transfer .tf-pane-dst .tf-list { max-height: 55vh; min-height: 8rem; }
+}

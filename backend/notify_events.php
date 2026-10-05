@@ -35,6 +35,16 @@ require_once dirname(__FILE__) . '/user.php';
 require_once dirname(__FILE__) . '/document.php';
 
 
+/* ---------- หน้าที่ลิงก์ในแจ้งเตือน/อีเมลของใบเบิกควรพาไป ----------
+ * ใบพนักงานใหม่ไม่อยู่ในหน้า "รายการใบเบิก" แล้ว ต้องพาไปหน้าของตัวเอง
+ * ไม่งั้นกดจากกระดิ่งแล้วตารางไม่มีใบนั้น (กล่องรายละเอียดยังเปิดได้ แต่ดูเหมือนข้อมูลหาย)
+ */
+function notify_request_page($doc)
+{
+    return !empty($doc['is_new_staff']) ? 'new_staff_list' : 'request_list';
+}
+
+
 /* ---------- สรุปรายการสินค้าในเอกสารเป็นข้อความสั้น ----------
  * "ปากกาลูกลื่น 5 ด้าม และอีก 3 รายการ"
  *
@@ -294,7 +304,7 @@ function notify_event_request_submitted($doc_id, $actor)
         'type'      => 'request_waiting',
         'title'     => 'ใบเบิก ' . $doc['doc_no'] . ' รอคุณอนุมัติ',
         'message'   => $who . ' (' . $doc['department_name'] . ') ขอเบิก ' . $summary,
-        'link_page' => 'request_list',
+        'link_page' => notify_request_page($doc),
         'doc_id'    => $doc['doc_id'],
         'actor'     => $actor,
         'subject'   => '[รออนุมัติ] ใบเบิก ' . $doc['doc_no'] . ' จาก ' . $who,
@@ -361,7 +371,7 @@ function notify_event_request_decided($doc_id, $decision, $reason, $actor)
         'message'   => $approved
                        ? 'ผู้อนุมัติเห็นชอบแล้ว รอคลังจ่ายของ'
                        : 'เหตุผล: ' . ($reason !== '' ? $reason : 'ไม่ได้ระบุ'),
-        'link_page' => 'request_list',
+        'link_page' => notify_request_page($doc),
         'doc_id'    => $doc['doc_id'],
         'actor'     => $actor,
         'subject'   => ($approved ? '[อนุมัติแล้ว] ' : '[ไม่อนุมัติ] ')
@@ -399,7 +409,7 @@ function notify_event_request_edited($doc_id, $actor)
         'type'      => 'request_edited',
         'title'     => 'ใบเบิก ' . $doc['doc_no'] . ' ถูกแก้ไข รอพิจารณาใหม่',
         'message'   => $who . ' (' . $doc['department_name'] . ') แก้ไขใบเบิกแล้วยื่นใหม่ ' . $summary,
-        'link_page' => 'request_list',
+        'link_page' => notify_request_page($doc),
         'doc_id'    => $doc['doc_id'],
         'actor'     => $actor,
         'subject'   => '[แก้ไขแล้ว] ใบเบิก ' . $doc['doc_no'] . ' จาก ' . $who,
@@ -451,7 +461,7 @@ function notify_event_request_returned($doc_id, $reason, $actor)
         'type'      => 'request_returned',
         'title'     => 'ส่งกลับใบเบิก ' . $doc['doc_no'] . ' ให้แก้ไข',
         'message'   => $reason !== '' ? 'เหตุผล: ' . $reason : 'ผู้อนุมัติส่งใบเบิกกลับมาให้แก้ไข',
-        'link_page' => 'request_list',
+        'link_page' => notify_request_page($doc),
         'doc_id'    => $doc['doc_id'],
         'actor'     => $actor,
         'subject'   => '[ส่งกลับแก้ไข] ใบเบิก ' . $doc['doc_no'],
@@ -748,11 +758,11 @@ function notify_event_doc_cancelled($doc_id, $reason, $actor)
 
     if ($is_request && $doc['requester'] === $actor) {
         $people    = user_approvers_for_dept($doc['department_id'], $actor);
-        $link_page = 'request_list';
+        $link_page = notify_request_page($doc);
         $lead      = '<p>ผู้ขอเบิกยกเลิกใบนี้เอง ไม่ต้องพิจารณาแล้ว</p>';
     } else {
         $people    = notify_person($doc['requester']);
-        $link_page = $is_request ? 'request_list' : 'issue_history';
+        $link_page = $is_request ? notify_request_page($doc) : 'issue_history';
         $lead      = '<p>เอกสารของคุณถูกยกเลิก กรุณาดูเหตุผลด้านล่าง</p>';
     }
 

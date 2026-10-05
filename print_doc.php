@@ -169,6 +169,13 @@ if ($deny === '') {
         'adjust'  => 'ใบปรับยอดสินค้า'
     );
     $paper_title = isset($title_map[$doc['doc_type']]) ? $title_map[$doc['doc_type']] : $doc['doc_type_label'];
+
+    /* ใบเบิกพนักงานใหม่ (sql/072) — พิมพ์ข้อมูลพนักงานและป้าย "ต้องคืน"
+       ใบนี้เป็นหลักฐานตอนพนักงานลาออก ว่ารับอะไรไปและต้องคืนอะไร */
+    $new_staff = !empty($doc['new_staff']) ? $doc['new_staff'] : null;
+    if ($new_staff !== null) {
+        $paper_title = 'ใบเบิกวัสดุ (พนักงานใหม่)';
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -391,6 +398,12 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
 
     <?php else: ?>
 
+    <?php if ($new_staff !== null): ?>
+    <div><b>พนักงานใหม่:</b> <span><?php echo pd_esc($new_staff['employee_name']); ?><?php echo ($new_staff['employee_code'] !== '') ? ' (' . pd_esc($new_staff['employee_code']) . ')' : ''; ?></span></div>
+    <div><b>ตำแหน่ง:</b> <span><?php echo pd_esc($new_staff['position_name'] !== '' ? $new_staff['position_name'] : '-'); ?></span></div>
+    <div><b>วันที่เริ่มงาน:</b> <span><?php echo pd_esc(thai_date_long($new_staff['start_date'])); ?></span></div>
+    <?php endif; ?>
+
     <div><b>ผู้ขอเบิก:</b> <span><?php echo pd_esc($doc['requester_name'] !== '' ? $doc['requester_name'] : $doc['requester']); ?></span></div>
     <div><b>สถานะ:</b> <span><?php echo pd_esc($doc['status_label']); ?></span></div>
 
@@ -480,6 +493,9 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
         <td class="code"><?php echo pd_esc($it['product_code']); ?></td>
         <td>
           <?php echo pd_esc($it['product_name']); ?>
+          <?php if (!empty($it['must_return'])): ?>
+          <span style="font-size:10px;border:1px solid #b45309;color:#b45309;border-radius:3px;padding:0 3px;white-space:nowrap">ต้องคืน</span>
+          <?php endif; ?>
           <?php if (trim($it['note']) !== ''): ?>
           <div style="font-size:11px;color:#6b7280"><?php echo pd_esc($it['note']); ?></div>
           <?php endif; ?>
@@ -524,7 +540,27 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
 
   <!-- ============ หมายเหตุประจำแบบฟอร์ม ============
        ข้อความชุดนี้เป็นเงื่อนไขการเบิกที่ฝ่ายธุรการกำหนด — ไม่เกี่ยวกับใบปรับยอด -->
-  <?php if (!$is_adjust): ?>
+  <?php if ($new_staff !== null): ?>
+  <?php
+  /* ใบพนักงานใหม่ใช้หมายเหตุของตัวเอง (ตั้งได้ที่หน้า "อุปกรณ์พนักงานใหม่")
+     เป็นเงื่อนไขการดูแล/คืนของที่พนักงานรับทราบตอนเซ็นรับ — ไม่ใช่รอบเวลาเบิกของหน่วยงาน */
+  require_once dirname(__FILE__) . '/backend/setting.php';
+  $ns_terms = array();
+  foreach (explode("\n", setting_get('new_staff_terms', '')) as $ln) {
+      if (trim($ln) !== '') { $ns_terms[] = trim($ln); }
+  }
+  ?>
+  <?php if (count($ns_terms) > 0): ?>
+  <div class="notes">
+    <div class="notes-h">หมายเหตุ:</div>
+    <ol>
+      <?php foreach ($ns_terms as $ln): ?>
+      <li><?php echo pd_esc($ln); ?></li>
+      <?php endforeach; ?>
+    </ol>
+  </div>
+  <?php endif; ?>
+  <?php elseif (!$is_adjust): ?>
   <div class="notes">
     <div class="notes-h">หมายเหตุ:</div>
     <ol>
