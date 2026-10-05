@@ -49,36 +49,19 @@ function ns_step_head($no, $title, $hint, $icon, $right = '')
 <div class="w-full">
 
   <!-- ===== กำลังโหลด ===== -->
-  <div id="nsLoading" class="<?php echo $card; ?> flex items-center justify-center gap-3 p-10 text-sm text-slate-500 dark:text-slate-400">
+  <div id="nsLoading" data-guide-wait class="<?php echo $card; ?> flex items-center justify-center gap-3 p-10 text-sm text-slate-500 dark:text-slate-400">
     <i data-lucide="loader-circle" class="h-5 w-5 animate-spin" aria-hidden="true"></i>
     กำลังโหลดอุปกรณ์พนักงานใหม่และยอดคงเหลือ...
   </div>
 
   <div id="nsBody" hidden class="space-y-4">
 
-    <!-- ===== แถบแนะนำ ===== -->
-    <div class="flex flex-wrap items-center gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 px-5 py-4 dark:border-brand-500/20 dark:bg-brand-500/10">
-      <span class="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-brand-600 text-white">
-        <i data-lucide="user-plus" class="h-5 w-5" aria-hidden="true"></i>
-      </span>
-      <span class="min-w-0 flex-1">
-        <span class="block font-semibold text-slate-800 dark:text-slate-100">แบบฟอร์มขอเบิกวัสดุสำนักงาน &ldquo;พนักงานใหม่&rdquo;</span>
-        <span class="block text-sm text-slate-600 dark:text-slate-300">
-          ชุดเครื่องเขียนพื้นฐานใส่ไว้ให้แล้ว กรอกข้อมูลพนักงาน ตรวจจำนวน แล้วกดส่ง — ใบนี้จะไปรออนุมัติเหมือนใบเบิกปกติ
-        </span>
-      </span>
-      <a href="main.php?page=new_staff_list" class="<?php echo $btn_soft; ?> bg-white dark:bg-slate-900">
-        <i data-lucide="list" class="h-4 w-4" aria-hidden="true"></i>
-        ใบเบิกพนักงานใหม่
-      </a>
-    </div>
-
     <form id="nsForm" novalidate class="space-y-4">
 
       <!-- ============================================================
            ขั้นที่ 1 ข้อมูลพนักงานใหม่
            ============================================================ -->
-      <section class="<?php echo $card; ?>">
+      <section id="nsSecEmp" class="<?php echo $card; ?>">
         <?php echo ns_step_head(1, 'ข้อมูลพนักงานใหม่', 'พนักงานยังไม่ต้องมีบัญชีในระบบ — คุณเป็นผู้ขอเบิกแทน', 'id-card'); ?>
 
         <div class="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-12">
@@ -120,10 +103,10 @@ function ns_step_head($no, $title, $hint, $icon, $right = '')
       <!-- ============================================================
            ขั้นที่ 2 ชุดเครื่องเขียนพื้นฐาน
            ============================================================ -->
-      <section class="<?php echo $card; ?>">
+      <section id="nsSecKit" class="<?php echo $card; ?>">
         <?php
         $kit_link = $is_manager
-            ? '<a href="main.php?page=new_staff_kit" class="inline-flex flex-none items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-500/10">'
+            ? '<a href="main.php?page=new_staff_kit" id="nsKitLink" class="inline-flex flex-none items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-500/10">'
               . '<i data-lucide="settings-2" class="h-4 w-4" aria-hidden="true"></i>ตั้งค่าชุดของ</a>'
             : '';
         echo ns_step_head(2, 'รายการเครื่องเขียนพื้นฐาน', 'ใส่ให้ครบแล้วตามมาตรฐาน ปรับจำนวนได้ หรือเอาเครื่องหมายถูกออกถ้าไม่ต้องการ', 'pencil-ruler', $kit_link);
@@ -142,7 +125,7 @@ function ns_step_head($no, $title, $hint, $icon, $right = '')
            ใช้ doc-transfer.js ตัวเดียวกัน (id ของแต่ละช่องต้องตรงกับที่มันหา)
            ของในชุดพื้นฐานถูกตัดออกจากฝั่งซ้าย จะได้ไม่เลือกซ้ำกับขั้นที่ 2
            ============================================================ -->
-      <section class="<?php echo $card; ?> ns-transfer">
+      <section id="nsSecExtra" class="<?php echo $card; ?> ns-transfer">
         <?php echo ns_step_head(3, 'รายการวัสดุเพิ่มเติม', 'ของที่ตำแหน่งนี้ต้องใช้เพิ่ม เช่น เครื่องคิดเลข แม็กเย็บ — ทุกรายการในขั้นนี้ต้องคืนเมื่อพ้นสภาพ ไม่มีก็ข้ามได้', 'package-plus'); ?>
 
         <div class="tf-wrap">
@@ -216,7 +199,7 @@ function ns_step_head($no, $title, $hint, $icon, $right = '')
       <!-- ============================================================
            หมายเหตุถึงผู้อนุมัติ
            ============================================================ -->
-      <section class="<?php echo $card; ?> p-5">
+      <section id="nsSecNote" class="<?php echo $card; ?> p-5">
         <label for="docNote" class="<?php echo $label; ?>">หมายเหตุถึงผู้อนุมัติ <span class="font-normal text-slate-400">(ไม่บังคับ)</span></label>
         <input type="text" id="docNote" maxlength="500" placeholder="ระบุเพิ่มเติมได้ เช่น เหตุผลที่ต้องใช้ของในขั้นที่ 3"
                class="<?php echo $input; ?>">

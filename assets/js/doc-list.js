@@ -337,7 +337,7 @@
         (doc.status === "waiting" &&
           !doc.is_new_staff &&
           (doc.requester === ME || isManager())) ||
-        demo
+        (demo && !doc.is_new_staff)
       ) {
         out.push({
           key: "edit",
@@ -364,7 +364,10 @@
       /* ส่งกลับแก้ไข: ใบที่ "อนุมัติแล้ว" แต่ผู้ทำเบิกแจ้งว่าเบิกผิด
          ผู้อนุมัติกดถอยกลับเป็น "รออนุมัติ" พร้อมเหตุผล (ส่งกลับใบตัวเองไม่ได้)
          ถ้าคลังจ่ายของไปบางส่วนแล้ว backend จะบล็อก บอกให้ยกเลิกใบจ่ายก่อน */
-      if ((doc.status === "approved" || demo) && isApprover() && doc.requester !== ME) {
+      /* ใบพนักงานใหม่ส่งกลับไม่ได้ — ผู้ทำเบิกแก้ใบประเภทนี้ไม่ได้ ใบจะค้างที่ "รออนุมัติ"
+         ต้องยกเลิกแล้วทำใหม่แทน (backend บล็อกซ้ำใน request_return) */
+      if ((doc.status === "approved" || demo) && !doc.is_new_staff
+          && isApprover() && doc.requester !== ME) {
         out.push({
           key: "sendback",
           label: "ส่งกลับแก้ไข",
@@ -2620,6 +2623,20 @@
       adjust: "รออนุมัติ",
     }[TYPE];
 
+    /* หน้าใบเบิกพนักงานใหม่ — แถวสาธิตต้องมีคอลัมน์พนักงานให้คู่มือชี้ได้
+       และต้องไม่มีคำสั่งแก้ไข/ส่งกลับ (ดู actionsFor) ให้ตรงกับใบจริงประเภทนี้ */
+    if (KIND === "new_staff") {
+      var start = new Date(Date.now() + 7 * 86400000);
+      base.doc_no = "ตัวอย่าง-NRQ-0000";
+      base.is_new_staff = true;
+      base.new_staff_name = "ชื่อพนักงานใหม่ตัวอย่าง";
+      base.new_staff_position = "ตำแหน่งตัวอย่าง";
+      base.new_staff_start =
+        start.getFullYear() + "-" +
+        ("0" + (start.getMonth() + 1)).slice(-2) + "-" +
+        ("0" + start.getDate()).slice(-2);
+    }
+
     return base;
   }
 
@@ -2690,12 +2707,17 @@
   }
 
   window.GuideDemo = {
-    page: {
-      receive: "receive_history",
-      request: "request_list",
-      issue: "issue_history",
-      adjust: "adjust_history",
-    }[TYPE],
+    /* ต้องตรงกับ page_key ของคู่มือ — หน้าใบเบิกพนักงานใหม่ใช้ไฟล์นี้ร่วมกับรายการใบเบิก
+       ถ้าคืน request_list ทั้งคู่ คู่มือของหน้าพนักงานใหม่จะไม่ใส่แถวสาธิตให้ */
+    page:
+      KIND === "new_staff"
+        ? "new_staff_list"
+        : {
+            receive: "receive_history",
+            request: "request_list",
+            issue: "issue_history",
+            adjust: "adjust_history",
+          }[TYPE],
     setup: demoSetup,
     teardown: demoTeardown,
   };

@@ -29,36 +29,18 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
 
 <div class="w-full">
 
-  <div id="kitLoading" class="<?php echo $card; ?> flex items-center justify-center gap-3 p-10 text-sm text-slate-500 dark:text-slate-400">
+  <div id="kitLoading" data-guide-wait class="<?php echo $card; ?> flex items-center justify-center gap-3 p-10 text-sm text-slate-500 dark:text-slate-400">
     <i data-lucide="loader-circle" class="h-5 w-5 animate-spin" aria-hidden="true"></i>
     กำลังโหลดอุปกรณ์พนักงานใหม่...
   </div>
 
   <div id="kitBody" hidden class="space-y-4">
-
-    <!-- ===== แถบแนะนำ ===== -->
-    <div class="flex flex-wrap items-center gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 px-5 py-4 dark:border-brand-500/20 dark:bg-brand-500/10">
-      <span class="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-brand-600 text-white">
-        <i data-lucide="package-check" class="h-5 w-5" aria-hidden="true"></i>
-      </span>
-      <span class="min-w-0 flex-1">
-        <span class="block font-semibold text-slate-800 dark:text-slate-100">อุปกรณ์พนักงานใหม่</span>
-        <span class="block text-sm text-slate-600 dark:text-slate-300">
-          รายการที่ใส่ให้อัตโนมัติในฟอร์มเบิกพนักงานใหม่ และหมายเหตุท้ายฟอร์ม — แก้แล้วมีผลกับใบที่ทำใหม่เท่านั้น ใบเก่าไม่เปลี่ยน
-        </span>
-      </span>
-      <a href="main.php?page=new_staff_request" class="<?php echo $btn_soft; ?> bg-white dark:bg-slate-900">
-        <i data-lucide="eye" class="h-4 w-4" aria-hidden="true"></i>
-        ดูหน้าฟอร์ม
-      </a>
-    </div>
-
     <div class="grid gap-4 xl:grid-cols-5">
 
       <!-- ============================================================
            ซ้าย: รายการพื้นฐาน
            ============================================================ -->
-      <section class="<?php echo $card; ?> xl:col-span-3">
+      <section id="kitSecList" class="<?php echo $card; ?> xl:col-span-3">
         <div class="flex items-start gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
           <span class="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
             <i data-lucide="pencil-ruler" class="h-[18px] w-[18px]" aria-hidden="true"></i>
@@ -73,7 +55,7 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
         </div>
 
         <!-- เพิ่มสินค้า -->
-        <div class="flex flex-col gap-2 border-b border-slate-100 p-5 sm:flex-row dark:border-slate-800">
+        <div id="kitAddBox" class="flex flex-col gap-2 border-b border-slate-100 p-5 sm:flex-row dark:border-slate-800">
           <div class="min-w-0 flex-1">
             <label for="kitPick" class="sr-only">เลือกสินค้าที่จะเพิ่มในชุด</label>
             <select id="kitPick" class="<?php echo $input; ?>"
@@ -107,7 +89,7 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
       <!-- ============================================================
            ขวา: หมายเหตุท้ายฟอร์ม + ตัวอย่าง
            ============================================================ -->
-      <section class="<?php echo $card; ?> flex flex-col xl:col-span-2">
+      <section id="kitSecTerms" class="<?php echo $card; ?> flex flex-col xl:col-span-2">
         <div class="flex items-start gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
           <span class="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">
             <i data-lucide="scroll-text" class="h-[18px] w-[18px]" aria-hidden="true"></i>

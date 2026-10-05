@@ -538,6 +538,10 @@ function request_return($doc_id, $reason, $actor, $actor_role)
     $doc = doc_find($doc_id);
     if ($doc === null)                  { return db_fail('ไม่พบใบเบิกที่ต้องการส่งกลับ'); }
     if ($doc['doc_type'] !== 'request') { return db_fail('เอกสารนี้ไม่ใช่ใบเบิก'); }
+    /* ส่งกลับ = ให้ผู้ทำเบิกแก้ แต่ใบพนักงานใหม่แก้ไม่ได้ (ดู request_update) จะค้างอยู่เฉย ๆ */
+    if (!empty($doc['is_new_staff'])) {
+        return db_fail('ใบเบิกพนักงานใหม่ส่งกลับแก้ไขไม่ได้ — ถ้าเบิกผิด ให้ยกเลิกใบนี้แล้วทำใบใหม่');
+    }
     if ($doc['status'] !== 'approved') {
         return db_fail('ส่งกลับได้เฉพาะใบที่ "อนุมัติแล้ว" เท่านั้น '
                      . '(สถานะปัจจุบัน: ' . $doc['status_label'] . ')');

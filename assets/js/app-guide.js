@@ -262,6 +262,12 @@
         var busy = (window.Swal && typeof window.Swal.isVisible === 'function')
                    ? window.Swal.isVisible() : false;
 
+        /* หน้าที่โหลดเนื้อหาทีหลัง (fetch แยก) ติด data-guide-wait ไว้ที่กล่อง "กำลังโหลด"
+           ถ้าเปิดคู่มือตอนเนื้อหายังซ่อนอยู่ ขั้นเกือบทั้งหมดจะถูกตัดทิ้ง แล้วนับว่าดูแล้ว
+           จึงรอจนกล่องนั้นถูกซ่อนก่อน (ใช้เวลารอชุดเดียวกับกล่องข้อความด้านบน) */
+        var loading = document.querySelector('[data-guide-wait]');
+        if (loading && !loading.hidden) { busy = true; }
+
         if (!busy) { start(guide); return; }
         if (tries >= 60) { return; }
 
