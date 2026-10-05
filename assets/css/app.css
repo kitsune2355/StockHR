@@ -7412,3 +7412,63 @@ button.bc-side-toggle { display: none; }
     .ns-transfer .tf-pane-src .tf-list { height: 55vh; }
     .ns-transfer .tf-pane-dst .tf-list { max-height: 55vh; min-height: 8rem; }
 }
+
+/* ============================================================
+   หน้าภาพรวม : ไทล์ "พนักงานใหม่" (pages/_dash_new_staff.php)
+   ซ้าย = ต้องเตรียมของให้ใคร   ขวา = จ่ายของทันวันเริ่มงานไหม
+   ใช้ชิ้นส่วนเดิมของหน้าภาพรวมเกือบทั้งหมด (.bn-money-row / .bn-move / .doc-pill)
+   ที่เพิ่มตรงนี้คือการจัดสองฝั่ง หัวกลุ่ม และสีแดง/ฟ้าที่ .bn-move-mark ยังไม่มี
+   กว้างเต็มแถวทุกขนาดจอ จึงไม่กระทบการนับช่องของไทล์อื่น
+   ============================================================ */
+.bn-ns { grid-column: 1 / -1; }
+
+.bn-ns-grid { display: grid; gap: 1.5rem; }
+@media (min-width: 1024px) {
+    .bn-ns-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; }
+    .bn-ns-right { padding-left: 2rem; border-left: 1px solid #f1f5f9; }
+}
+
+/* หัวข้อของแต่ละฝั่ง — ต่อยอด .bn-money-top-cap ให้มีไอคอนและป้ายจำนวน */
+.bn-ns-cap { display: flex; align-items: center; gap: .375rem; font-weight: 600; color: #475569; }
+.bn-ns-cap svg { color: #0f766e; }
+.bn-ns-count {
+    margin-left: auto; padding: 0 .5rem; border-radius: 999px;
+    background: #fef3c7; color: #b45309; font-weight: 600;
+}
+.bn-ns-period { margin-left: auto; font-weight: 400; color: #94a3b8; }
+
+/* หัวกลุ่ม "เริ่มงานวันนี้ / พรุ่งนี้ / ภายใน 7 วัน ..." */
+.bn-ns-group {
+    margin-top: .625rem; padding-bottom: .125rem;
+    font-size: 0.6875rem; font-weight: 600; color: #64748b;
+}
+.bn-ns-group:first-of-type { margin-top: 0; }
+.bn-ns-group.is-warn { color: #b45309; }
+.bn-ns-group.is-bad  { color: #dc2626; }
+
+/* แถวกดได้ทั้งแถว — ขยายพื้นที่ชี้ออกข้างนิดหน่อยให้พื้นตอนชี้ไม่ชิดตัวอักษร */
+a.bn-ns-row { margin: 0 -.5rem; padding-left: .5rem; padding-right: .5rem; border-radius: .625rem; }
+a.bn-ns-row:hover { background: #f8fafc; }
+.bn-ns-row .doc-pill { flex: none; }
+
+/* สีที่ .bn-move-mark กับ .bn-money-cell ยังไม่มี */
+.bn-move-mark.is-sky { background: #e0f2fe; color: #0369a1; }
+.bn-move-mark.is-bad { background: #fee2e2; color: #dc2626; }
+.bn-money-cell.is-bad .bn-money-num { color: #dc2626; }
+
+.bn-ns-review { margin-top: .5rem; }
+.bn-ns-more { margin-top: .375rem; font-size: 0.6875rem; color: #94a3b8; }
+
+/* ---------- โหมดมืด ---------- */
+@media (min-width: 1024px) { .dark .bn-ns-right { border-left-color: #1e293b; } }
+.dark .bn-ns-cap          { color: #cbd5e1; }
+.dark .bn-ns-cap svg      { color: #5eead4; }
+.dark .bn-ns-count        { background: rgba(245, 158, 11, .15); color: #fcd34d; }
+.dark .bn-ns-period       { color: #64748b; }
+.dark .bn-ns-group        { color: #94a3b8; }
+.dark .bn-ns-group.is-warn { color: #fcd34d; }
+.dark .bn-ns-group.is-bad  { color: #fca5a5; }
+.dark a.bn-ns-row:hover   { background: rgba(148, 163, 184, .1); }
+.dark .bn-move-mark.is-sky { background: rgba(14, 165, 233, .18); color: #7dd3fc; }
+.dark .bn-move-mark.is-bad { background: rgba(239, 68, 68, .18);  color: #fca5a5; }
+.dark .bn-money-cell.is-bad .bn-money-num { color: #fca5a5; }

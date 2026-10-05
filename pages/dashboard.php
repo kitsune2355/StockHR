@@ -70,6 +70,26 @@ function db_can($key)
    จะได้ false เสมอโดยไม่มี error ให้เห็น แล้วไทล์จะหายไปเงียบ ๆ (เคยพลาดมาแล้ว) */
 $health = db_can('product_list') ? dashboard_data_health() : null;
 
+/* ไทล์พนักงานใหม่ (pages/_dash_new_staff.php) — ต้องเปิดหน้ารายการพนักงานใหม่ได้
+   ไม่งั้นลิงก์ในไทล์จะกดแล้วเจอ "ไม่มีสิทธิ์"
+   ผู้ใช้ทั่วไปส่วนใหญ่ไม่เคยรับคนเข้า ไทล์ว่างบนหน้าแรกทุกวันจึงเป็นเสียงรบกวน
+   ให้โผล่เฉพาะคนคลัง/ผู้อนุมัติ หรือคนที่มีใบพนักงานใหม่ค้างอยู่จริง
+   (เขียนใต้ db_can() ด้วยเหตุผลเดียวกับ $health ข้างบน) */
+$ns = db_can('new_staff_list') ? dashboard_new_staff($sess_username, $sess_role, 6) : null;
+if ($ns !== null && !$is_staff
+    && $ns['prepare_total'] + count($ns['review']) === 0) {
+    $ns = null;
+}
+
+/* คำบอกระยะถึงวันเริ่มงาน "อีก 3 วัน" / "เริ่มวันนี้" */
+function db_ns_when($days)
+{
+    if ($days === 0) { return 'เริ่มวันนี้'; }
+    if ($days === 1) { return 'เริ่มพรุ่งนี้'; }
+    if ($days > 1)   { return 'อีก ' . $days . ' วัน'; }
+    return 'เริ่มแล้ว ' . abs($days) . ' วัน';
+}
+
 /* แยกจำนวนงานค้างตามชนิด ใช้แสดงเป็นบรรทัดย่อยในไทล์ใหญ่ */
 $by_kind = array('approve' => 0, 'adjust' => 0, 'ack' => 0, 'issue' => 0);
 for ($i = 0; $i < count($tasks); $i++) {
@@ -291,6 +311,11 @@ if (!$is_staff) {
     <span class="bn-stat-note"><?php echo db_esc($low_note); ?></span>
   </<?php echo $c ? 'a' : 'div'; ?>>
 
+  <!-- ---------- ไทล์กว้าง : พนักงานใหม่ ----------
+       กว้างเต็มแถว วางตรงรอยต่อแถวพอดี (ไทล์ใหญ่ + งานที่รอ + ไทล์เล็กสองใบ = 8 ช่อง)
+       จึงไม่กระทบการนับช่องของไทล์ที่ตามมา -->
+  <?php include dirname(__FILE__) . '/_dash_new_staff.php'; ?>
+
   <!-- ---------- ไทล์กว้าง : กราฟความเคลื่อนไหว ----------
        เดิมเป็นแท่ง CSS ที่ PHP วาดตายตัวไว้ 7 วัน เปลี่ยนช่วงไม่ได้เลย
        ตอนนี้วาดด้วย ECharts และเลือกช่วงกับความละเอียดเองได้
@@ -468,6 +493,9 @@ if (!$is_staff) {
   </<?php echo $c ? 'a' : 'div'; ?>>
   <?php } ?>
 
+  <!-- ผู้ใช้ทั่วไปที่มีใบพนักงานใหม่ (เช่นหัวหน้าที่กำลังรับคนเข้า) — เต็มแถว ไม่กระทบไทล์อื่น -->
+  <?php include dirname(__FILE__) . '/_dash_new_staff.php'; ?>
+
   <?php } ?>
 
 
@@ -477,7 +505,7 @@ if (!$is_staff) {
     <div class="bn-link-grid">
       <?php
       /* เรียงตามลำดับที่คนใช้จริงในหนึ่งวัน: ขอเบิก -> อนุมัติ -> จ่าย -> รับเข้า -> ปรับยอด -> ดูยอด */
-      $shortcuts = array('request_new', 'request_list', 'issue_new', 'receive_new', 'adjust_new', 'report_stock', 'product_list');
+      $shortcuts = array('request_new', 'request_list', 'new_staff_request', 'issue_new', 'receive_new', 'adjust_new', 'report_stock', 'product_list');
       foreach ($shortcuts as $key) {
           if (!db_can($key)) { continue; }
           $item = $routes_all[$key];

@@ -30,6 +30,17 @@ function dashboard_is_staff($role)
 }
 
 
+/* ต่อข้อความด้วย " · " ข้ามตัวที่ว่าง
+   ไม่ใช้ trim($s, ' ·') เพราะ trim ตัดทีละไบต์ จุดกลาง (2 ไบต์) จะไปกินไบต์ท้ายของอักษรไทย */
+function dashboard_join($a, $b)
+{
+    $parts = array();
+    if (trim($a) !== '') { $parts[] = trim($a); }
+    if (trim($b) !== '') { $parts[] = trim($b); }
+    return implode(' · ', $parts);
+}
+
+
 /* ---------- นับแถวแบบง่าย ๆ ที่ใช้ซ้ำหลายที่ ---------- */
 function dashboard_count($sql, $types = '', $values = array())
 {
@@ -151,20 +162,26 @@ function dashboard_my_tasks($username, $role, $limit = 6)
             /* ผู้อนุมัติเห็นเฉพาะหน่วยงานตัวเอง — กฎเดียวกับ request_decide */
             if ($role === 'approver' && !in_array((int)$r['department_id'], $my_depts)) { continue; }
 
+            $dept_name = $r['department_name'] !== '' ? $r['department_name'] : 'ไม่ระบุหน่วยงาน';
+            $ns        = !empty($r['is_new_staff']);
+
             $tasks[] = array(
                 'kind'    => 'approve',
                 'label'   => 'รออนุมัติ',
                 'icon'    => 'clipboard-check',
                 'tone'    => 'amber',
                 'doc_no'  => $r['doc_no'],
-                'title'   => $r['department_name'] !== '' ? $r['department_name'] : 'ไม่ระบุหน่วยงาน',
+                /* ใบพนักงานใหม่ ชื่อพนักงานบอกได้มากกว่าชื่อหน่วยงาน
+                   (หน่วยงานย้ายไปอยู่บรรทัดรองคู่กับบริษัท) */
+                'title'   => $ns ? ('พนักงานใหม่: ' . $r['new_staff_name']) : $dept_name,
                 /* ชื่อบริษัทกำกับไว้ เพราะชื่อหน่วยงานซ้ำกันข้ามบริษัทได้
                    เห็นแค่ชื่อหน่วยงานอย่างเดียวยังตอบไม่ได้ว่าเป็นใบของที่ไหน */
-                'company' => $r['company_name'],
+                'company' => $ns ? dashboard_join($dept_name, $r['company_name']) : $r['company_name'],
                 'sub'     => 'ผู้ขอ ' . ($r['requester_name'] !== '' ? $r['requester_name'] : $r['requester'])
                            . ' · ' . (int)$r['line_count'] . ' รายการ',
                 'date'    => $r['doc_date'],
-                'page'    => 'request_list'
+                /* ใบพนักงานใหม่ไม่อยู่ในหน้ารายการใบเบิกแล้ว ต้องพาไปหน้าของตัวเอง */
+                'page'    => $ns ? 'new_staff_list' : 'request_list'
             );
             if (count($tasks) >= $limit) { return $tasks; }
         }
@@ -229,8 +246,12 @@ function dashboard_my_tasks($username, $role, $limit = 6)
                 'icon'   => 'package-minus',
                 'tone'   => 'sky',
                 'doc_no' => $r['doc_no'],
-                'title'  => $r['department_name'] !== '' ? $r['department_name'] : 'ไม่ระบุหน่วยงาน',
-                'company' => $r['company_name'],
+                'title'  => !empty($r['is_new_staff'])
+                            ? ('พนักงานใหม่: ' . $r['new_staff_name'])
+                            : ($r['department_name'] !== '' ? $r['department_name'] : 'ไม่ระบุหน่วยงาน'),
+                'company' => !empty($r['is_new_staff'])
+                            ? dashboard_join($r['department_name'], $r['company_name'])
+                            : $r['company_name'],
                 'sub'    => 'ค้างจ่าย ' . stock_format($r['pending_qty']) . ' หน่วย',
                 'date'   => $r['doc_date'],
                 'page'   => 'issue_new'
@@ -577,4 +598,164 @@ function dashboard_week_series($days = 7)
     /* ส่งค่าสูงสุดกลับไปด้วย เพื่อให้ฝั่งหน้าจอคำนวณความสูงแท่งได้
        โดยไม่ต้องวนหาเองซ้ำ และทุกแท่งเทียบกับฐานเดียวกันเสมอ */
     return array('days' => $out, 'max' => $max);
+}
+
+
+/* ============================================================
+ *  ไทล์ "พนักงานใหม่" — ใบเบิกวัสดุของพนักงานใหม่ (sql/072)
+ *
+ *  ตอบสองคำถามของฝ่ายธุรการ (ไม่มีเรื่องราคา):
+ *
+ *    1. "วันต่อ ๆ ไปต้องเตรียมของให้ใคร"  -> 'prepare'
+ *       คนที่ยังไม่ถึงวันเริ่มงาน + คนที่เลยวันเริ่มงานแล้วแต่ยังไม่ได้ของ
+ *       จัดกลุ่มตามระยะ: เลยกำหนด / วันนี้ / พรุ่งนี้ / ภายใน 7 วัน / หลังจากนั้น
+ *
+ *    2. "จ่ายของทันก่อนวันเริ่มงานไหม"    -> 'review'
+ *       คนที่เริ่มงานไปแล้วในช่วง REVIEW_DAYS วันล่าสุด เทียบวันที่คลังจ่ายครบ
+ *       (ใบจ่ายใบสุดท้ายที่ไม่ถูกยกเลิก) กับวันเริ่มงาน
+ *           ontime   จ่ายครบก่อนหรือในวันเริ่มงาน
+ *           late     จ่ายครบหลังวันเริ่มงาน
+ *           missing  เลยวันเริ่มงานแล้วยังไม่ได้ของครบ
+ *
+ *  ขอบเขตการมองเห็นใช้ doc_scope_for() ตัวเดียวกับหน้ารายการ
+ *  ไม่นับใบที่ไม่อนุมัติ/ยกเลิก — คนนั้นไม่ได้รอของจากใบนั้นแล้ว
+ *
+ *  คืน null ถ้ายังไม่ได้รัน sql/072 (หน้าภาพรวมต้องไม่ล้มเพราะเมนูใหม่)
+ * ============================================================ */
+function dashboard_new_staff($username, $role, $limit = 6)
+{
+    require_once dirname(__FILE__) . '/new_staff.php';
+    if (!new_staff_ready()) { return null; }
+
+    $review_days = 30;
+
+    $opts = array('doc_type' => 'request', 'new_staff_only' => true, 'limit' => 500);
+    foreach (doc_scope_for($username, $role) as $k => $v) { $opts[$k] = $v; }
+    $rows = doc_list($opts);
+
+    $today       = date('Y-m-d');
+    $review_from = date('Y-m-d', strtotime('-' . $review_days . ' days'));
+
+    /* ---------- วันที่คลังจ่ายครบ ----------
+     * ใบเบิกสถานะ issued = จ่ายครบแล้ว วันที่ครบคือวันที่ของใบจ่ายใบสุดท้ายที่อ้างถึงมัน
+     * ยิงครั้งเดียวสำหรับทุกใบ ไม่ถามทีละใบ */
+    $issued_on = array();
+    $ids = array();
+    for ($i = 0; $i < count($rows); $i++) {
+        if ($rows[$i]['status'] === 'issued') { $ids[] = (int)$rows[$i]['doc_id']; }
+    }
+    if (count($ids) > 0) {
+        $res = mysqli_query(db_connect(),
+            "SELECT `ref_doc_id`, MAX(`doc_date`) FROM `tb_doc_header`
+             WHERE `doc_type` = 'issue' AND `status` <> 'cancelled'
+               AND `ref_doc_id` IN (" . implode(',', $ids) . ")
+             GROUP BY `ref_doc_id`");
+        if ($res) {
+            while ($r = mysqli_fetch_row($res)) { $issued_on[(int)$r[0]] = $r[1]; }
+            mysqli_free_result($res);
+        }
+    }
+
+    $out = array(
+        'waiting'        => 0,      // รออนุมัติ (ใช้ตัดสินว่าจะโชว์ไทล์ให้ผู้ใช้ทั่วไปไหม)
+        'ready'          => 0,      // อนุมัติแล้ว รอคลังจ่าย
+        'prepare'        => array(),
+        'prepare_total'  => 0,
+        'prepare_open'   => 0,      // ในรายการเตรียมของ คนที่ของยังไม่พร้อม
+        'review'         => array(),
+        'review_days'    => $review_days,
+        'ontime'         => 0,
+        'late'           => 0,
+        'missing'        => 0
+    );
+
+    $prepare = array();
+    $review  = array();
+
+    for ($i = 0; $i < count($rows); $i++) {
+        $r = $rows[$i];
+        if (in_array($r['status'], array('rejected', 'cancelled'))) { continue; }
+
+        if ($r['status'] === 'waiting')  { $out['waiting']++; }
+        if ($r['status'] === 'approved') { $out['ready']++; }
+
+        $start = $r['new_staff_start'];
+        if ($start === '') { continue; }
+
+        $done   = ($r['status'] === 'issued');
+        $issued = ($done && isset($issued_on[(int)$r['doc_id']])) ? $issued_on[(int)$r['doc_id']] : '';
+        $days   = (int)round((strtotime($start) - strtotime($today)) / 86400);
+
+        $base = array(
+            'doc_no'       => $r['doc_no'],
+            'name'         => $r['new_staff_name'],
+            'position'     => $r['new_staff_position'],
+            'department'   => $r['department_name'],
+            'start'        => $start,
+            'days'         => $days,
+            'status'       => $r['status'],
+            'issued'       => $issued
+        );
+
+        /* ---------- 1) ต้องเตรียมของให้ใคร ---------- */
+        if ($days >= 0 || !$done) {
+            if ($days < 0)       { $group = 'overdue'; }
+            elseif ($days === 0) { $group = 'today'; }
+            elseif ($days === 1) { $group = 'tomorrow'; }
+            elseif ($days <= 7)  { $group = 'week'; }
+            else                 { $group = 'later'; }
+
+            $p = $base;
+            $p['group'] = $group;
+            $prepare[]  = $p;
+            if (!$done) { $out['prepare_open']++; }
+        }
+
+        /* ---------- 2) จ่ายทันวันเริ่มงานไหม (เริ่มงานไปแล้วในช่วงที่ดู) ----------
+         * คนที่เริ่มงานวันนี้แต่ยังไม่ได้ของ ยังไม่นับว่า "ไม่ทัน" — วันนี้ยังจ่ายทัน
+         * (อยู่ในรายการเตรียมของกลุ่ม "วันนี้" อยู่แล้ว) จะเข้ามาที่นี่ตอนจ่ายแล้ว หรือพ้นวันไป */
+        if ($start >= $review_from && ($start < $today || ($start === $today && $done))) {
+            $v = $base;
+            if (!$done) {
+                $v['result'] = 'missing';
+                $v['gap']    = abs($days);                       // เลยวันเริ่มงานมากี่วัน
+            } elseif ($issued !== '' && $issued <= $start) {
+                $v['result'] = 'ontime';
+                $v['gap']    = (int)round((strtotime($start) - strtotime($issued)) / 86400);   // จ่ายก่อนกี่วัน
+            } else {
+                $v['result'] = 'late';
+                $v['gap']    = ($issued !== '')
+                               ? (int)round((strtotime($issued) - strtotime($start)) / 86400) : 0;
+            }
+            $out[$v['result']]++;
+            $review[] = $v;
+        }
+    }
+
+    /* เตรียมของ: ใกล้วันเริ่มงานที่สุดก่อน (คนที่เลยกำหนดจึงขึ้นบนสุดเอง) */
+    usort($prepare, 'dashboard_new_staff_cmp');
+    $out['prepare']       = array_slice($prepare, 0, $limit);
+    $out['prepare_total'] = count($prepare);
+
+    /* ทบทวน: คนที่ยังไม่ได้ของขึ้นก่อน แล้วไล่จากเริ่มงานล่าสุด */
+    usort($review, 'dashboard_new_staff_review_cmp');
+    $out['review'] = array_slice($review, 0, $limit);
+
+    return $out;
+}
+
+function dashboard_new_staff_review_cmp($a, $b)
+{
+    $rank = array('missing' => 0, 'late' => 1, 'ontime' => 2);
+    if ($rank[$a['result']] !== $rank[$b['result']]) {
+        return $rank[$a['result']] - $rank[$b['result']];
+    }
+    if ($a['start'] === $b['start']) { return strcmp($a['doc_no'], $b['doc_no']); }
+    return ($a['start'] > $b['start']) ? -1 : 1;
+}
+
+function dashboard_new_staff_cmp($a, $b)
+{
+    if ($a['start'] === $b['start']) { return strcmp($a['doc_no'], $b['doc_no']); }
+    return ($a['start'] < $b['start']) ? -1 : 1;
 }
