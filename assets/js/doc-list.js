@@ -689,6 +689,11 @@
       syncQuickStatusFromTable(filters || []);
       refreshCount(table.getDataCount("active"));
     });
+    /* dataFiltered รอบแรกยิงก่อนตารางรับข้อมูลเสร็จ ได้ 0 มาทับยอดจริง
+       ("พบ 0 รายการ" ทั้งที่ตารางมีแถวเต็ม) — นับใหม่อีกครั้งหลังประมวลผลข้อมูล */
+    table.on("dataProcessed", function () {
+      refreshCount(table.getDataCount("active"));
+    });
 
     if (window.GridExport) {
       /* attach() รับอ็อบเจกต์ก้อนเดียว ไม่ใช่ (table, options)
