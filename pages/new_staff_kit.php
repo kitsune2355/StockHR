@@ -27,20 +27,23 @@ $btn_main = 'inline-flex items-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 
 $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800';
 ?>
 
-<div class="w-full">
+<!-- โครงหน้าแบบ 'full' (ดู includes/menu.php): กรอบสูงเท่าจอเสมอ
+     เนื้อหา (#kitBody) เลื่อนในตัวเอง ส่วนแถบบันทึก (#kitBar) เป็นลูกตัวสุดท้ายที่ไม่ยืด
+     จึงอยู่ล่างสุดทุกขนาดจอ — เดิมใช้ sticky ซึ่งพอเนื้อหาสั้นกว่าจอ แถบจะลอยค้างกลางหน้า -->
+<div class="flex min-h-0 w-full flex-1 flex-col">
 
-  <div id="kitLoading" data-guide-wait class="<?php echo $card; ?> flex items-center justify-center gap-3 p-10 text-sm text-slate-500 dark:text-slate-400">
+  <div id="kitLoading" data-guide-wait class="<?php echo $card; ?> flex flex-1 items-center justify-center gap-3 p-10 text-sm text-slate-500 dark:text-slate-400">
     <i data-lucide="loader-circle" class="h-5 w-5 animate-spin" aria-hidden="true"></i>
     กำลังโหลดอุปกรณ์พนักงานใหม่...
   </div>
 
-  <div id="kitBody" hidden class="space-y-4">
-    <div class="grid gap-4 xl:grid-cols-5">
+  <div id="kitBody" hidden class="kit-scroll min-h-0 flex-1 space-y-4 overflow-y-auto">
+    <div class="kit-grid grid gap-4">
 
       <!-- ============================================================
            ซ้าย: รายการพื้นฐาน
            ============================================================ -->
-      <section id="kitSecList" class="<?php echo $card; ?> xl:col-span-3">
+      <section id="kitSecList" class="<?php echo $card; ?> kit-left xl:col-span-3">
         <div class="flex items-start gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
           <span class="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
             <i data-lucide="pencil-ruler" class="h-[18px] w-[18px]" aria-hidden="true"></i>
@@ -70,7 +73,7 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
         </div>
 
         <!-- หัวคอลัมน์ (จอกว้าง) -->
-        <div class="hidden grid-cols-[2.5rem_1fr_9rem_7rem_5.5rem] items-center gap-3 border-b border-slate-100 bg-slate-50/70 px-5 py-2 text-xs font-medium text-slate-500 md:grid dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-400">
+        <div class="kit-colhead items-center gap-3 border-b border-slate-100 bg-slate-50/70 py-2 text-xs font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-400">
           <span class="text-center">ลำดับ</span>
           <span>สินค้า</span>
           <span>จำนวนตั้งต้น</span>
@@ -89,7 +92,7 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
       <!-- ============================================================
            ขวา: หมายเหตุท้ายฟอร์ม + ตัวอย่าง
            ============================================================ -->
-      <section id="kitSecTerms" class="<?php echo $card; ?> flex flex-col xl:col-span-2">
+      <section id="kitSecTerms" class="<?php echo $card; ?> kit-right flex flex-col xl:col-span-2">
         <div class="flex items-start gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
           <span class="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">
             <i data-lucide="scroll-text" class="h-[18px] w-[18px]" aria-hidden="true"></i>
@@ -111,9 +114,9 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
 
           <!-- ตัวอย่าง — กรอบเดียวกับหน้าฟอร์ม -->
           <div class="overflow-hidden rounded-2xl border border-rose-200 dark:border-rose-500/30">
-            <div class="grid grid-cols-[6.5rem_1fr]">
-              <div class="bg-rose-50 px-3 py-3 text-right text-sm font-semibold text-rose-900 dark:bg-rose-500/10 dark:text-rose-200">หมายเหตุ :</div>
-              <ol id="termsPreview" class="list-decimal space-y-1 bg-amber-50/70 py-3 pl-8 pr-4 text-sm leading-relaxed text-slate-800 dark:bg-amber-500/5 dark:text-slate-200"></ol>
+            <div class="grid sm:grid-cols-[6.5rem_1fr]">
+              <div class="bg-rose-50 px-4 py-2 text-left text-sm font-semibold sm:px-3 sm:py-3 sm:text-right text-rose-900 dark:bg-rose-500/10 dark:text-rose-200">หมายเหตุ :</div>
+              <ol id="termsPreview" class="list-decimal space-y-1 bg-amber-50/70 py-3 pl-9 pr-4 sm:pl-8 text-sm leading-relaxed text-slate-800 dark:bg-amber-500/5 dark:text-slate-200"></ol>
             </div>
           </div>
 
@@ -134,10 +137,10 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
     </div>
   </div>
 
-  <!-- ===== แถบบันทึก ตรึงล่างจอ ===== -->
+  <!-- ===== แถบบันทึก — ล่างสุดของกรอบเสมอ (flex-none ไม่ยืดไม่หด) ===== -->
   <div id="kitBar" hidden
-       class="sticky bottom-0 z-10 -mx-4 -mb-6 mt-4 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:-mx-8 lg:px-8 dark:border-slate-800 dark:bg-slate-900/95">
-    <div class="flex w-full flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+       class="mt-4 flex-none rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+    <div class="kit-bar flex w-full flex-wrap items-center gap-x-5 gap-y-2 text-sm">
       <span id="dirtyNote" hidden class="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-300">
         <i data-lucide="circle-dot" class="h-4 w-4" aria-hidden="true"></i>
         มีการแก้ไขที่ยังไม่ได้บันทึก

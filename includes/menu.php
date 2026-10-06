@@ -177,7 +177,7 @@ $APP_NAV = array(
             /* รายการพื้นฐานที่ใส่ให้อัตโนมัติในหน้า "เบิกพนักงานใหม่" + หมายเหตุท้ายฟอร์ม
                จำกัดที่ $ROLE_ADMIN ให้ตรงกับ api/new_staff.php (kit_get / kit_save) */
             array('key' => 'new_staff_kit', 'title' => 'อุปกรณ์พนักงานใหม่', 'icon' => 'package-check',
-                  'roles' => $ROLE_ADMIN, 'file' => 'pages/new_staff_kit.php'),
+                  'roles' => $ROLE_ADMIN, 'file' => 'pages/new_staff_kit.php', 'full' => true),
 
             /* กล่องกระดิ่งเลื่อนดูของเก่าได้ก็จริง แต่ค้นไม่ได้ กรองไม่ได้
                และสูงแค่ครึ่งจอ คนที่ตามหาเรื่องเมื่อสองสัปดาห์ก่อนต้องมีที่ที่กว้างกว่านั้น

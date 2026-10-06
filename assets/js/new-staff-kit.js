@@ -123,15 +123,17 @@
       "flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 disabled:opacity-30 disabled:hover:bg-transparent dark:hover:bg-slate-800";
 
     return (
-      '<div class="kit-row grid grid-cols-[2.5rem_1fr] items-center gap-3 px-5 py-3 md:grid-cols-[2.5rem_1fr_9rem_7rem_5.5rem]" data-idx="' +
+      /* ผังของแถวคุมด้วย CSS (.kit-row ใน app.css) ไม่ใช่คลาส grid ตรงนี้
+         จอแคบจัดสองบรรทัด: [ลำดับ ชื่อ จัดการ] / [จำนวน ต้องคืน]  จอ md+ เป็นห้าคอลัมน์ตามหัวตาราง */
+      '<div class="kit-row" data-idx="' +
       i +
       '">' +
       // ลำดับ
-      '<span class="num mx-auto flex h-7 w-7 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">' +
+      '<span class="kr-no num mx-auto flex h-7 w-7 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">' +
       (i + 1) +
       "</span>" +
       // สินค้า
-      '<div class="min-w-0">' +
+      '<div class="kr-name min-w-0">' +
       '<div class="font-medium text-slate-800 dark:text-slate-100">' +
       escapeHtml(r.product_name) +
       "</div>" +
@@ -148,9 +150,10 @@
         ? ""
         : '<span class="grid-tag grid-tag-del">สินค้าถูกปิดใช้งาน — จะไม่โผล่ในฟอร์ม</span>') +
       "</div></div>" +
-      // จำนวนตั้งต้น
-      '<div class="col-start-2 flex items-center gap-2 md:col-start-auto">' +
-      '<span class="text-xs text-slate-500 md:hidden">จำนวน</span>' +
+      // จำนวนตั้งต้น + ต้องคืน — ห่อรวมเป็น .kr-ctrl ให้ตัดขึ้นบรรทัดใหม่ได้เมื่อการ์ดแคบ
+      // (ผังห้าคอลัมน์ใช้ display: contents ลูกทั้งสองจึงลงช่องของตัวเองตามหัวตารางเหมือนเดิม)
+      '<div class="kr-ctrl">' +
+      '<div class="kr-qty flex items-center gap-2">' +
       '<input type="number" min="0" step="1" inputmode="decimal" data-f="default_qty" value="' +
       fmt(r.default_qty) +
       '"' +
@@ -160,7 +163,7 @@
       "</span>" +
       "</div>" +
       // ต้องคืน
-      '<div class="col-start-2 grid-switch-wrap md:col-start-auto">' +
+      '<div class="kr-ret grid-switch-wrap">' +
       '<button type="button" role="switch" data-f="must_return" aria-checked="' +
       (r.must_return ? "true" : "false") +
       '"' +
@@ -172,8 +175,9 @@
       (r.must_return ? "ต้องคืน" : "ไม่ต้องคืน") +
       "</span>" +
       "</div>" +
+      "</div>" + // ปิด .kr-ctrl
       // จัดการ
-      '<div class="col-start-2 flex items-center justify-end gap-0.5 md:col-start-auto">' +
+      '<div class="kr-act flex items-center justify-end gap-0.5">' +
       '<button type="button" data-act="up" class="' +
       arrow +
       '" aria-label="เลื่อนขึ้น"' +

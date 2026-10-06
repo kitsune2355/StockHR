@@ -7602,3 +7602,111 @@ a.bn-ns-row:hover { background: #f8fafc; }
     .ap-bar #btnSave { flex: 1 1 auto; justify-content: center; }
     .ap-meta { font-size: 0.6875rem; }
 }
+
+/* ============================================================
+   หน้าอุปกรณ์พนักงานใหม่ (pages/new_staff_kit.php) — จอกว้าง (xl)
+   สองการ์ดวางคู่กันพอดีความสูงจอ เลื่อนเฉพาะรายการสินค้าฝั่งซ้าย (#kitList)
+   หัวการ์ด ช่องค้นหา หัวคอลัมน์ ฝั่งขวา และแถบบันทึก อยู่กับที่เสมอ
+
+   ไม่ใส่ overflow:hidden ที่การ์ดซ้าย — ช่องค้นหาสินค้า (select-search) กางรายการ
+   ลงมาทับส่วนล่างของการ์ด ถ้าการ์ดตัดขอบ รายการให้เลือกจะถูกตัดหายไปด้วย
+
+   จอเล็กกว่า xl สองการ์ดเรียงบนล่าง ยังเลื่อนทั้งก้อนตามเดิม (สูงรวมเกินจอแน่นอน)
+   ============================================================ */
+@media (min-width: 1280px) {
+    #kitBody:not([hidden]) { display: flex; flex-direction: column; overflow: visible; }
+    .kit-grid { flex: 1 1 auto; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+
+    .kit-left { display: flex; flex-direction: column; min-height: 0; }
+    .kit-left > * { flex: none; }
+    .kit-left > #kitList { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+    /* ชุดว่าง: ยกพื้นที่ให้ข้อความ "ยังไม่มีรายการ" ไปอยู่กลางการ์ด ไม่ใช่ถูกดันไปติดขอบล่าง */
+    .kit-left > #kitList:empty { flex: 0 0 auto; }
+    .kit-left > #kitEmpty:not([hidden]) { flex: 1 1 auto; justify-content: center; }
+
+    /* ฝั่งขวาปกติพอดีกรอบ เผื่อจอเตี้ย (แล็ปท็อป 768px) ให้เลื่อนในการ์ดตัวเองได้ */
+    .kit-right { min-height: 0; overflow-y: auto; }
+}
+
+/* ---------- อุปกรณ์พนักงานใหม่: แถวรายการ (สร้างใน new-staff-kit.js) ----------
+   ตัดสินผังจาก "ความกว้างของการ์ด" (container query) ไม่ใช่ความกว้างจอ
+   เพราะคอลัมน์เป็นหน่วย rem ซึ่งโตตามหน้า "ขนาดตัวอักษร" (สูงสุด 150%)
+   ถ้าดูแค่ความกว้างจอ ที่ 150% ห้าคอลัมน์จะกว้างเกินการ์ดแล้วดันการ์ดทะลุขอบจอ
+   (rem ใน container query คิดจากขนาดตัวอักษรจริงของหน้า ส่วนใน media query ไม่ใช่)
+
+   การ์ดแคบ: สองบรรทัด
+       [ลำดับ] [ชื่อสินค้า ............] [↑ ↓ ลบ]
+               [จำนวน  หน่วย] [ต้องคืน]
+   การ์ดกว้างพอ (44rem): ห้าคอลัมน์ ตรงกับหัวคอลัมน์ .kit-colhead
+
+   container-type: inline-size ยังทำให้การ์ดไม่ถูกเนื้อหาข้างในดันให้กว้างเกินช่องของมันด้วย
+   เบราว์เซอร์เก่าที่ไม่รู้จัก container query จะได้ผังสองบรรทัดเสมอ — ยังใช้งานได้ครบ */
+.kit-left { container-type: inline-size; container-name: kitlist; }
+
+/* กริดที่ห่อสองการ์ด: คอลัมน์หดได้ถึงศูนย์ การ์ดจะไม่ล้นแม้เนื้อหาข้างในกว้าง */
+.kit-grid { grid-template-columns: minmax(0, 1fr); }
+.kit-grid > section { min-width: 0; }
+@media (min-width: 1280px) {
+    .kit-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+
+.kit-colhead { display: none; }
+
+/* การ์ดแคบมาก (< 20rem — มือถือจอเล็ก หรือตัวอักษรใหญ่) : สามบรรทัด ชื่อได้ความกว้างเต็ม
+       [ลำดับ] [ชื่อสินค้า ........................]
+               [จำนวน หน่วย] [ต้องคืน]
+               [↑ ↓ ลบ]                                                           */
+.kit-row {
+    display: grid; align-items: center;
+    column-gap: .75rem; row-gap: .5rem;
+    padding: .75rem 1rem;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    grid-template-areas:
+        "no name"
+        ".  ctrl"
+        ".  act";
+}
+.kit-row .kr-no   { grid-area: no; align-self: start; margin-top: .125rem; }
+.kit-row .kr-name { grid-area: name; min-width: 0; overflow-wrap: break-word; }
+.kit-row .kr-name .grid-tag { white-space: normal; }
+.kit-row .kr-act  { grid-area: act; justify-content: flex-start; margin-left: -.375rem; }
+/* จำนวน + ต้องคืน อยู่บรรทัดเดียวกัน ถ้าแคบเกินค่อยตัดลงบรรทัดใหม่ ไม่ล้นขอบ */
+.kit-row .kr-ctrl {
+    grid-area: ctrl; min-width: 0;
+    display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem;
+}
+.kit-row .kr-qty  { grid-area: qty; }
+.kit-row .kr-ret  { grid-area: ret; min-width: 0; }
+
+/* การ์ดมือถือทั่วไป (20rem+) : สองบรรทัด ปุ่มจัดการอยู่คู่ชื่อ เห็นว่ากำลังจัดการตัวไหน
+       [ลำดับ] [ชื่อสินค้า ............] [↑ ↓ ลบ]
+               [จำนวน หน่วย] [ต้องคืน]                                            */
+@container kitlist (min-width: 20rem) {
+    .kit-row {
+        grid-template-columns: 2rem minmax(0, 1fr) auto;
+        grid-template-areas:
+            "no name act"
+            ".  ctrl ctrl";
+    }
+    .kit-row .kr-act { align-self: start; justify-content: flex-end; margin-left: 0; }
+}
+
+@container kitlist (min-width: 44rem) {
+    .kit-row,
+    .kit-colhead {
+        padding-left: 1.25rem; padding-right: 1.25rem;
+        grid-template-columns: 2.5rem minmax(0, 1fr) 9rem 7rem 5.5rem;
+    }
+    .kit-row { grid-template-areas: "no name qty ret act"; }
+    .kit-row .kr-ctrl { display: contents; }
+    .kit-row .kr-no, .kit-row .kr-act { align-self: center; margin-top: 0; }
+    .kit-row .kr-act { justify-content: flex-end; margin-left: 0; }
+    .kit-colhead { display: grid; }
+}
+
+/* ---------- แถบบันทึกบนจอแคบ: ข้อความเต็มบรรทัดบน ปุ่มบันทึกยืดเต็ม ---------- */
+@media (max-width: 639px) {
+    .kit-bar > span:last-child { width: 100%; margin-left: 0; }
+    .kit-bar #btnSave { flex: 1 1 auto; justify-content: center; }
+    #kitBar { padding: .625rem .75rem; }
+}
