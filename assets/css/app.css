@@ -7472,3 +7472,133 @@ a.bn-ns-row:hover { background: #f8fafc; }
 .dark .bn-move-mark.is-sky { background: rgba(14, 165, 233, .18); color: #7dd3fc; }
 .dark .bn-move-mark.is-bad { background: rgba(239, 68, 68, .18);  color: #fca5a5; }
 .dark .bn-money-cell.is-bad .bn-money-num { color: #fca5a5; }
+
+/* ============================================================
+   หน้าตั้งค่าอนุมัติ (pages/approval_settings.php)
+   ซ้าย = ผู้ใช้ทั้งหมด (กดทั้งแถว)   ขวา = รายชื่อหลังบันทึก
+   ช่องติ๊กอยู่ติดชื่อ ไม่ต้องลากสายตาไปหาสวิตช์ที่ขอบขวาจอแบบเดิม
+   ============================================================ */
+
+/* ---------- แถวผู้ใช้ทางซ้าย: ทั้งแถวเป็นปุ่ม ---------- */
+.ap-row {
+    display: flex; align-items: center; gap: .75rem; width: 100%;
+    padding: .5rem .625rem; border-radius: .75rem;
+    border: 1px solid transparent; background: transparent;
+    text-align: left; cursor: pointer;
+    transition: background .12s, border-color .12s;
+}
+.ap-row:hover { background: #f8fafc; }
+.ap-row:focus-visible { outline: none; border-color: #029488; box-shadow: 0 0 0 3px rgba(2, 148, 136, .18); }
+.ap-row.is-on { background: #f0fdfa; border-color: #99f6e4; }
+.ap-row.is-on:hover { background: #ccfbf1; }
+
+/* ช่องติ๊ก — ใหญ่พอกดง่าย และอยู่ซ้ายสุดของแถว ตาเห็นคู่กับชื่อเสมอ */
+.ap-box {
+    flex: none; display: flex; align-items: center; justify-content: center;
+    width: 1.25rem; height: 1.25rem; border-radius: .375rem;
+    border: 2px solid #cbd5e1; background: #fff; color: transparent;
+    transition: background .12s, border-color .12s;
+}
+.ap-row:hover .ap-box { border-color: #94a3b8; }
+.ap-row.is-on .ap-box { background: #029488; border-color: #029488; color: #fff; }
+
+.ap-avatar {
+    flex: none; display: flex; align-items: center; justify-content: center;
+    width: 2.125rem; height: 2.125rem; border-radius: 999px;
+    background: #f1f5f9; color: #64748b; font-size: 0.8125rem; font-weight: 600;
+}
+.ap-row.is-on .ap-avatar, .ap-pick .ap-avatar { background: #ccfbf1; color: #0f766e; }
+
+.ap-text { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; }
+.ap-name {
+    display: flex; align-items: center; gap: .375rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 0.875rem; font-weight: 500; color: #1e293b;
+}
+.ap-meta {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 0.75rem; color: #94a3b8;
+}
+
+.ap-tag {
+    flex: none; padding: .0625rem .5rem; border-radius: 999px;
+    background: #ccfbf1; color: #0f766e; font-size: 0.6875rem; font-weight: 600;
+}
+.ap-tag.is-new { background: #dcfce7; color: #15803d; }
+
+/* ---------- รายชื่อทางขวา ---------- */
+.ap-pick {
+    display: flex; align-items: center; gap: .75rem;
+    padding: .5rem .625rem; border-radius: .75rem;
+    border: 1px solid #e2e8f0; background: #fff;
+}
+.ap-pick.is-new { border-color: #86efac; background: #f0fdf4; }
+.ap-pick.is-removed { border-style: dashed; border-color: #fecaca; background: #fef2f2; }
+.ap-pick.is-removed .ap-name { color: #b91c1c; text-decoration: line-through; }
+.ap-pick.is-removed .ap-avatar { background: #fee2e2; color: #b91c1c; }
+
+.ap-remove {
+    flex: none; display: flex; align-items: center; justify-content: center;
+    width: 2rem; height: 2rem; border-radius: .625rem; color: #94a3b8;
+    transition: background .12s, color .12s;
+}
+.ap-remove:hover { background: #fee2e2; color: #dc2626; }
+.ap-undo {
+    flex: none; display: inline-flex; align-items: center; gap: .25rem;
+    padding: .25rem .625rem; border-radius: .625rem;
+    font-size: 0.75rem; font-weight: 500; color: #b91c1c;
+    border: 1px solid #fecaca; background: #fff;
+}
+.ap-undo:hover { background: #fee2e2; }
+
+
+/* ---------- โหมดมืด ---------- */
+.dark .ap-row:hover       { background: rgba(148, 163, 184, .1); }
+.dark .ap-row.is-on       { background: rgba(20, 184, 166, .1); border-color: rgba(20, 184, 166, .35); }
+.dark .ap-row.is-on:hover { background: rgba(20, 184, 166, .16); }
+.dark .ap-box             { background: #0f172a; border-color: #475569; }
+.dark .ap-row.is-on .ap-box { background: #14b8a6; border-color: #14b8a6; color: #042f2e; }
+.dark .ap-avatar          { background: #1e293b; color: #94a3b8; }
+.dark .ap-row.is-on .ap-avatar, .dark .ap-pick .ap-avatar { background: rgba(20, 184, 166, .2); color: #5eead4; }
+.dark .ap-name            { color: #e2e8f0; }
+.dark .ap-meta            { color: #64748b; }
+.dark .ap-tag             { background: rgba(20, 184, 166, .2); color: #5eead4; }
+.dark .ap-tag.is-new      { background: rgba(34, 197, 94, .2); color: #86efac; }
+.dark .ap-pick            { background: #0f172a; border-color: #1e293b; }
+.dark .ap-pick.is-new     { background: rgba(34, 197, 94, .08); border-color: rgba(34, 197, 94, .35); }
+.dark .ap-pick.is-removed { background: rgba(239, 68, 68, .08); border-color: rgba(239, 68, 68, .35); }
+.dark .ap-pick.is-removed .ap-name { color: #fca5a5; }
+.dark .ap-pick.is-removed .ap-avatar { background: rgba(239, 68, 68, .18); color: #fca5a5; }
+.dark .ap-remove:hover    { background: rgba(239, 68, 68, .18); color: #fca5a5; }
+.dark .ap-undo            { background: transparent; border-color: rgba(239, 68, 68, .4); color: #fca5a5; }
+.dark .ap-undo:hover      { background: rgba(239, 68, 68, .15); }
+
+/* ---------- ตั้งค่าอนุมัติ: จอเล็กและแท็บเล็ต (< lg) ----------
+   เห็นทีละฝั่ง สลับด้วยแท็บ (.tf-tabs หน้าตาเดียวกับหน้าทำรายการเบิก)
+   ฝั่งที่แสดงยืดเต็มความสูงที่เหลือ รายการเลื่อนในกล่องเดียว ไม่ซ้อนสองชั้น */
+@media (max-width: 1023px) {
+    .ap-wrap { display: flex; flex-direction: column; }
+    .ap-wrap .ap-tabs { flex: none; margin-bottom: 0; }
+    .ap-wrap .ap-pane { flex: 1 1 auto; }
+    .ap-wrap[data-tab="all"]    .ap-pane-picked,
+    .ap-wrap[data-tab="picked"] .ap-pane-all { display: none; }
+
+    /* แถวสูงขึ้นนิดให้นิ้วแตะโดนง่าย */
+    .ap-row, .ap-pick { min-height: 3.25rem; }
+
+    /* ตัวเลขบนแท็บกระพริบเมื่อเพิ่ง/เอาออก — บอกว่าสิ่งที่แตะไปอยู่ในอีกฝั่ง */
+    .tf-tab-num.ap-bump { animation: ap-bump .45s ease; }
+}
+@keyframes ap-bump {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.35); }
+    100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { .tf-tab-num.ap-bump { animation: none; } }
+
+/* ---------- แถบบันทึกบนจอแคบ: ปุ่มบันทึกยืดเต็มที่เหลือ กดง่าย ---------- */
+@media (max-width: 639px) {
+    .ap-bar > div { width: 100%; margin-left: 0; }
+    .ap-bar #btnSave { flex: 1 1 auto; justify-content: center; }
+    .ap-meta { font-size: 0.6875rem; }
+}
