@@ -39,6 +39,11 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
   </div>
 
   <div id="kitBody" hidden class="kit-scroll min-h-0 flex-1 space-y-4 overflow-y-auto">
+
+    <!-- ชุดฟอร์มรอบเริ่มงาน — มาจากเงื่อนไขของระบบสวัสดิการ แสดงอย่างเดียว
+         (assets/js/welfare-uniform-panel.js, backend/welfare_uniform.php, sql/082) -->
+    <section id="kitUniform" class="<?php echo $card; ?>" aria-live="polite"></section>
+
     <div class="kit-grid grid gap-4">
 
       <!-- ============================================================
@@ -47,11 +52,11 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
       <section id="kitSecList" class="<?php echo $card; ?> kit-left xl:col-span-3">
         <div class="flex items-start gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
           <span class="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
-            <i data-lucide="shirt" class="h-[18px] w-[18px]" aria-hidden="true"></i>
+            <i data-lucide="package" class="h-[18px] w-[18px]" aria-hidden="true"></i>
           </span>
           <span class="min-w-0 flex-1">
             <span class="block font-semibold text-slate-800 dark:text-slate-100">
-              ชุดฟอร์มพื้นฐาน
+              อุปกรณ์พื้นฐาน (ไม่รวมชุดฟอร์ม)
               <span class="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"><span id="kitCount">0</span> รายการ</span>
             </span>
             <span class="block text-sm text-slate-500 dark:text-slate-400">ลำดับตรงนี้คือเลขรายการบนฟอร์มและใบพิมพ์ — ใช้ลูกศรเลื่อนขึ้นลง</span>
@@ -184,4 +189,5 @@ window.NEWSTAFFKIT = {
 };
 </script>
 <script src="<?php echo asset_url('assets/js/select-search.js', $ASSET_BASE); ?>"></script>
+<script src="<?php echo asset_url('assets/js/welfare-uniform-panel.js', $ASSET_BASE); ?>"></script>
 <script src="<?php echo asset_url('assets/js/new-staff-kit.js', $ASSET_BASE); ?>"></script>

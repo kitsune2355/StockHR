@@ -21,6 +21,7 @@
 require_once dirname(__FILE__) . '/db.php';
 require_once dirname(__FILE__) . '/stock.php';           // db_begin / db_commit / db_rollback
 require_once dirname(__FILE__) . '/welfare_bridge.php';  // WELFARE_ACTOR
+require_once dirname(__FILE__) . '/welfare_uniform.php'; // welfare_uniform_ready
 
 define('WELFARE_MASTER_NAME_MAX', 200);
 
@@ -57,13 +58,14 @@ function welfare_master_flag($row)
  */
 function welfare_master_parse($p)
 {
-    $out = array('error' => '', 'companies' => array(), 'sites' => array());
+    $out = array('error' => '', 'companies' => array(), 'sites' => array(), 'uniform' => array());
 
-    $companies = (isset($p['companies']) && is_array($p['companies'])) ? $p['companies'] : array();
-    $sites     = (isset($p['sites'])     && is_array($p['sites']))     ? $p['sites']     : array();
+    $companies = (isset($p['companies'])     && is_array($p['companies']))     ? $p['companies']     : array();
+    $sites     = (isset($p['sites'])         && is_array($p['sites']))         ? $p['sites']         : array();
+    $uniform   = (isset($p['uniform_start']) && is_array($p['uniform_start'])) ? $p['uniform_start'] : array();
 
-    if (count($companies) === 0 && count($sites) === 0) {
-        $out['error'] = 'ไม่มีข้อมูลบริษัทหรือหน่วยงานให้บันทึก';
+    if (count($companies) === 0 && count($sites) === 0 && count($uniform) === 0) {
+        $out['error'] = 'ไม่มีข้อมูลบริษัท หน่วยงาน หรือชุดฟอร์มให้บันทึก';
         return $out;
     }
 
@@ -127,6 +129,70 @@ function welfare_master_parse($p)
 
         $out['sites'][] = array('id' => $id, 'company_code' => $code, 'name' => $name,
                                 'active' => welfare_master_flag($s));
+    }
+
+    /* ---------- ชุดฟอร์มรอบเริ่มงาน (ดู sql/082) ----------
+       แต่ละหน่วยงานที่ส่งมา = แทนที่เงื่อนไขทั้งชุดของหน่วยงานนั้น (rules ว่าง = ล้าง)
+       หน่วยงานที่ไม่ได้ส่งมา ไม่แตะ */
+    $seen = array();
+    for ($i = 0; $i < count($uniform); $i++) {
+        $u     = is_array($uniform[$i]) ? $uniform[$i] : array();
+        $sid   = isset($u['site_id']) ? (int)$u['site_id'] : 0;
+        $rules = (isset($u['rules']) && is_array($u['rules'])) ? $u['rules'] : array();
+        $no    = 'ชุดฟอร์มแถวที่ ' . ($i + 1);
+
+        if ($sid <= 0) {
+            $out['error'] = $no . ': ไม่มี site_id';
+            return $out;
+        }
+        if (isset($seen[$sid])) {
+            $out['error'] = 'ชุดฟอร์มของหน่วยงาน id ' . $sid . ' ส่งมาซ้ำในชุดเดียวกัน';
+            return $out;
+        }
+        $seen[$sid] = true;
+
+        $clean = array();
+        $rule_seen = array();
+        for ($r = 0; $r < count($rules); $r++) {
+            $rule  = is_array($rules[$r]) ? $rules[$r] : array();
+            $rid   = isset($rule['rule_id']) ? (int)$rule['rule_id'] : 0;
+            $label = isset($rule['label']) ? trim((string)$rule['label']) : '';
+            $items = (isset($rule['items']) && is_array($rule['items'])) ? $rule['items'] : array();
+            $rno   = $no . ' (หน่วยงาน id ' . $sid . ') เงื่อนไขที่ ' . ($r + 1);
+
+            if ($rid <= 0) {
+                $out['error'] = $rno . ': ไม่มี rule_id';
+                return $out;
+            }
+            if (isset($rule_seen[$rid])) {
+                $out['error'] = $rno . ': rule_id ' . $rid . ' ซ้ำในหน่วยงานเดียวกัน';
+                return $out;
+            }
+            $rule_seen[$rid] = true;
+            if (db_text_length($label) > WELFARE_MASTER_NAME_MAX) {
+                $out['error'] = $rno . ': ชื่อเงื่อนไขยาวเกิน ' . WELFARE_MASTER_NAME_MAX . ' ตัวอักษร';
+                return $out;
+            }
+
+            $clean_items = array();
+            for ($k = 0; $k < count($items); $k++) {
+                $it   = is_array($items[$k]) ? $items[$k] : array();
+                $code = isset($it['item_code']) ? strtoupper(trim((string)$it['item_code'])) : '';
+                $qty  = (isset($it['qty']) && is_numeric($it['qty'])) ? (float)$it['qty'] : 0;
+
+                if (!preg_match('/^[A-Z0-9_-]{1,30}$/', $code)) {
+                    $out['error'] = $rno . ' รายการที่ ' . ($k + 1) . ': รหัสรายการชุดฟอร์มไม่ถูกต้อง';
+                    return $out;
+                }
+                if ($qty <= 0 || $qty > 999) {
+                    $out['error'] = $rno . ' (' . $code . '): จำนวนต้องมากกว่า 0 และไม่เกิน 999';
+                    return $out;
+                }
+                $clean_items[] = array('item_code' => $code, 'qty' => $qty);
+            }
+            $clean[] = array('rule_id' => $rid, 'label' => $label, 'items' => $clean_items);
+        }
+        $out['uniform'][] = array('site_id' => $sid, 'rules' => $clean);
     }
 
     return $out;
@@ -195,15 +261,49 @@ function welfare_master_exec($sql, $types, $values)
 }
 
 
+/* ---------- เนื้อหาชุดฟอร์มเดิมของหน่วยงาน ไว้เทียบว่าเปลี่ยนไหม ----------
+ * คืน array ของ "rule_id|label|item_code|qty" ตามลำดับ, null = ยังไม่เคยรับ (uniform_synced_at ว่าง) */
+function welfare_master_uniform_signature($site_id)
+{
+    $connect = db_connect();
+    $stmt = mysqli_prepare($connect,
+        "SELECT `uniform_synced_at` FROM `tb_welfare_site_map` WHERE `welfare_site_id` = ? LIMIT 1");
+    if (!$stmt) { return null; }
+    mysqli_stmt_bind_param($stmt, 'i', $site_id);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $synced_at);
+    $found = mysqli_stmt_fetch($stmt);
+    mysqli_stmt_close($stmt);
+    if (!$found || $synced_at === null) { return null; }
+
+    $stmt = mysqli_prepare($connect,
+        "SELECT `rule_id`, `rule_label`, `item_code`, `qty` FROM `tb_welfare_uniform_rule`
+         WHERE `welfare_site_id` = ? ORDER BY `rule_sort` ASC, `item_sort` ASC, `row_id` ASC FOR UPDATE");
+    if (!$stmt) { return null; }
+    mysqli_stmt_bind_param($stmt, 'i', $site_id);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $rid, $label, $code, $qty);
+    $rows = array();
+    while (mysqli_stmt_fetch($stmt)) {
+        $rows[] = $rid . '|' . $label . '|' . $code . '|' . sprintf('%.2f', (float)$qty);
+    }
+    mysqli_stmt_close($stmt);
+    return $rows;
+}
+
+
 /* ============================================================
- *  sync — รับบริษัท/หน่วยงานทั้งชุด
+ *  sync — รับบริษัท/หน่วยงาน/ชุดฟอร์มรอบเริ่มงาน
  *
  *  $p = array(
  *    'companies' => array( array('code' => 'HL', 'name' => 'บริษัท แฮปปี้แลนด์ จำกัด', 'active' => true) ),
  *    'sites'     => array( array('id' => 1, 'company_code' => 'HL', 'name' => '...', 'active' => true) ),
- *    'requested_by_name' => '...' )      ทุกส่วนไม่บังคับ แต่ต้องมีบริษัทหรือหน่วยงานอย่างน้อยหนึ่งแถว
+ *    'uniform_start' => array( array('site_id' => 4, 'rules' => array(
+ *          array('rule_id' => 16, 'label' => '...', 'items' => array( array('item_code' => 'POLO_NAVY', 'qty' => 1) )) )) ),
+ *    'requested_by_name' => '...' )      ทุกส่วนไม่บังคับ แต่ต้องมีอย่างน้อยหนึ่งแถว
  *
- *  คืน db_ok + 'companies' => [{code, company_id, created}], 'sites' => [{id, department_id, created}]
+ *  คืน db_ok + 'companies' => [{code, company_id, created}], 'sites' => [{id, department_id, created}],
+ *              'uniform_start' => [{site_id, rules, items, changed}]
  * ============================================================ */
 function welfare_master_sync($p)
 {
@@ -213,6 +313,10 @@ function welfare_master_sync($p)
 
     $in = welfare_master_parse($p);
     if ($in['error'] !== '') { return db_fail($in['error']); }
+
+    if (count($in['uniform']) > 0 && !welfare_uniform_ready()) {
+        return db_fail('ฐานข้อมูลสต็อกยังไม่พร้อมรับชุดฟอร์ม — ต้องรัน sql/082_welfare_uniform_start.sql ก่อน');
+    }
 
     $actor   = WELFARE_ACTOR;
     $by_name = isset($p['requested_by_name']) ? trim((string)$p['requested_by_name']) : '';
@@ -232,6 +336,19 @@ function welfare_master_sync($p)
             return db_fail('หน่วยงาน "' . $in['sites'][$i]['name'] . '" (id ' . $in['sites'][$i]['id']
                          . ') อ้างรหัสบริษัท ' . $code . ' ซึ่งไม่มีในระบบสต็อก '
                          . '— ส่งบริษัทนี้มาในชุดเดียวกันก่อน ไม่ได้บันทึกอะไรเลย');
+        }
+    }
+
+    /* ---------- ชุดฟอร์มต้องอ้างหน่วยงานที่สต็อกรู้จัก (หรือส่งมาในชุดเดียวกัน) ---------- */
+    $sent_sites = array();
+    for ($i = 0; $i < count($in['sites']); $i++) { $sent_sites[$in['sites'][$i]['id']] = true; }
+
+    for ($i = 0; $i < count($in['uniform']); $i++) {
+        $sid = $in['uniform'][$i]['site_id'];
+        if (!isset($sent_sites[$sid]) && welfare_master_site_find($sid) === null) {
+            db_rollback();
+            return db_fail('ชุดฟอร์มอ้างหน่วยงาน id ' . $sid . ' ซึ่งไม่มีในระบบสต็อก '
+                         . '— ส่งหน่วยงานนี้มาในชุดเดียวกันก่อน ไม่ได้บันทึกอะไรเลย');
         }
     }
 
@@ -347,6 +464,70 @@ function welfare_master_sync($p)
         }
     }
 
+    /* ---------- ชุดฟอร์มรอบเริ่มงาน: เขียนทับทั้งชุดของแต่ละหน่วยงานที่ส่งมา ----------
+       เวลา sync ล่าสุดขยับทุกครั้ง แม้ข้อมูลเท่าเดิม (บอกได้ว่าต้นทางเพิ่งยืนยันมา)
+       นับ "แก้ไข" และลงประวัติเฉพาะเมื่อเนื้อหาเปลี่ยนจริง */
+    $res_uniform = array();
+    for ($i = 0; $i < count($in['uniform']); $i++) {
+        $u   = $in['uniform'][$i];
+        $sid = $u['site_id'];
+
+        $before = welfare_master_uniform_signature($sid);
+        $after  = array();
+        $n_items = 0;
+        for ($r = 0; $r < count($u['rules']); $r++) {
+            $rule = $u['rules'][$r];
+            if (count($rule['items']) === 0) {
+                $after[] = $rule['rule_id'] . '|' . $rule['label'] . '||0.00';
+            }
+            for ($k = 0; $k < count($rule['items']); $k++) {
+                $after[] = $rule['rule_id'] . '|' . $rule['label'] . '|' . $rule['items'][$k]['item_code']
+                         . '|' . sprintf('%.2f', $rule['items'][$k]['qty']);
+                $n_items++;
+            }
+        }
+        $is_changed = ($before === null || implode("\n", $before) !== implode("\n", $after));
+
+        if ($is_changed) {
+            $ok = welfare_master_exec("DELETE FROM `tb_welfare_uniform_rule` WHERE `welfare_site_id` = ?",
+                                      'i', array($sid));
+            if ($ok < 0) { db_rollback(); return db_fail('ล้างชุดฟอร์มของหน่วยงาน id ' . $sid . ' ไม่สำเร็จ'); }
+
+            for ($r = 0; $r < count($u['rules']); $r++) {
+                $rule  = $u['rules'][$r];
+                $items = $rule['items'];
+                if (count($items) === 0) { $items = array(array('item_code' => '', 'qty' => 0)); }
+
+                for ($k = 0; $k < count($items); $k++) {
+                    $ok = welfare_master_exec(
+                        "INSERT INTO `tb_welfare_uniform_rule`
+                         SET `welfare_site_id` = ?, `rule_id` = ?, `rule_label` = ?, `rule_sort` = ?,
+                             `item_code` = ?, `qty` = ?, `item_sort` = ?,
+                             `created_at` = NOW(), `created_by` = ?",
+                        'iisisdis', array($sid, $rule['rule_id'], $rule['label'], $r + 1,
+                                          $items[$k]['item_code'], $items[$k]['qty'], $k + 1, $actor));
+                    if ($ok <= 0) {
+                        db_rollback();
+                        return db_fail('บันทึกชุดฟอร์มของหน่วยงาน id ' . $sid . ' ไม่สำเร็จ');
+                    }
+                }
+            }
+
+            $changed++;
+            $log[] = 'ชุดฟอร์มรอบเริ่มงาน site ' . $sid . ': ' . count($u['rules']) . ' เงื่อนไข '
+                   . $n_items . ' รายการ' . ($before === null || count($before) === 0 ? ' (ครั้งแรก)' : ' (แทนชุดเดิม)');
+        }
+
+        $ok = welfare_master_exec(
+            "UPDATE `tb_welfare_site_map` SET `uniform_synced_at` = NOW(), `updated_by` = ?
+             WHERE `welfare_site_id` = ?",
+            'si', array($actor, $sid));
+        if ($ok < 0) { db_rollback(); return db_fail('บันทึกเวลารับชุดฟอร์มของหน่วยงาน id ' . $sid . ' ไม่สำเร็จ'); }
+
+        $res_uniform[] = array('site_id' => $sid, 'rules' => count($u['rules']), 'items' => $n_items,
+                               'changed' => $is_changed);
+    }
+
     /* ---------- ประวัติ ---------- */
     $ok = welfare_master_exec(
         "INSERT INTO `tb_welfare_sync_log`
@@ -360,10 +541,12 @@ function welfare_master_sync($p)
     db_commit();
 
     $msg = 'รับบริษัท ' . count($in['companies']) . ' แห่ง หน่วยงาน ' . count($in['sites']) . ' แห่ง'
+         . (count($in['uniform']) > 0 ? ' ชุดฟอร์ม ' . count($in['uniform']) . ' หน่วยงาน' : '')
          . ' — สร้างใหม่ ' . $created . ', แก้ไข ' . $changed;
     $out = db_ok($msg, $ok);
-    $out['companies'] = $res_companies;
-    $out['sites']     = $res_sites;
+    $out['companies']     = $res_companies;
+    $out['sites']         = $res_sites;
+    $out['uniform_start'] = $res_uniform;
     $out['created']   = $created;
     $out['changed']   = $changed;
     return $out;

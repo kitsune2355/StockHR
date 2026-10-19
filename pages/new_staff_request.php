@@ -100,8 +100,12 @@ function ns_step_head($no, $title, $hint, $icon, $right = '')
         </div>
       </section>
 
+      <!-- ชุดฟอร์มตามเงื่อนไขสวัสดิการของหน่วยงานที่เลือก — แสดงอย่างเดียว ไม่ใส่ในใบนี้
+           พนักงานได้ชุดฟอร์มผ่านใบ NRQ ที่ระบบสวัสดิการส่งมา (assets/js/welfare-uniform-panel.js) -->
+      <section id="nsUniform" class="<?php echo $card; ?>" aria-live="polite"></section>
+
       <!-- ============================================================
-           ขั้นที่ 2 ชุดฟอร์มพื้นฐาน
+           ขั้นที่ 2 อุปกรณ์พื้นฐาน (ไม่รวมชุดฟอร์ม)
            ============================================================ -->
       <section id="nsSecKit" class="<?php echo $card; ?>">
         <?php
@@ -109,7 +113,7 @@ function ns_step_head($no, $title, $hint, $icon, $right = '')
             ? '<a href="main.php?page=new_staff_kit" id="nsKitLink" class="inline-flex flex-none items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-500/10">'
               . '<i data-lucide="settings-2" class="h-4 w-4" aria-hidden="true"></i>ตั้งค่าชุดของ</a>'
             : '';
-        echo ns_step_head(2, 'ชุดฟอร์มพื้นฐาน', 'ใส่ให้ครบแล้วตามมาตรฐาน ตรวจไซซ์ให้ตรงกับพนักงาน ปรับจำนวนได้ หรือเอาเครื่องหมายถูกออกถ้าไม่ต้องการ', 'shirt', $kit_link);
+        echo ns_step_head(2, 'อุปกรณ์พื้นฐาน', 'ใส่ให้ครบแล้วตามมาตรฐาน (ไม่รวมชุดฟอร์ม) ปรับจำนวนได้ หรือเอาเครื่องหมายถูกออกถ้าไม่ต้องการ', 'package', $kit_link);
         ?>
 
         <div id="kitList" class="divide-y divide-slate-100 dark:divide-slate-800"></div>
@@ -263,4 +267,5 @@ window.NEWSTAFF = {
 <script src="<?php echo asset_url('assets/js/select-search.js', $ASSET_BASE); ?>"></script>
 <script src="<?php echo asset_url('assets/js/doc-transfer.js', $ASSET_BASE); ?>"></script>
 <script src="<?php echo asset_url('assets/js/tf-tabs.js', $ASSET_BASE); ?>"></script>
+<script src="<?php echo asset_url('assets/js/welfare-uniform-panel.js', $ASSET_BASE); ?>"></script>
 <script src="<?php echo asset_url('assets/js/new-staff.js', $ASSET_BASE); ?>"></script>

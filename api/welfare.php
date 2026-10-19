@@ -30,11 +30,15 @@
  *
  *    { "action": "sync_master", "requested_by_name": "...",
  *      "companies": [ {"code":"HL", "name":"บริษัท แฮปปี้แลนด์ จำกัด", "active":true} ],
- *      "sites":     [ {"id":1, "company_code":"HL", "name":"สำนักงานใหญ่ HL", "active":true} ] }
- *        รับบริษัท/หน่วยงานจากระบบสวัสดิการ (ต้นทาง) — upsert ทั้งชุดใน transaction เดียว
- *        ส่งแค่ companies หรือแค่ sites ก็ได้ / active=false = ปิดใช้งาน ไม่ลบ
- *        ตอบ companies [{code, company_id, created}], sites [{id, department_id, created}]
- *        (ดู backend/welfare_master.php)
+ *      "sites":     [ {"id":1, "company_code":"HL", "name":"สำนักงานใหญ่ HL", "active":true} ],
+ *      "uniform_start": [ {"site_id":4, "rules":[ {"rule_id":16, "label":"Pro Site · ช่างทีมโมบาย",
+ *                          "items":[ {"item_code":"POLO_NAVY", "qty":1} ]} ]} ] }
+ *        รับบริษัท/หน่วยงาน/ชุดฟอร์มรอบเริ่มงานจากระบบสวัสดิการ (ต้นทาง) — ทั้งชุดใน transaction เดียว
+ *        ทุกส่วนไม่บังคับ / active=false = ปิดใช้งาน ไม่ลบ
+ *        uniform_start: แต่ละหน่วยงานที่ส่งมา = แทนที่เงื่อนไขชุดฟอร์มทั้งชุดของหน่วยงานนั้น
+ *        ตอบ companies [{code, company_id, created}], sites [{id, department_id, created}],
+ *            uniform_start [{site_id, rules, items, changed}]
+ *        (ดู backend/welfare_master.php, backend/welfare_uniform.php)
  *
  *  ตอบ { "ok": true, ... } หรือ { "ok": false, "message": "..." }
  *  ไม่มี SQL ในไฟล์นี้ — เรียกฟังก์ชันจาก backend/welfare_bridge.php และ backend/welfare_master.php
@@ -128,6 +132,7 @@ if ($action === 'sync_master') {
         'message'   => $res['message'],
         'companies' => $res['companies'],
         'sites'     => $res['sites'],
+        'uniform_start' => $res['uniform_start'],
         'created'   => $res['created'],
         'changed'   => $res['changed']
     ));

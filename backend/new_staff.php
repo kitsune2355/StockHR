@@ -10,6 +10,7 @@
  *      เบิกได้ทุกหน่วยงาน ไม่ติด tb_product_department เพราะเป็นนโยบายบริษัท
  *      แยกตามแผนกได้ (ดู sql/080): แผนกที่ตั้งชุดของตัวเองใช้ชุดนั้น "แทน" ชุดกลาง
  *      แผนกที่ไม่ได้ตั้งใช้ชุดกลาง (department_id = 0)
+ *      ไม่รวมชุดฟอร์ม — ชุดฟอร์มมาจากเงื่อนไขสวัสดิการ (ดู backend/welfare_uniform.php, sql/082)
  *    - รายการเพิ่มเติม (วัสดุถาวร/มีมูลค่า) เลือกจากทะเบียนสินค้า
  *      ติดสิทธิ์หน่วยงานเหมือนใบเบิกธรรมดา และ "ต้องคืน" ทุกบรรทัด
  *    - ธง "ต้องคืน" มาจากฝั่งเซิร์ฟเวอร์เสมอ ไม่เชื่อค่าจากฟอร์ม
@@ -24,6 +25,7 @@ require_once dirname(__FILE__) . '/stock.php';
 require_once dirname(__FILE__) . '/product_department.php';
 require_once dirname(__FILE__) . '/product.php';
 require_once dirname(__FILE__) . '/notify_events.php';
+require_once dirname(__FILE__) . '/welfare_uniform.php';
 
 
 /* ---------- ตารางของ sql/072 มีแล้วหรือยัง ----------
@@ -73,7 +75,7 @@ function new_staff_kit_list($department_id = 0)
     $connect = db_connect();
 
     $stmt = mysqli_prepare($connect,
-        "SELECT k.`product_id`, k.`default_qty`, k.`must_return`
+        "SELECT k.`product_id`, k.`default_qty`, k.`must_return`, p.`sub_category_id`
          FROM `tb_new_staff_kit` k
          INNER JOIN `tb_product` p ON p.`product_id` = k.`product_id`
          WHERE k.`department_id` = ? AND k.`is_active` = 1 AND p.`is_active` = 1
@@ -82,10 +84,16 @@ function new_staff_kit_list($department_id = 0)
 
     mysqli_stmt_bind_param($stmt, 'i', $owner);
     mysqli_stmt_execute($stmt);
-    mysqli_stmt_bind_result($stmt, $pid, $qty, $ret);
+    mysqli_stmt_bind_result($stmt, $pid, $qty, $ret, $sub);
+
+    /* ชุดฟอร์มมาจากเงื่อนไขสวัสดิการ (ดู backend/welfare_uniform.php) ไม่ใช่จากชุดของนี้
+       แถวเก่าที่ยังเป็นสินค้าชุดฟอร์มอยู่ถูกข้ามตรงนี้ — ทั้งฟอร์มเบิกในสต็อก
+       แคตตาล็อก และใบ NRQ ที่ระบบสวัสดิการส่งมา (welfare_submit) ใช้ฟังก์ชันนี้ทั้งหมด */
+    $uniform = welfare_uniform_sub_categories();
 
     $rows = array();
     while (mysqli_stmt_fetch($stmt)) {
+        if (isset($uniform[(int)$sub])) { continue; }
         $rows[] = array(
             'product_id'  => (int)$pid,
             'default_qty' => (float)$qty,
@@ -282,7 +290,7 @@ function new_staff_kit_admin_list($department_id = 0)
     $stmt = mysqli_prepare($connect,
         "SELECT k.`product_id`, k.`default_qty`, k.`must_return`,
                 p.`product_code`, p.`product_name`, p.`is_active`, u.`unit_name`,
-                COALESCE(b.`qty`, 0)
+                COALESCE(b.`qty`, 0), p.`sub_category_id`
          FROM `tb_new_staff_kit` k
          INNER JOIN `tb_product` p ON p.`product_id` = k.`product_id`
          LEFT  JOIN `tb_unit`    u ON u.`unit_id`    = p.`unit_id`
@@ -293,7 +301,10 @@ function new_staff_kit_admin_list($department_id = 0)
 
     mysqli_stmt_bind_param($stmt, 'i', $department_id);
     mysqli_stmt_execute($stmt);
-    mysqli_stmt_bind_result($stmt, $pid, $qty, $ret, $code, $name, $active, $unit, $balance);
+    mysqli_stmt_bind_result($stmt, $pid, $qty, $ret, $code, $name, $active, $unit, $balance, $sub);
+
+    /* แถวที่เป็นสินค้าชุดฟอร์มยังแสดง (ติดป้าย) ให้ผู้ดูแลเห็นแล้วเอาออก — บันทึกจะไม่ยอมจนกว่าจะเอาออก */
+    $uniform = welfare_uniform_sub_categories();
 
     $rows = array();
     while (mysqli_stmt_fetch($stmt)) {
@@ -304,6 +315,7 @@ function new_staff_kit_admin_list($department_id = 0)
             'unit_name'      => ($unit === null) ? '' : $unit,
             'balance'        => (float)$balance,
             'product_active' => ((int)$active === 1),
+            'is_uniform'     => isset($uniform[(int)$sub]),
             'default_qty'    => (float)$qty,
             'must_return'    => ((int)$ret === 1)
         );
@@ -354,6 +366,12 @@ function new_staff_kit_save($rows, $terms, $actor, $department_id = 0)
 
         if ($pid <= 0 || product_find($pid) === null) {
             return db_fail('ลำดับที่ ' . ($i + 1) . ': ไม่พบสินค้า');
+        }
+        if (welfare_uniform_is_product($pid)) {
+            $p = product_find($pid);
+            return db_fail('ลำดับที่ ' . ($i + 1) . ' (' . $p['product_code'] . ' ' . $p['product_name'] . '): '
+                         . 'ชุดฟอร์มตั้งที่ระบบสวัสดิการ (หน้าเงื่อนไขสวัสดิการ แท็บชุดฟอร์ม) '
+                         . '— เอารายการนี้ออกจากชุด');
         }
         if ($qty <= 0) {
             return db_fail('ลำดับที่ ' . ($i + 1) . ': จำนวนตั้งต้นต้องมากกว่า 0');
