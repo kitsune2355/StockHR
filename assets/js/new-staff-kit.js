@@ -155,6 +155,9 @@
       (r.product_active
         ? ""
         : '<span class="grid-tag grid-tag-del">สินค้าถูกปิดใช้งาน — จะไม่โผล่ในฟอร์ม</span>') +
+      (r.is_uniform
+        ? '<span class="grid-tag grid-tag-del">ชุดฟอร์ม — ตั้งที่ระบบสวัสดิการ เอาออกก่อนบันทึก</span>'
+        : "") +
       "</div></div>" +
       // จำนวนตั้งต้น + ต้องคืน — ห่อรวมเป็น .kr-ctrl ให้ตัดขึ้นบรรทัดใหม่ได้เมื่อการ์ดแคบ
       // (ผังห้าคอลัมน์ใช้ display: contents ลูกทั้งสองจึงลงช่องของตัวเองตามหัวตารางเหมือนเดิม)
@@ -458,6 +461,7 @@
       unit_name: r.unit_name,
       balance: r.balance,
       product_active: r.product_active,
+      is_uniform: !!r.is_uniform,
       default_qty: r.default_qty,
       must_return: r.must_return,
     };
@@ -476,6 +480,9 @@
     ROWS = (res.kit || []).map(toRow);
     el("termsInput").value = res.terms || "";
     SNAPSHOT = state();
+    if (window.WelfareUniformPanel) {
+      window.WelfareUniformPanel.render(el("kitUniform"), res.uniform, { central: DEPT === 0, context: "kit" });
+    }
     render();
   }
 

@@ -379,6 +379,16 @@
      และชุดพื้นฐานเปลี่ยนตามชุดของแผนก (ดู sql/080) — ขั้นที่ 2 ตั้งใหม่ตามชุดของแผนกนั้น
      ของที่หน่วยงานใหม่เบิกไม่ได้ หรือกลายเป็นของในชุดแล้ว ต้องเอาออกจากขั้นที่ 3
      ไม่งั้นจะโดนปฏิเสธตอนส่ง หรือได้สองบรรทัดของสินค้าเดียวกัน */
+  /* แผงชุดฟอร์มตามเงื่อนไขสวัสดิการของหน่วยงานที่เลือก (อ่านอย่างเดียว ไม่ใส่ลงใบ) */
+  function renderUniform(res) {
+    if (window.WelfareUniformPanel) {
+      window.WelfareUniformPanel.render(el("nsUniform"), res.uniform, {
+        central: num(res.deptId) <= 0,
+        context: "request",
+      });
+    }
+  }
+
   function reloadProducts(deptId) {
     post(
       { action: "bootstrap", department_id: deptId },
@@ -386,6 +396,7 @@
         setProducts(res.products);
         KIT_DEFAULT = res.kit || [];
         resetKit();
+        renderUniform(res);
         var inKit = {};
         for (var k = 0; k < KIT_DEFAULT.length; k++) {
           inKit[KIT_DEFAULT[k].product_id] = true;
@@ -587,6 +598,7 @@
         resetKit();
         fillDepartments(res.departments || []);
         fillTerms(res.terms || []);
+        renderUniform(res);
 
         setHidden(el("nsLoading"), true);
         setHidden(el("nsBody"), false);

@@ -22,6 +22,7 @@ require_once dirname(__FILE__) . '/_bootstrap.php';
 require_once dirname(dirname(__FILE__)) . '/backend/new_staff.php';
 require_once dirname(dirname(__FILE__)) . '/backend/department.php';
 require_once dirname(dirname(__FILE__)) . '/backend/setting.php';
+require_once dirname(dirname(__FILE__)) . '/backend/welfare_uniform.php';
 
 api_require_post();
 $actor      = api_require_login();
@@ -56,6 +57,8 @@ if ($action === 'bootstrap') {
         /* à¸Šà¸¸à¸”à¸‚à¸­à¸‡à¸•à¸²à¸¡à¹à¸œà¸™à¸à¸—à¸µà¹ˆà¹€à¸¥à¸·à¸­à¸ â€” à¹à¸œà¸™à¸à¹„à¸¡à¹ˆà¹„à¸”à¹‰à¸•à¸±à¹‰à¸‡à¸Šà¸¸à¸”à¹€à¸­à¸‡ = à¸Šà¸¸à¸”à¸à¸¥à¸²à¸‡ (à¸”à¸¹ sql/080) */
         'kit'         => new_staff_kit_list($dept),
         'kitOwnDept'  => (new_staff_kit_owner($dept) > 0),
+        /* ªØ´¿ÍÃìÁµÒÁà§×èÍ¹ä¢ÊÇÑÊ´Ô¡ÒÃ¢Í§á¼¹¡¹Õé — áÊ´§ÍÂèÒ§à´ÕÂÇ äÁèãÊèã¹ãºãËé */
+        'uniform'     => welfare_uniform_for_department($dept),
         'departments' => department_list(array('is_active' => 1)),
         'myDept'      => $my_dept,
         'myDeptName'  => ($me === null) ? '' : $me['department_name'],
@@ -117,7 +120,9 @@ if ($action === 'kit_get') {
         'centralKit'   => ($kit_dept > 0) ? new_staff_kit_admin_list(0) : array(),
         'deptKits'     => new_staff_kit_department_counts(),
         'departments'  => department_list(array('is_active' => 1)),
-        'products'     => stock_list(array('only_active' => true)),
+        /* ÊÔ¹¤éÒªØ´¿ÍÃìÁäÁèãËéàÅ×Í¡ — ªØ´¿ÍÃìÁµÑé§·ÕèÃĞººÊÇÑÊ´Ô¡ÒÃ */
+        'products'     => welfare_uniform_strip_products(stock_list(array('only_active' => true))),
+        'uniform'      => welfare_uniform_for_department($kit_dept),
         'terms'        => setting_get('new_staff_terms', '')
     ));
 }
