@@ -54,7 +54,13 @@ $ACTIVE_PAGE   = '';
 $ACTIVE_PARENT = '';
 $PAGE_FULL     = false;   // หน้าคุมพื้นที่เลื่อนเองหรือไม่ (ดู 'full' ใน includes/menu.php)
 
-if (!isset($routes[$requested])) {
+if (!isset($routes[$requested]) && isset($APP_MOVED_PAGES[$requested])) {
+    /* หน้าที่ย้ายไปตั้งที่ระบบอื่นแล้ว (ดู includes/menu.php) */
+    $state      = 'moved';
+    $moved      = $APP_MOVED_PAGES[$requested];
+    $PAGE_TITLE = $moved['title'];
+
+} elseif (!isset($routes[$requested])) {
     $state      = 'not_found';
     $PAGE_TITLE = 'ไม่พบหน้าที่ต้องการ';
 
@@ -130,6 +136,32 @@ include "includes/layout_top.php";
            class="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 focus:outline-none focus:ring-4 focus:ring-brand-200">
           <i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>
           กลับหน้า<?php echo htmlspecialchars($HOME_TITLE, ENT_QUOTES, 'UTF-8'); ?>
+        </a>
+      </p>
+    </div>
+
+<?php elseif ($state === 'moved'): ?>
+
+    <div class="rounded-2xl border border-sky-200 bg-sky-50 px-6 py-14 text-center dark:border-sky-500/30 dark:bg-sky-500/10">
+      <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300">
+        <i data-lucide="arrow-right-left" class="h-7 w-7" aria-hidden="true"></i>
+      </span>
+      <h2 class="mt-4 text-lg font-semibold text-sky-900 dark:text-sky-200">
+        <?php echo htmlspecialchars($moved['title'], ENT_QUOTES, 'UTF-8'); ?> ย้ายไปตั้งค่าที่ระบบสวัสดิการแล้ว
+      </h2>
+      <p class="mx-auto mt-1 max-w-xl text-sm text-sky-800 dark:text-sky-300/90">
+        <?php echo htmlspecialchars($moved['message'], ENT_QUOTES, 'UTF-8'); ?>
+      </p>
+      <?php
+      $moved_to = (isset($moved['link']) && isset($routes[$moved['link']])
+                   && app_can_access($routes[$moved['link']], $sess_role)) ? $moved['link'] : $HOME_PAGE;
+      $moved_label = ($moved_to === $HOME_PAGE) ? ('กลับหน้า' . $HOME_TITLE) : $moved['link_title'];
+      ?>
+      <p class="mt-6">
+        <a href="main.php?page=<?php echo urlencode($moved_to); ?>"
+           class="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 focus:outline-none focus:ring-4 focus:ring-brand-200">
+          <i data-lucide="<?php echo ($moved_to === $HOME_PAGE) ? 'arrow-left' : 'arrow-right'; ?>" class="h-4 w-4" aria-hidden="true"></i>
+          <?php echo htmlspecialchars($moved_label, ENT_QUOTES, 'UTF-8'); ?>
         </a>
       </p>
     </div>

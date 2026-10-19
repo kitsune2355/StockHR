@@ -1,6 +1,9 @@
 /* ============================================================
  *  new-staff.js — หน้า "เบิกพนักงานใหม่" (pages/new_staff_request.php)
  *
+ *  ปัจจุบันฟอร์มมี 2 ขั้น — ชุดพื้นฐานถูกซ่อน (USE_KIT = false) ชุดฟอร์มตั้งที่ระบบสวัสดิการ
+ *  คำอธิบายด้านล่างคือโครงเดิมเมื่อเปิดชุดพื้นฐาน (ขั้นที่ 3 เดิม = ขั้นที่ 2 ปัจจุบัน)
+ *
  *  ขั้นที่ 2 (ชุดพื้นฐาน) เก็บสถานะใน KIT แล้ววาดแถวจากตัวนี้
  *    วาดใหม่เฉพาะตอนโครงสร้างเปลี่ยน (ติ๊ก/ล้างฟอร์ม)
  *    ตอนพิมพ์จำนวนหรือหมายเหตุแค่อัปเดตค่า เคอร์เซอร์จะได้ไม่กระโดด
@@ -18,6 +21,9 @@
 
   var PRODUCTS = []; // สินค้าที่หน่วยงานนี้เลือกได้ + ของในชุด
   var byId = {};
+  /* ชุดพื้นฐาน (tb_new_staff_kit) ไม่ใช้ในฟอร์มนี้แล้ว — ชุดฟอร์มและอุปกรณ์พนักงานใหม่ตั้งที่ระบบสวัสดิการ
+     ขั้นนั้นถูกซ่อนในหน้า และไม่ใส่รายการชุดให้อัตโนมัติ (เปิดกลับได้ด้วยการตั้งเป็น true + เอา hidden ออกจาก #nsSecKit) */
+  var USE_KIT = false;
   var KIT_DEFAULT = []; // ชุดตามที่ตั้งไว้ ใช้ตอนล้างฟอร์ม
   var KIT = []; // { product_id, on, qty, note, must_return }
   var transfer = null; // DocTransfer ของขั้นที่ 3
@@ -394,7 +400,7 @@
       { action: "bootstrap", department_id: deptId },
       function (res) {
         setProducts(res.products);
-        KIT_DEFAULT = res.kit || [];
+        KIT_DEFAULT = USE_KIT ? res.kit || [] : [];
         resetKit();
         renderUniform(res);
         var inKit = {};
@@ -414,7 +420,8 @@
         var dropped = rows.length - kept.length;
         if (dropped > 0 && typeof window.appSuccess === "function") {
           window.appSuccess(
-            "เอาออก " + dropped + " รายการ เพราะหน่วยงานที่เลือกเบิกไม่ได้ หรืออยู่ในชุดพื้นฐานของแผนกแล้ว",
+            "เอาออก " + dropped + " รายการ เพราะหน่วยงานที่เลือกเบิกไม่ได้" +
+              (USE_KIT ? " หรืออยู่ในชุดพื้นฐานของแผนกแล้ว" : ""),
           );
         }
       },
@@ -464,7 +471,9 @@
     var lines = collectLines();
     if (lines.length === 0) {
       showError(
-        "ยังไม่มีรายการที่จะเบิก — ติ๊กรายการพื้นฐาน หรือเลือกของในขั้นที่ 3",
+        USE_KIT
+          ? "ยังไม่มีรายการที่จะเบิก — ติ๊กรายการพื้นฐาน หรือเลือกของในขั้นที่ 3"
+          : "ยังไม่มีรายการที่จะเบิก — เลือกของในขั้นที่ 2",
       );
       return;
     }
@@ -594,7 +603,7 @@
         el("docDate").value = res.today;
 
         setProducts(res.products);
-        KIT_DEFAULT = res.kit || [];
+        KIT_DEFAULT = USE_KIT ? res.kit || [] : [];
         resetKit();
         fillDepartments(res.departments || []);
         fillTerms(res.terms || []);
