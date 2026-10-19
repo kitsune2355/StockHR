@@ -27,7 +27,7 @@ unset($_SESSION['login_error']);
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>เข้าสู่ระบบ | ระบบสต็อก HR Happyland</title>
+<title>เข้าสู่ระบบ | ระบบสต็อก Uniform Happyland</title>
 
 <?php include 'includes/head_assets.php'; ?>
 </head>
@@ -65,10 +65,10 @@ unset($_SESSION['login_error']);
         </div>
 
         <h2 class="animate-fade-up mt-6 text-2xl font-bold leading-relaxed [animation-delay:120ms] lg:text-3xl">
-          ระบบสต็อก HR
+          ระบบสต็อก Uniform
         </h2>
         <p class="animate-fade-up mt-2 max-w-sm text-sm leading-relaxed text-white/85 [animation-delay:200ms]">
-          จัดการรับเข้า เบิก–จ่าย และยอดคงเหลือของอุปกรณ์ฝ่ายทรัพยากรบุคคล รวมถึงชุดอุปกรณ์พนักงานใหม่ พร้อมรายงานสรุปแบบเรียลไทม์
+          จัดการรับเข้า เบิก–จ่าย และยอดคงเหลือของเสื้อฟอร์มพนักงาน แยกตามแบบและไซซ์ พร้อมรายงานสรุปแบบเรียลไทม์
         </p>
       </div>
 
@@ -94,7 +94,7 @@ unset($_SESSION['login_error']);
       </ul>
 
       <p class="animate-fade-in relative mt-auto hidden pt-10 text-xs tracking-wider text-white/70 [animation-delay:600ms] lg:block">
-        HAPPYLAND GROUP &middot; HR STOCK SYSTEM
+        HAPPYLAND GROUP &middot; UNIFORM STOCK SYSTEM
       </p>
     </section>
 

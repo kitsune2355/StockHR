@@ -117,7 +117,7 @@ if (!function_exists('st_esc')) {
             </div>
             <div class="min-w-0">
               <label for="mailFromName" class="st-label">ชื่อผู้ส่ง</label>
-              <input type="text" id="mailFromName" class="st-input" placeholder="ระบบสต็อก HR Happyland">
+              <input type="text" id="mailFromName" class="st-input" placeholder="ระบบสต็อก Uniform Happyland">
             </div>
           </div>
 
