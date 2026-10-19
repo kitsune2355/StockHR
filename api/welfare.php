@@ -10,8 +10,9 @@
  *
  *  body เป็น JSON เสมอ:
  *
- *    { "action": "catalog", "items": ["POLO_BLACK","SAFETY_SHOES"], "logo": "PRO", "site_id": 4 }
+ *    { "action": "catalog", "items": ["POLO_BLACK","SAFETY_SHOES"], "logo": "PRO", "site_id": 4, "event": "START" }
  *        แบบ/ไซซ์ที่เลือกได้ของแต่ละรายการ พร้อมยอดคงเหลือ และหน่วยงานที่จะลงใบ
+ *        event = START ได้ doc_kind = new_staff และชุดของพนักงานใหม่ (kit) ที่จะใส่ให้ในใบ
  *
  *    { "action": "submit", "employee_id": 12, "employee_code": "PRO-0012",
  *      "employee_name": "...", "position_name": "...", "company_code": "PRO", "logo": "PRO",
@@ -19,6 +20,7 @@
  *      "requested_by_name": "...", "note": "",
  *      "lines": [ {"item_code":"POLO_BLACK", "product_id":31, "qty":2} ] }
  *        ออกใบเบิก WRQ ที่อนุมัติแล้ว — ส่งซ้ำสิทธิ์เดิมได้ใบเดิมคืน (duplicate = true)
+ *        event = START ต้องมี "start_date" และได้ใบเบิกพนักงานใหม่ NRQ (ใส่ชุดของพนักงานใหม่ให้)
  *
  *    { "action": "status", "refs": ["12:START", "12:ANNUAL-2026"] }
  *        สถานะล่าสุดของแต่ละสิทธิ์ (ref = "<employee_id>:<entitlement_key>")
@@ -61,8 +63,9 @@ if ($action === 'catalog') {
     $items = isset($input['items']) && is_array($input['items']) ? $input['items'] : array();
     $logo  = isset($input['logo']) ? trim($input['logo']) : '';
     $site  = isset($input['site_id']) ? (int)$input['site_id'] : 0;
+    $event = isset($input['event']) ? trim($input['event']) : '';
 
-    api_ok(welfare_catalog($items, $logo, $site));
+    api_ok(welfare_catalog($items, $logo, $site, $event));
 }
 
 
