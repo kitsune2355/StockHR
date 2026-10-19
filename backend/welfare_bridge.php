@@ -13,6 +13,9 @@
  *    - ไม่ติดสิทธิ์หน่วยงานใน tb_product_department เพราะเป็นสวัสดิการของบริษัท
  *      (เหตุผลเดียวกับชุดของพนักงานใหม่)
  *    - ไม่ต้องคืนเมื่อพ้นสภาพ (must_return = 0)
+ *    - รอบ "เริ่มงาน" (START) ออกเป็น "ใบเบิกพนักงานใหม่" (ชุดเลข NRQ + แถวใน tb_doc_new_staff
+ *      ดู sql/072) ใส่ชุดของพนักงานใหม่ (tb_new_staff_kit) ให้ด้วย ธง "ต้องคืน" ของของในชุด
+ *      มาจากชุดของ — ใบจึงไปอยู่หน้า "ใบเบิกพนักงานใหม่" และพิมพ์พร้อมเงื่อนไขท้ายใบเหมือนทำจากหน้านั้น
  *
  *  ชั้น api/welfare.php ยืนยันตัวตนด้วยลายเซ็น HMAC ก่อนเรียกไฟล์นี้
  *
@@ -22,6 +25,7 @@
 require_once dirname(__FILE__) . '/document.php';
 require_once dirname(__FILE__) . '/stock.php';
 require_once dirname(__FILE__) . '/product.php';
+require_once dirname(__FILE__) . '/new_staff.php';
 
 define('WELFARE_ACTOR', 'hl-welfare');
 
@@ -150,6 +154,18 @@ function welfare_item_variants($item_code, $logo)
     return $rows;
 }
 
+/* หมวดย่อยทุกตัวที่จับคู่กับรายการชุดฟอร์ม — array(sub_category_id => true) */
+function welfare_mapped_sub_categories()
+{
+    $connect = db_connect();
+    $res = mysqli_query($connect, "SELECT DISTINCT `sub_category_id` FROM `tb_welfare_item_map`");
+    $out = array();
+    if (!$res) { return $out; }
+    while ($r = mysqli_fetch_row($res)) { $out[(int)$r[0]] = true; }
+    mysqli_free_result($res);
+    return $out;
+}
+
 /* ไซซ์ของสินค้า อ่านจากท้ายชื่อ ("... ไซซ์ XL" / "... เอว 32" / "... เบอร์ 41")
    ทะเบียนตั้งชื่อแบบนี้ทุกตัว (ดู 074) ถ้าไม่ตรงรูปแบบ ใช้ชื่อเต็มแทน */
 function welfare_size_of($product_name)
@@ -199,8 +215,9 @@ function welfare_sub_products($sub_category_id)
  *  $item_codes  รายการในสิทธิ์ เช่น array('POLO_BLACK', 'SAFETY_SHOES')
  *  $logo        โลโก้บริษัทบนเสื้อ
  *  $site_id     หน่วยงานของพนักงาน (บอกล่วงหน้าว่าจับคู่หน่วยงานแล้วหรือยัง)
+ *  $event       รอบสิทธิ์ — START ได้ชุดของพนักงานใหม่ที่จะใส่ให้ในใบด้วย (kit)
  * ============================================================ */
-function welfare_catalog($item_codes, $logo, $site_id)
+function welfare_catalog($item_codes, $logo, $site_id, $event = '')
 {
     $items = array();
     for ($i = 0; $i < count($item_codes); $i++) {
@@ -214,10 +231,34 @@ function welfare_catalog($item_codes, $logo, $site_id)
         $items[] = array('item_code' => $code, 'variants' => $variants);
     }
 
+    $new_staff = ($event === 'START');
     return array(
         'department' => welfare_site_department($site_id),
-        'items'      => $items
+        'items'      => $items,
+        'doc_kind'   => $new_staff ? 'new_staff' : 'request',
+        'kit'        => $new_staff ? welfare_new_staff_kit() : array()
     );
+}
+
+/* ชุดของพนักงานใหม่ที่เปิดใช้งาน พร้อมชื่อและยอดคงเหลือ (ให้ระบบสวัสดิการแสดงก่อนส่ง) */
+function welfare_new_staff_kit()
+{
+    if (!new_staff_ready()) { return array(); }
+
+    $kit = new_staff_kit_list();
+    $out = array();
+    for ($i = 0; $i < count($kit); $i++) {
+        $p = product_find($kit[$i]['product_id']);
+        if ($p === null) { continue; }
+        $out[] = array(
+            'product_id'   => $kit[$i]['product_id'],
+            'product_name' => $p['product_name'],
+            'qty'          => $kit[$i]['default_qty'],
+            'must_return'  => $kit[$i]['must_return'],
+            'on_hand'      => stock_qty($kit[$i]['product_id'])
+        );
+    }
+    return $out;
 }
 
 
@@ -228,6 +269,7 @@ function welfare_catalog($item_codes, $logo, $site_id)
  *    'employee_id', 'employee_code', 'employee_name', 'position_name',
  *    'company_code', 'logo', 'site_id', 'site_name',
  *    'event', 'entitlement_key', 'requested_by_name', 'note',
+ *    'start_date',   (จำเป็นเมื่อ event = START — ใบเบิกพนักงานใหม่)
  *    'lines' => array( array('item_code', 'product_id', 'qty') ) )
  *
  *  คืน db_ok + doc_id, doc_no, duplicate (true = สิทธิ์นี้มีใบอยู่แล้ว คืนใบเดิม)
@@ -246,7 +288,9 @@ function welfare_submit($p)
     $ent_key     = isset($p['entitlement_key'])   ? trim($p['entitlement_key'])   : '';
     $by_name     = isset($p['requested_by_name']) ? trim($p['requested_by_name']) : '';
     $note        = isset($p['note'])              ? trim($p['note'])              : '';
+    $start       = isset($p['start_date'])        ? trim($p['start_date'])        : '';
     $lines       = isset($p['lines']) && is_array($p['lines']) ? $p['lines'] : array();
+    $new_staff   = ($event === 'START');
 
     if ($employee_id <= 0 || $name === '') { return db_fail('ไม่มีข้อมูลพนักงาน'); }
     if (!in_array($event, array('START', 'PROBATION', 'ANNUAL'))) {
@@ -261,6 +305,15 @@ function welfare_submit($p)
     }
     if (db_text_length($code) > 30)  { return db_fail('รหัสพนักงานยาวเกิน 30 ตัวอักษร'); }
     if (db_text_length($note) > 300) { return db_fail('หมายเหตุยาวเกิน 300 ตัวอักษร'); }
+    if ($new_staff) {
+        if (!new_staff_ready()) {
+            return db_fail('ระบบสต็อกยังไม่พร้อมออกใบเบิกพนักงานใหม่ — ต้องรัน sql/072_new_staff_request.sql ก่อน');
+        }
+        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $start, $m)
+            || !checkdate((int)$m[2], (int)$m[3], (int)$m[1])) {
+            return db_fail('ใบเบิกพนักงานใหม่ต้องมีวันที่เริ่มงาน');
+        }
+    }
 
     $dept = welfare_site_department($site_id);
     if ($dept === null) {
@@ -293,11 +346,31 @@ function welfare_submit($p)
         $items[] = array('product_id' => $pid, 'qty' => $qty, 'note' => '', 'must_return' => 0);
     }
 
+    /* ---------- พนักงานใหม่: ใส่ชุดของพนักงานใหม่ให้ เหมือนฟอร์มหน้า "เบิกพนักงานใหม่" ----------
+     * ของที่ซ้ำกับรายการชุดฟอร์ม ใช้จำนวนจากระบบสวัสดิการ แต่ธง "ต้องคืน" ตามชุดของ */
+    if ($new_staff) {
+        $kit = new_staff_kit_list();
+        for ($k = 0; $k < count($kit); $k++) {
+            $found = false;
+            for ($i = 0; $i < count($items); $i++) {
+                if ($items[$i]['product_id'] === $kit[$k]['product_id']) {
+                    $items[$i]['must_return'] = $kit[$k]['must_return'] ? 1 : 0;
+                    $found = true;
+                }
+            }
+            if (!$found) {
+                $items[] = array('product_id' => $kit[$k]['product_id'], 'qty' => $kit[$k]['default_qty'],
+                                 'note' => '', 'must_return' => $kit[$k]['must_return'] ? 1 : 0);
+            }
+        }
+    }
+
     $data = array(
         'doc_date'      => date('Y-m-d'),
         'department_id' => $dept['department_id'],
         'requester'     => WELFARE_ACTOR,
-        'doc_prefix'    => 'WRQ',
+        /* ชุดเลขของ backend เท่านั้น (ดู doc_insert) — NRQ ตรงกับใบที่ทำจากหน้าพนักงานใหม่ */
+        'doc_prefix'    => $new_staff ? 'NRQ' : 'WRQ',
         'note'          => welfare_doc_note($event, $ent_key, $name, $note),
         'items'         => $items
     );
@@ -364,13 +437,33 @@ function welfare_submit($p)
     }
     mysqli_stmt_close($stmt);
 
+    /* พนักงานใหม่: แถวนี้ทำให้ใบเป็น "ใบเบิกพนักงานใหม่" ทั้งหน้ารายการ แดชบอร์ด และใบพิมพ์ (ดู sql/072) */
+    if ($new_staff) {
+        $stmt = mysqli_prepare($connect,
+            "INSERT INTO `tb_doc_new_staff`
+             SET `doc_id` = ?, `employee_name` = ?, `employee_code` = ?,
+                 `position_name` = ?, `start_date` = ?,
+                 `created_at` = NOW(), `created_by` = ?");
+        if (!$stmt) { db_rollback(); return db_fail('เตรียมคำสั่งบันทึกข้อมูลพนักงานใหม่ไม่สำเร็จ'); }
+        mysqli_stmt_bind_param($stmt, 'isssss', $doc_id, $name, $code, $position, $start, $actor);
+        if (!mysqli_stmt_execute($stmt)) {
+            $errno = mysqli_stmt_errno($stmt);
+            mysqli_stmt_close($stmt);
+            db_rollback();
+            return db_fail(db_error_message($errno), $errno);
+        }
+        mysqli_stmt_close($stmt);
+    }
+
     $by = ($by_name !== '') ? $by_name : 'ไม่ระบุชื่อ';
-    doc_history_add($doc_id, 'submitted', $actor, 'ส่งจากระบบสวัสดิการโดย ' . $by . ' — ' . $name);
+    doc_history_add($doc_id, 'submitted', $actor, 'ส่งจากระบบสวัสดิการโดย ' . $by . ' — '
+                    . ($new_staff ? 'พนักงานใหม่: ' : '') . $name);
     doc_history_add($doc_id, 'approved', $actor, $approve_note);
 
     db_commit();
 
-    $out = db_ok('ส่งเบิกชุดฟอร์มแล้ว ใบเลขที่ ' . $res['doc_no'] . ' (' . $name . ') — รอคลังจ่าย', $doc_id);
+    $out = db_ok('ส่งเบิก' . ($new_staff ? 'พนักงานใหม่' : 'ชุดฟอร์ม') . 'แล้ว ใบเลขที่ ' . $res['doc_no']
+                 . ' (' . $name . ') — รอคลังจ่าย', $doc_id);
     $out['doc_no']    = $res['doc_no'];
     $out['duplicate'] = false;
     return $out;
@@ -518,16 +611,20 @@ function welfare_status($refs)
     }
     mysqli_stmt_close($stmt);
 
-    /* รายการสินค้าแยกถามทีหลัง — mysqli เปิดสอง statement ซ้อนกันไม่ได้ */
+    /* รายการสินค้าแยกถามทีหลัง — mysqli เปิดสอง statement ซ้อนกันไม่ได้
+       uniform = เป็นสินค้าของหมวดที่จับคู่กับชุดฟอร์ม / false = ของจากชุดพนักงานใหม่ */
+    $uniform_subs = welfare_mapped_sub_categories();
     foreach ($out as $ref => $row) {
         $lines = doc_items($row['doc_id']);
         $items = array();
         for ($i = 0; $i < count($lines); $i++) {
+            $p = product_find($lines[$i]['product_id']);
             $items[] = array(
                 'product_id'   => (int)$lines[$i]['product_id'],
                 'product_name' => $lines[$i]['product_name'],
                 'size'         => welfare_size_of($lines[$i]['product_name']),
-                'qty'          => (float)$lines[$i]['qty']
+                'qty'          => (float)$lines[$i]['qty'],
+                'uniform'      => ($p !== null && isset($uniform_subs[$p['sub_category_id']]))
             );
         }
         $out[$ref]['items'] = $items;
