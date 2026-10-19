@@ -256,6 +256,9 @@ function doc_list($options = array())
                    ns.`employee_name` AS `new_staff_name`,
                    ns.`position_name` AS `new_staff_position`,
                    ns.`start_date`    AS `new_staff_start`,
+                   /* ใบจากระบบสวัสดิการ = มีแถวใน tb_doc_welfare (ดู sql/075) */
+                   wf.`employee_name` AS `welfare_name`,
+                   wf.`event`         AS `welfare_event`,
                    (SELECT COUNT(*)          FROM `tb_doc_item` i WHERE i.`doc_id` = h.`doc_id`) AS `line_count`,
                    (SELECT COALESCE(SUM(i.`qty`),0) FROM `tb_doc_item` i WHERE i.`doc_id` = h.`doc_id`) AS `total_qty`,
                    /* มูลค่ารวมของใบ — หน้าประวัติการรับเข้าใช้ตอบว่าใบนี้เป็นเงินเท่าไร
@@ -266,7 +269,8 @@ function doc_list($options = array())
             LEFT JOIN `tb_department` dp ON dp.`department_id` = h.`department_id`
             LEFT JOIN `tb_company`    cp ON cp.`company_id`    = dp.`company_id`
             LEFT JOIN `tb_doc_header` r  ON r.`doc_id`         = h.`ref_doc_id`
-            LEFT JOIN `tb_doc_new_staff` ns ON ns.`doc_id`    = h.`doc_id`";
+            LEFT JOIN `tb_doc_new_staff` ns ON ns.`doc_id`    = h.`doc_id`
+            LEFT JOIN `tb_doc_welfare`   wf ON wf.`doc_id`    = h.`doc_id`";
 
     if (count($where) > 0) {
         $sql .= ' WHERE ' . implode(' AND ', $where);
@@ -295,6 +299,7 @@ function doc_list($options = array())
         $department_name, $company_name,
         $requester_name, $approved_by_name, $created_by_name,
         $ref_doc_no, $new_staff_name, $new_staff_position, $new_staff_start,
+        $welfare_name, $welfare_event,
         $line_count, $total_qty, $total_cost);
 
     $rows = array();
@@ -332,6 +337,9 @@ function doc_list($options = array())
             'new_staff_name'  => ($new_staff_name === null) ? '' : $new_staff_name,
             'new_staff_position' => ($new_staff_position === null) ? '' : $new_staff_position,
             'new_staff_start' => ($new_staff_start === null) ? '' : $new_staff_start,
+            'is_welfare'      => ($welfare_name !== null),
+            'welfare_name'    => ($welfare_name === null) ? '' : $welfare_name,
+            'welfare_event'   => ($welfare_event === null) ? '' : $welfare_event,
             'line_count'      => (int)$line_count,
             'total_qty'       => (float)$total_qty,
             'total_cost'      => (float)$total_cost
@@ -360,12 +368,15 @@ function doc_find($doc_id)
                    เหตุผลเดียวกับใน doc_list() */
                 h.`requester_name`, h.`approved_by_name`, h.`created_by_name`,
                 r.`doc_no` AS `ref_doc_no`,
-                ns.`employee_name`, ns.`employee_code`, ns.`position_name`, ns.`start_date`
+                ns.`employee_name`, ns.`employee_code`, ns.`position_name`, ns.`start_date`,
+                wf.`employee_name`, wf.`employee_code`, wf.`position_name`, wf.`site_name`,
+                wf.`event`, wf.`entitlement_key`, wf.`requested_by_name`
          FROM `tb_doc_header` h
          LEFT JOIN `tb_department` dp ON dp.`department_id` = h.`department_id`
          LEFT JOIN `tb_company`    cp ON cp.`company_id`    = dp.`company_id`
          LEFT JOIN `tb_doc_header` r  ON r.`doc_id`         = h.`ref_doc_id`
          LEFT JOIN `tb_doc_new_staff` ns ON ns.`doc_id`    = h.`doc_id`
+         LEFT JOIN `tb_doc_welfare`   wf ON wf.`doc_id`    = h.`doc_id`
          WHERE h.`doc_id` = ? LIMIT 1");
     if (!$stmt) { return null; }
 
@@ -380,7 +391,8 @@ function doc_find($doc_id)
         $department_name, $company_name,
         $requester_name, $approved_by_name, $created_by_name,
         $ref_doc_no,
-        $ns_name, $ns_code, $ns_position, $ns_start);
+        $ns_name, $ns_code, $ns_position, $ns_start,
+        $wf_name, $wf_code, $wf_position, $wf_site, $wf_event, $wf_key, $wf_by);
     $found = mysqli_stmt_fetch($stmt);
     mysqli_stmt_close($stmt);
 
@@ -394,6 +406,20 @@ function doc_find($doc_id)
             'employee_code' => $ns_code,
             'position_name' => $ns_position,
             'start_date'    => $ns_start
+        );
+    }
+
+    /* ใบจากระบบสวัสดิการ (ดู sql/075) — null = ไม่ใช่ */
+    $welfare = null;
+    if ($wf_name !== null) {
+        $welfare = array(
+            'employee_name'     => $wf_name,
+            'employee_code'     => $wf_code,
+            'position_name'     => $wf_position,
+            'site_name'         => $wf_site,
+            'event'             => $wf_event,
+            'entitlement_key'   => $wf_key,
+            'requested_by_name' => $wf_by
         );
     }
 
@@ -428,6 +454,8 @@ function doc_find($doc_id)
         'created_by_name' => ($created_by_name === null) ? '' : $created_by_name,
         'is_new_staff'    => ($new_staff !== null),
         'new_staff'       => $new_staff,
+        'is_welfare'      => ($welfare !== null),
+        'welfare'         => $welfare,
         'items'           => doc_items($doc_id)
     );
 }

@@ -397,6 +397,10 @@ function request_update($doc_id, $data, $actor, $actor_role = '')
     if (!empty($doc['is_new_staff'])) {
         return db_fail('ใบเบิกพนักงานใหม่แก้ไขไม่ได้ — ถ้าต้องเปลี่ยน ให้ยกเลิกใบนี้แล้วทำใบใหม่');
     }
+    /* ใบจากระบบสวัสดิการ: ผู้ขอคือบัญชีระบบ ไม่มีคนมาแก้ใบในสต็อก (ดู backend/welfare_bridge.php) */
+    if (!empty($doc['is_welfare'])) {
+        return db_fail('ใบเบิกจากระบบสวัสดิการแก้ไขในระบบสต็อกไม่ได้ — ถ้าต้องเปลี่ยน ให้ยกเลิกแล้วส่งเบิกใหม่จากระบบสวัสดิการ');
+    }
 
     $is_owner   = ($doc['requester'] === $actor);
     $is_manager = in_array($actor_role, array('super_admin', 'admin'));
@@ -541,6 +545,9 @@ function request_return($doc_id, $reason, $actor, $actor_role)
     /* ส่งกลับ = ให้ผู้ทำเบิกแก้ แต่ใบพนักงานใหม่แก้ไม่ได้ (ดู request_update) จะค้างอยู่เฉย ๆ */
     if (!empty($doc['is_new_staff'])) {
         return db_fail('ใบเบิกพนักงานใหม่ส่งกลับแก้ไขไม่ได้ — ถ้าเบิกผิด ให้ยกเลิกใบนี้แล้วทำใบใหม่');
+    }
+    if (!empty($doc['is_welfare'])) {
+        return db_fail('ใบเบิกจากระบบสวัสดิการส่งกลับแก้ไขไม่ได้ — ถ้าเบิกผิด ให้ยกเลิกแล้วส่งเบิกใหม่จากระบบสวัสดิการ');
     }
     if ($doc['status'] !== 'approved') {
         return db_fail('ส่งกลับได้เฉพาะใบที่ "อนุมัติแล้ว" เท่านั้น '
