@@ -680,14 +680,12 @@ function notify_event_adjust_decided($doc_id, $decision, $reason, $actor)
 /* ============================================================
  *  เหตุการณ์ที่ 3 — คลังบันทึกจ่ายของ
  *  ปลายทาง: ผู้ขอเบิก (ต้องมาเซ็นรับ)
+ *           ใบจากระบบสวัสดิการ -> HR ที่กดส่ง หรือคลัง (ดู เหตุการณ์ที่ 3ข)
  * ============================================================ */
 function notify_event_issue_created($doc_id, $actor)
 {
     $doc = doc_find($doc_id);
     if ($doc === null || $doc['doc_type'] !== 'issue') { return 0; }
-
-    $people = notify_person($doc['requester']);
-    if (count($people) === 0) { return 0; }
 
     $summary = notify_items_summary($doc['items']);
 
@@ -695,6 +693,16 @@ function notify_event_issue_created($doc_id, $actor)
     if ($doc['ref_doc_no'] !== '') {
         $extra[] = array('อ้างอิงใบเบิก', $doc['ref_doc_no']);
     }
+
+    /* ใบเบิกจากระบบสวัสดิการ ผู้ขอคือบัญชีระบบ hl-welfare ไม่ใช่คนจริง
+       ถ้าส่งตามทางปกติ ลิงก์เซ็นรับจะไปค้างที่บัญชีที่ไม่มีใครเปิด — แยกไปทางของมันเอง */
+    $req = ($doc['ref_doc_id'] > 0) ? doc_find($doc['ref_doc_id']) : null;
+    if ($req !== null && !empty($req['is_welfare'])) {
+        return notify_event_welfare_issue_created($doc, $req, $extra, $summary, $actor);
+    }
+
+    $people = notify_person($doc['requester']);
+    if (count($people) === 0) { return 0; }
 
     return notify_deliver($people, array(
         'type'      => 'issue_created',
@@ -718,6 +726,94 @@ function notify_event_issue_created($doc_id, $actor)
             . '<p style="color:#64748b;font-size:13px;margin:8px 0 0">'
             . 'ลิงก์นี้ใช้ได้เฉพาะใบจ่ายใบนี้ และหมดอายุใน 7 วัน '
             . 'กรุณาอย่าส่งต่อให้ผู้อื่น เพราะผู้ที่ได้รับลิงก์เซ็นรับแทนคุณได้</p>'
+            . mail_detail_table(notify_doc_pairs($doc, $extra))
+            . notify_items_html($doc['items'])
+    ));
+}
+
+
+/* ---------- ใครควรได้ลิงก์เซ็นรับของใบจากระบบสวัสดิการ ----------
+ * คืน array('people' => ..., 'is_hr' => bool)
+ *
+ *   1) HR ที่กดส่งในระบบสวัสดิการ — ถ้ามีบัญชีที่ใช้งานอยู่ในระบบนี้
+ *      ชื่อผู้ใช้ตรงกับ tb_doc_welfare.requested_by_user (ดู sql/079)
+ *   2) ไม่อย่างนั้นผู้ดูแลระบบ (คนคลัง) — ให้พนักงานเซ็นที่เคาน์เตอร์ หรือส่งลิงก์ต่อให้
+ *      ครอบคลุมใบเก่าที่ยังไม่มีชื่อผู้ใช้, HR ที่ไม่มีบัญชีที่นี่, และเครื่องที่ยังไม่ได้รัน 079
+ *
+ * query ใช้ @ และถอยไปทางที่ 2 เมื่อพัง ตามกติกาเหล็กที่หัวไฟล์
+ */
+function notify_welfare_sign_people($req, $actor)
+{
+    $connect = db_connect();
+    $stmt = @mysqli_prepare($connect,
+        "SELECT `requested_by_user` FROM `tb_doc_welfare` WHERE `doc_id` = ? LIMIT 1");
+
+    $by_user = '';
+    if ($stmt) {
+        $id = (int)$req['doc_id'];
+        mysqli_stmt_bind_param($stmt, 'i', $id);
+        if (@mysqli_stmt_execute($stmt)) {
+            mysqli_stmt_bind_result($stmt, $by_user);
+            if (!mysqli_stmt_fetch($stmt)) { $by_user = ''; }
+        }
+        mysqli_stmt_close($stmt);
+    }
+    $by_user = trim((string)$by_user);
+
+    /* ต้องเป็นคนจริงที่ยังใช้งานอยู่ ไม่ใช่บัญชีระบบเอง */
+    if ($by_user !== '' && $by_user !== $req['requester']) {
+        $u = user_find($by_user);
+        if ($u !== null && (int)$u['is_active'] === 1) {
+            return array('people' => notify_person($by_user), 'is_hr' => true);
+        }
+    }
+
+    return array('people' => user_admins($actor), 'is_hr' => false);
+}
+
+
+/* ---------- เหตุการณ์ที่ 3ข — คลังจ่ายของตามใบจากระบบสวัสดิการ ----------
+ * ผู้รับของจริงคือพนักงานในใบ (tb_doc_welfare.employee_name) ซึ่งไม่มีบัญชีในระบบนี้
+ * จึงส่งลิงก์เซ็นรับให้คนกลางที่ส่งต่อได้ (ดู notify_welfare_sign_people)
+ * ลิงก์ยังเป็นกุญแจ sign.php แบบไม่ต้องล็อกอิน เปิดให้พนักงานเซ็นบนมือถือได้เลย
+ */
+function notify_event_welfare_issue_created($doc, $req, $extra, $summary, $actor)
+{
+    $to = notify_welfare_sign_people($req, $actor);
+    if (count($to['people']) === 0) { return 0; }
+
+    $employee = $req['welfare']['employee_name'];
+    $by_name  = $req['welfare']['requested_by_name'];
+
+    $extra[] = array('พนักงานที่รับ', $employee);
+    if ($by_name !== '') { $extra[] = array('ส่งโดย', $by_name . ' (ระบบสวัสดิการ)'); }
+
+    $intro = $to['is_hr']
+        ? 'คลังจ่ายของตามใบเบิกที่คุณส่งจากระบบสวัสดิการเรียบร้อยแล้ว '
+        : 'คลังจ่ายของตามใบเบิกจากระบบสวัสดิการเรียบร้อยแล้ว '
+        . '(ส่งถึงผู้ดูแลระบบ เพราะไม่พบบัญชีของ HR ที่กดส่งในระบบนี้) ';
+
+    return notify_deliver($to['people'], array(
+        'type'      => 'issue_created',
+        'title'     => 'ของพร้อมให้รับแล้ว — ใบจ่าย ' . $doc['doc_no'] . ' (' . $employee . ')',
+        'message'   => $summary . ' — ให้ ' . $employee . ' เซ็นรับ หรือส่งลิงก์เซ็นรับให้พนักงาน',
+        'link_page' => 'issue_history',
+        'doc_id'    => $doc['doc_id'],
+        'actor'     => $actor,
+        'subject'   => '[รับของ] ใบจ่าย ' . $doc['doc_no'] . ' ของ ' . $employee
+                     . ($doc['ref_doc_no'] !== '' ? ' ตามใบเบิก ' . $doc['ref_doc_no'] : ''),
+        'heading'   => 'คลังจ่ายของให้พนักงานแล้ว',
+        'button'    => 'เปิดหน้าเซ็นรับของ',
+        'ref_type'  => 'issue_created',
+        'sign_link' => true,
+        'body_html' =>
+              '<p>' . htmlspecialchars($intro, ENT_QUOTES, 'UTF-8')
+            . 'เมื่อ <b>' . htmlspecialchars($employee, ENT_QUOTES, 'UTF-8') . '</b> รับของครบ '
+            . 'ให้พนักงานกดปุ่มด้านล่างเพื่อเซ็นรับ — เปิดให้เซ็นบนมือถือ '
+            . 'หรือส่งต่อลิงก์ให้พนักงานก็ได้ ไม่ต้องเข้าสู่ระบบ</p>'
+            . '<p style="color:#64748b;font-size:13px;margin:8px 0 0">'
+            . 'ลิงก์นี้ใช้ได้เฉพาะใบจ่ายใบนี้ และหมดอายุใน 7 วัน '
+            . 'ส่งต่อให้เฉพาะพนักงานที่รับของเท่านั้น เพราะผู้ที่ได้รับลิงก์เซ็นรับแทนได้</p>'
             . mail_detail_table(notify_doc_pairs($doc, $extra))
             . notify_items_html($doc['items'])
     ));
