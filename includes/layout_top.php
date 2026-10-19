@@ -33,7 +33,7 @@
  *    จอเล็ก        — ซ่อนไว้นอกจอ เปิดด้วยปุ่มสามขีดบนแถบบน
  * ============================================================ */
 
-$PAGE_TITLE    = isset($PAGE_TITLE)    ? $PAGE_TITLE    : 'ระบบสต็อก HR';
+$PAGE_TITLE    = isset($PAGE_TITLE)    ? $PAGE_TITLE    : 'ระบบสต็อก Uniform';
 $ACTIVE_PAGE   = isset($ACTIVE_PAGE)   ? $ACTIVE_PAGE   : '';
 $ACTIVE_PARENT = isset($ACTIVE_PARENT) ? $ACTIVE_PARENT : '';
 $PAGE_FULL     = isset($PAGE_FULL)     ? (bool)$PAGE_FULL : false;
@@ -72,7 +72,7 @@ $layout_ctx = array(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title><?php echo htmlspecialchars($PAGE_TITLE, ENT_QUOTES, 'UTF-8'); ?> | ระบบสต็อก HR Happyland</title>
+<title><?php echo htmlspecialchars($PAGE_TITLE, ENT_QUOTES, 'UTF-8'); ?> | ระบบสต็อก Uniform Happyland</title>
 
 <?php include 'includes/head_assets.php'; ?>
 
@@ -142,7 +142,7 @@ window.APP_CTX = <?php echo app_json($layout_ctx); ?>;
         <i data-lucide="warehouse" class="logo-fallback h-5 w-5 text-brand-600" hidden aria-hidden="true"></i>
       </span>
       <span class="nav-text min-w-0">
-        <span class="brand-title block truncate text-[15px] font-bold leading-tight text-slate-900 dark:text-white">ระบบสต็อก HR</span>
+        <span class="brand-title block truncate text-[15px] font-bold leading-tight text-slate-900 dark:text-white">ระบบสต็อก Uniform</span>
         <span class="block truncate text-xs text-slate-500 dark:text-slate-400">ฝ่ายทรัพยากรบุคคล · Happyland</span>
       </span>
     </a>
