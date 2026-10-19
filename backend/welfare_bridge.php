@@ -42,6 +42,20 @@ function welfare_bridge_ready()
 }
 
 
+/* ---------- คอลัมน์ผู้ใช้ HR ของ sql/079 มีแล้วหรือยัง ---------- */
+function welfare_has_sender_columns()
+{
+    static $ok = null;
+    if ($ok !== null) { return $ok; }
+
+    $connect = db_connect();
+    $res = @mysqli_query($connect, "SHOW COLUMNS FROM `tb_doc_welfare` LIKE 'requested_by_user'");
+    $ok = ($res && mysqli_num_rows($res) > 0);
+    if ($res) { mysqli_free_result($res); }
+    return $ok;
+}
+
+
 /* ============================================================
  *  ยืนยันตัวตนของผู้เรียก
  *
@@ -269,6 +283,7 @@ function welfare_new_staff_kit()
  *    'employee_id', 'employee_code', 'employee_name', 'position_name',
  *    'company_code', 'logo', 'site_id', 'site_name',
  *    'event', 'entitlement_key', 'requested_by_name', 'note',
+ *    'requested_by_user', 'requested_by_emp_code',   (ไม่บังคับ — ดู sql/079)
  *    'start_date',   (จำเป็นเมื่อ event = START — ใบเบิกพนักงานใหม่)
  *    'lines' => array( array('item_code', 'product_id', 'qty') ) )
  *
@@ -287,7 +302,9 @@ function welfare_submit($p)
     $event       = isset($p['event'])             ? trim($p['event'])             : '';
     $ent_key     = isset($p['entitlement_key'])   ? trim($p['entitlement_key'])   : '';
     $by_name     = isset($p['requested_by_name']) ? trim($p['requested_by_name']) : '';
-    $note        = isset($p['note'])              ? trim($p['note'])              : '';
+    $by_user     = isset($p['requested_by_user']) ? substr(trim($p['requested_by_user']), 0, 50) : '';
+    $by_emp      = isset($p['requested_by_emp_code']) ? substr(trim($p['requested_by_emp_code']), 0, 20) : '';
+    $note       = isset($p['note'])              ? trim($p['note'])              : '';
     $start       = isset($p['start_date'])        ? trim($p['start_date'])        : '';
     $lines       = isset($p['lines']) && is_array($p['lines']) ? $p['lines'] : array();
     $new_staff   = ($event === 'START');
@@ -453,6 +470,21 @@ function welfare_submit($p)
             return db_fail(db_error_message($errno), $errno);
         }
         mysqli_stmt_close($stmt);
+    }
+
+    /* ผู้ใช้ HR ที่กดส่ง (ดู sql/079) — ใช้ส่งลิงก์เซ็นรับตอนคลังจ่ายของ
+       แยกเป็น UPDATE ทีหลังเพราะเครื่องที่ยังไม่ได้รัน 079 ต้องส่งเบิกได้เหมือนเดิม
+       และบันทึกไม่ติดก็ไม่ล้มใบ — แค่ลิงก์เซ็นรับจะถอยไปหาผู้ดูแลระบบแทน */
+    if (($by_user !== '' || $by_emp !== '') && welfare_has_sender_columns()) {
+        $stmt = @mysqli_prepare($connect,
+            "UPDATE `tb_doc_welfare`
+             SET `requested_by_user` = ?, `requested_by_emp_code` = ?
+             WHERE `doc_id` = ?");
+        if ($stmt) {
+            mysqli_stmt_bind_param($stmt, 'ssi', $by_user, $by_emp, $doc_id);
+            @mysqli_stmt_execute($stmt);
+            mysqli_stmt_close($stmt);
+        }
     }
 
     $by = ($by_name !== '') ? $by_name : 'ไม่ระบุชื่อ';
