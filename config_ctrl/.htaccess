@@ -1,0 +1,20 @@
+# ============================================================
+#  config_ctrl/ — เปิดผ่านเว็บได้เฉพาะไฟล์ที่หน้าเว็บเรียกจริง (checkmember.php, logout.php)
+#
+#  ไฟล์เก่าที่ไม่มีใครเรียกแล้วและอันตราย ถูกปิดไว้ตรงนี้จนกว่าจะลบออกจาก repo
+#  (ดู docs/review-2026-10-19.md)
+#    qr_autologin.php     เข้าสู่ระบบเป็นใครก็ได้ด้วยชื่อผู้ใช้อย่างเดียว ไม่ถามรหัสผ่าน
+#    checkmember_1.php    SQL injection
+#    checkmember_new.php  SQL injection
+#  รวมถึงไฟล์ตั้งค่า/ตัวช่วยที่ไม่ใช่หน้าเว็บ
+# ============================================================
+
+<FilesMatch "^(qr_autologin|checkmember_1|checkmember_new|checksession_menu|token_helper|alert|config|config2|connect|connect\.example|welfare_key|welfare_key\.example|Detech[A-Za-z_]*)(\.inc)?\.php$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
