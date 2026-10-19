@@ -332,6 +332,51 @@ function notify_event_request_submitted($doc_id, $actor)
 
 
 /* ============================================================
+ *  เหตุการณ์ที่ 1ข — ระบบสวัสดิการส่งใบเบิกชุดฟอร์มเข้ามา (backend/welfare_bridge.php)
+ *  ปลายทาง: ผู้ดูแลระบบ (คนคลัง)
+ *
+ *  ใบนี้ออกมา "อนุมัติแล้ว" และผู้ขอคือบัญชีระบบ hl-welfare
+ *  เหตุการณ์ที่ 1 (รออนุมัติ) กับ 2 (ตัดสินแล้ว) จึงไม่ถึงใครเลย
+ *  ถ้าไม่เตือนตรงนี้ คลังจะรู้ว่ามีใบรอจ่ายก็ต่อเมื่อเปิดแดชบอร์ดเอง
+ * ============================================================ */
+function notify_event_welfare_request($doc_id, $actor, $by_name)
+{
+    $doc = doc_find($doc_id);
+    if ($doc === null || $doc['doc_type'] !== 'request') { return 0; }
+
+    $people = user_admins($actor);
+    if (count($people) === 0) { return 0; }
+
+    $kind     = !empty($doc['is_new_staff']) ? 'ใบเบิกพนักงานใหม่' : 'ใบเบิกชุดฟอร์ม';
+    $employee = !empty($doc['welfare']) ? $doc['welfare']['employee_name'] : '';
+    $by       = (trim($by_name) !== '') ? trim($by_name) : 'ระบบสวัสดิการ';
+
+    $extra = array(array('ส่งโดย', $by . ' (ระบบสวัสดิการ)'));
+    if ($employee !== '') { $extra[] = array('พนักงานที่รับ', $employee); }
+
+    return notify_deliver($people, array(
+        'type'      => 'welfare_request',
+        'title'     => $kind . ' ' . $doc['doc_no'] . ' รอคลังจ่าย',
+        'message'   => 'ระบบสวัสดิการส่งเบิกให้ ' . ($employee !== '' ? $employee : '-') . ' (อนุมัติแล้ว) — '
+                     . notify_items_summary($doc['items']),
+        'link_page' => notify_request_page($doc),
+        'doc_id'    => $doc['doc_id'],
+        'actor'     => $actor,
+        'subject'   => '[รอจ่าย] ' . $kind . ' ' . $doc['doc_no'] . ' จากระบบสวัสดิการ',
+        'heading'   => 'มีใบเบิกจากระบบสวัสดิการรอจ่าย',
+        'button'    => 'เปิดใบเบิก',
+        'ref_type'  => 'welfare_request',
+        'body_html' =>
+              '<p>ระบบสวัสดิการส่ง' . htmlspecialchars($kind, ENT_QUOTES, 'UTF-8')
+            . 'เข้ามา ใบนี้<b>อนุมัติอัตโนมัติแล้ว</b> เพราะผ่านการตรวจสิทธิ์จากระบบสวัสดิการ '
+            . 'จัดของและบันทึกจ่ายได้เลย</p>'
+            . mail_detail_table(notify_doc_pairs($doc, $extra))
+            . notify_items_html($doc['items'])
+    ));
+}
+
+
+/* ============================================================
  *  เหตุการณ์ที่ 2 — ผู้อนุมัติตัดสินใบเบิก
  *  ปลายทาง: ผู้ขอเบิก
  * ============================================================ */

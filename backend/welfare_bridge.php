@@ -462,6 +462,9 @@ function welfare_submit($p)
 
     db_commit();
 
+    /* หลัง commit เสมอ — แจ้งเตือนพังต้องไม่ทำให้ใบหาย (ดูหัวไฟล์ notify_events.php) */
+    notify_event_welfare_request($doc_id, $actor, $by_name);
+
     $out = db_ok('ส่งเบิก' . ($new_staff ? 'พนักงานใหม่' : 'ชุดฟอร์ม') . 'แล้ว ใบเลขที่ ' . $res['doc_no']
                  . ' (' . $name . ') — รอคลังจ่าย', $doc_id);
     $out['doc_no']    = $res['doc_no'];
