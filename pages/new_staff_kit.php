@@ -46,11 +46,11 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
       <section id="kitSecList" class="<?php echo $card; ?> kit-left xl:col-span-3">
         <div class="flex items-start gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
           <span class="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
-            <i data-lucide="pencil-ruler" class="h-[18px] w-[18px]" aria-hidden="true"></i>
+            <i data-lucide="shirt" class="h-[18px] w-[18px]" aria-hidden="true"></i>
           </span>
           <span class="min-w-0 flex-1">
             <span class="block font-semibold text-slate-800 dark:text-slate-100">
-              รายการเครื่องเขียนพื้นฐาน
+              ชุดฟอร์มพื้นฐาน
               <span class="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"><span id="kitCount">0</span> รายการ</span>
             </span>
             <span class="block text-sm text-slate-500 dark:text-slate-400">ลำดับตรงนี้คือเลขรายการบนฟอร์มและใบพิมพ์ — ใช้ลูกศรเลื่อนขึ้นลง</span>

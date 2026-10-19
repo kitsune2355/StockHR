@@ -723,25 +723,25 @@
     var demoBackup = null;
 
     var DEMO_PRODUCTS = [
-        { product_id: -1, product_code: 'EX-PPR-001', product_name: 'กระดาษถ่ายเอกสาร A4 80 แกรม',
-          category_id: -1, category_name: 'ตัวอย่าง', sub_category_id: -11, sub_category_name: 'เครื่องเขียน', qty: 120, unit_name: 'รีม' },
-        { product_id: -2, product_code: 'EX-PPR-002', product_name: 'กระดาษโน้ตกาวในตัว',
-          category_id: -1, category_name: 'ตัวอย่าง', sub_category_id: -11, sub_category_name: 'เครื่องเขียน', qty: 60, unit_name: 'แพ็ค' },
-        { product_id: -3, product_code: 'EX-CLN-001', product_name: 'น้ำยาถูพื้น',
-          category_id: -1, category_name: 'ตัวอย่าง', sub_category_id: -12, sub_category_name: 'ของใช้ทำความสะอาด', qty: 24, unit_name: 'แกลลอน' },
-        { product_id: -4, product_code: 'EX-CLN-002', product_name: 'ถุงขยะดำ 30x40',
-          category_id: -1, category_name: 'ตัวอย่าง', sub_category_id: -12, sub_category_name: 'ของใช้ทำความสะอาด', qty: 300, unit_name: 'แพ็ค' },
-        { product_id: -5, product_code: 'EX-MED-001', product_name: 'ผ้าพันแผลปลอดเชื้อ',
-          category_id: -1, category_name: 'ตัวอย่าง', sub_category_id: -13, sub_category_name: 'เวชภัณฑ์', qty: 45, unit_name: 'ม้วน' }
+        { product_id: -1, product_code: 'EX-PLB-001', product_name: 'เสื้อฟอร์ม ผู้ชาย PRO (ดำ) ไซซ์ M',
+          category_id: -1, category_name: 'ตัวอย่าง', sub_category_id: -11, sub_category_name: 'เสื้อฟอร์ม', qty: 120, unit_name: 'ตัว' },
+        { product_id: -2, product_code: 'EX-PLB-002', product_name: 'เสื้อฟอร์ม ผู้ชาย PRO (ดำ) ไซซ์ L',
+          category_id: -1, category_name: 'ตัวอย่าง', sub_category_id: -11, sub_category_name: 'เสื้อฟอร์ม', qty: 60, unit_name: 'ตัว' },
+        { product_id: -3, product_code: 'EX-TSH-001', product_name: 'เสื้อช่างเทคนิค ไซซ์ XL',
+          category_id: -1, category_name: 'ตัวอย่าง', sub_category_id: -12, sub_category_name: 'ชุดช่างเทคนิค', qty: 24, unit_name: 'ตัว' },
+        { product_id: -4, product_code: 'EX-TPT-001', product_name: 'กางเกงช่างเทคนิค เอว 34',
+          category_id: -1, category_name: 'ตัวอย่าง', sub_category_id: -12, sub_category_name: 'ชุดช่างเทคนิค', qty: 300, unit_name: 'ตัว' },
+        { product_id: -5, product_code: 'EX-SHO-001', product_name: 'รองเท้าเซฟตี้ เบอร์ 41',
+          category_id: -1, category_name: 'ตัวอย่าง', sub_category_id: -13, sub_category_name: 'รองเท้าเซฟตี้', qty: 45, unit_name: 'คู่' }
     ];
 
     /* หมวดหมู่ย่อยของชุดสาธิต — ต้องสลับเข้าไปแทนของจริงด้วย ไม่งั้นช่อง
        "หมวดหมู่ย่อย" จะยังเป็นรายการของจริงซึ่งไม่ตรงกับสินค้าตัวอย่างบนจอสักอัน
        คนที่ลองกดตามคู่มือจะเจอรายการว่างทันที */
     var DEMO_SUBS = [
-        { sub_category_id: -11, category_id: -1, sub_category_name: 'เครื่องเขียน',        category_name: 'ตัวอย่าง' },
-        { sub_category_id: -12, category_id: -1, sub_category_name: 'ของใช้ทำความสะอาด', category_name: 'ตัวอย่าง' },
-        { sub_category_id: -13, category_id: -1, sub_category_name: 'เวชภัณฑ์',            category_name: 'ตัวอย่าง' }
+        { sub_category_id: -11, category_id: -1, sub_category_name: 'เสื้อฟอร์ม',        category_name: 'ตัวอย่าง' },
+        { sub_category_id: -12, category_id: -1, sub_category_name: 'ชุดช่างเทคนิค', category_name: 'ตัวอย่าง' },
+        { sub_category_id: -13, category_id: -1, sub_category_name: 'รองเท้าเซฟตี้',            category_name: 'ตัวอย่าง' }
     ];
 
     function demoSetup() {

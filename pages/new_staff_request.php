@@ -1,6 +1,6 @@
 <?php
 /* ============================================================
- *  pages/new_staff_request.php — เบิกวัสดุสำนักงาน "พนักงานใหม่"
+ *  pages/new_staff_request.php — เบิกชุดฟอร์ม "พนักงานใหม่"
  *
  *  แทนฟอร์มกระดาษเดิมที่มีรายการ 1-4 ตายตัว + ตารางวัสดุถาวรเพิ่มเติม
  *  เรียงเป็น 3 ขั้นจากบนลงล่าง ตามลำดับที่คนกรอกคิดจริง:
@@ -101,7 +101,7 @@ function ns_step_head($no, $title, $hint, $icon, $right = '')
       </section>
 
       <!-- ============================================================
-           ขั้นที่ 2 ชุดเครื่องเขียนพื้นฐาน
+           ขั้นที่ 2 ชุดฟอร์มพื้นฐาน
            ============================================================ -->
       <section id="nsSecKit" class="<?php echo $card; ?>">
         <?php
@@ -109,7 +109,7 @@ function ns_step_head($no, $title, $hint, $icon, $right = '')
             ? '<a href="main.php?page=new_staff_kit" id="nsKitLink" class="inline-flex flex-none items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-500/10">'
               . '<i data-lucide="settings-2" class="h-4 w-4" aria-hidden="true"></i>ตั้งค่าชุดของ</a>'
             : '';
-        echo ns_step_head(2, 'รายการเครื่องเขียนพื้นฐาน', 'ใส่ให้ครบแล้วตามมาตรฐาน ปรับจำนวนได้ หรือเอาเครื่องหมายถูกออกถ้าไม่ต้องการ', 'pencil-ruler', $kit_link);
+        echo ns_step_head(2, 'ชุดฟอร์มพื้นฐาน', 'ใส่ให้ครบแล้วตามมาตรฐาน ตรวจไซซ์ให้ตรงกับพนักงาน ปรับจำนวนได้ หรือเอาเครื่องหมายถูกออกถ้าไม่ต้องการ', 'shirt', $kit_link);
         ?>
 
         <div id="kitList" class="divide-y divide-slate-100 dark:divide-slate-800"></div>
@@ -126,7 +126,7 @@ function ns_step_head($no, $title, $hint, $icon, $right = '')
            ของในชุดพื้นฐานถูกตัดออกจากฝั่งซ้าย จะได้ไม่เลือกซ้ำกับขั้นที่ 2
            ============================================================ -->
       <section id="nsSecExtra" class="<?php echo $card; ?> ns-transfer">
-        <?php echo ns_step_head(3, 'รายการวัสดุเพิ่มเติม', 'ของที่ตำแหน่งนี้ต้องใช้เพิ่ม เช่น เครื่องคิดเลข แม็กเย็บ — ทุกรายการในขั้นนี้ต้องคืนเมื่อพ้นสภาพ ไม่มีก็ข้ามได้', 'package-plus'); ?>
+        <?php echo ns_step_head(3, 'รายการเพิ่มเติม', 'ของที่ตำแหน่งนี้ต้องใช้เพิ่ม เช่น เสื้อช่าง รองเท้า Safety — ทุกรายการในขั้นนี้ต้องคืนเมื่อพ้นสภาพ ไม่มีก็ข้ามได้', 'package-plus'); ?>
 
         <div class="tf-wrap">
 

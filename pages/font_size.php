@@ -143,24 +143,24 @@ $levels = array(
             </thead>
             <tbody>
               <tr>
-                <td><span class="grid-user doc-no">ST-PP-0001</span></td>
-                <td>กระดาษถ่ายเอกสาร A4 80 แกรม</td>
+                <td><span class="grid-user doc-no">UF-PMB-002</span></td>
+                <td>เสื้อฟอร์ม ผู้ชาย PRO (ดำ) ไซซ์ M</td>
                 <td class="num"><span class="doc-stock">120</span></td>
-                <td>รีม</td>
+                <td>ตัว</td>
                 <td><span class="doc-pill is-ok">ปกติ</span></td>
               </tr>
               <tr>
-                <td><span class="grid-user doc-no">ST-PN-0007</span></td>
-                <td>ปากกาลูกลื่น สีน้ำเงิน</td>
+                <td><span class="grid-user doc-no">UF-PWN-004</span></td>
+                <td>เสื้อฟอร์ม ผู้หญิง PRO (น้ำเงิน) ไซซ์ L</td>
                 <td class="num"><span class="doc-stock is-low">18</span></td>
-                <td>ด้าม</td>
+                <td>ตัว</td>
                 <td><span class="doc-pill is-wait">ต่ำกว่าจุดสั่งซื้อ</span></td>
               </tr>
               <tr>
-                <td><span class="grid-user doc-no">ST-TN-0003</span></td>
-                <td>หมึกพิมพ์ HP 05A</td>
+                <td><span class="grid-user doc-no">SF-SHO-004</span></td>
+                <td>รองเท้าเซฟตี้ เบอร์ 40</td>
                 <td class="num"><span class="doc-stock is-out">0</span></td>
-                <td>กล่อง</td>
+                <td>คู่</td>
                 <td><span class="doc-pill is-bad">ของหมด</span></td>
               </tr>
             </tbody>
