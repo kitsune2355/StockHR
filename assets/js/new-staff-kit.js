@@ -15,6 +15,12 @@
   var ROWS = []; // { product_id, product_code, product_name, unit_name, balance, product_active, default_qty, must_return }
   var SNAPSHOT = ""; // สถานะล่าสุดที่บันทึกแล้ว ใช้บอกว่ามีการแก้ไขค้างไหม และใช้ "ยกเลิกการแก้ไข"
   var saving = false;
+  /* ชุดของแผนกไหนที่กำลังแก้ (ดู sql/080): 0 = ชุดกลาง
+     แผนกที่ไม่ได้ตั้งชุดเองใช้ชุดกลาง — ROWS ของแผนกนั้นจึงว่างจนกว่าจะเพิ่มของ */
+  var DEPT = 0;
+  var CENTRAL = []; // ชุดกลาง ไว้ให้ปุ่ม "คัดลอกจากชุดกลาง"
+  var DEPT_KITS = {}; // department_id => จำนวนรายการ ของแผนกที่ตั้งชุดเอง
+  var DEPTS_FILLED = false;
 
   function el(id) {
     return document.getElementById(id);
@@ -205,6 +211,7 @@
     el("kitList").innerHTML = html;
     el("kitCount").textContent = String(ROWS.length);
     setHidden(el("kitEmpty"), ROWS.length > 0);
+    renderScope();
     fillPicker();
     renderTerms();
     icons();
@@ -378,6 +385,7 @@
     var payload = {
       action: "kit_save",
       csrf_token: CFG.csrfToken,
+      department_id: DEPT,
       terms: el("termsInput").value,
       rows: ROWS.map(function (r) {
         return {
@@ -399,6 +407,14 @@
           /* ตัดบรรทัดว่างแบบเดียวกับที่เซิร์ฟเวอร์ทำ จะได้ไม่ขึ้นว่ายังแก้ค้างอยู่ */
           el("termsInput").value = termLines().join("\n");
           SNAPSHOT = state();
+          if (DEPT > 0) {
+            if (ROWS.length > 0) {
+              DEPT_KITS[DEPT] = ROWS.length;
+            } else {
+              delete DEPT_KITS[DEPT];
+            }
+            labelDepartments();
+          }
           busy(false);
           render();
           if (typeof window.appSuccess === "function") {
@@ -417,9 +433,13 @@
         .appConfirm({
           title: "บันทึกอุปกรณ์พนักงานใหม่",
           text:
-            "ใบเบิกพนักงานใหม่ที่ทำหลังจากนี้จะใช้ชุด " +
-            ROWS.length +
-            " รายการนี้ — ใบที่ส่งไปแล้วไม่เปลี่ยน",
+            DEPT > 0 && ROWS.length === 0
+              ? 'แผนก "' + deptName(DEPT) + '" จะกลับไปใช้ชุดกลาง — ใบที่ส่งไปแล้วไม่เปลี่ยน'
+              : "ใบเบิกพนักงานใหม่" +
+                (DEPT > 0 ? 'ของแผนก "' + deptName(DEPT) + '"' : "ของแผนกที่ใช้ชุดกลาง") +
+                " ที่ทำหลังจากนี้จะใช้ชุด " +
+                ROWS.length +
+                " รายการนี้ — ใบที่ส่งไปแล้วไม่เปลี่ยน",
           confirmText: "บันทึก",
         })
         .then(go);
@@ -430,32 +450,134 @@
 
   var LOADED = null;
 
+  function toRow(r) {
+    return {
+      product_id: r.product_id,
+      product_code: r.product_code,
+      product_name: r.product_name,
+      unit_name: r.unit_name,
+      balance: r.balance,
+      product_active: r.product_active,
+      default_qty: r.default_qty,
+      must_return: r.must_return,
+    };
+  }
+
   function apply(res) {
     PRODUCTS = res.products || [];
     byId = {};
     for (var i = 0; i < PRODUCTS.length; i++) {
       byId[PRODUCTS[i].product_id] = PRODUCTS[i];
     }
-    ROWS = (res.kit || []).map(function (r) {
-      return {
-        product_id: r.product_id,
-        product_code: r.product_code,
-        product_name: r.product_name,
-        unit_name: r.unit_name,
-        balance: r.balance,
-        product_active: r.product_active,
-        default_qty: r.default_qty,
-        must_return: r.must_return,
-      };
-    });
+    DEPT = num(res.departmentId);
+    CENTRAL = res.centralKit || [];
+    DEPT_KITS = Array.isArray(res.deptKits) ? {} : res.deptKits || {};
+    fillDepartments(res.departments || []);
+    ROWS = (res.kit || []).map(toRow);
     el("termsInput").value = res.terms || "";
     SNAPSHOT = state();
     render();
   }
 
-  function load() {
+  /* ============================================================
+   *  เลือกแผนก
+   * ============================================================ */
+  var DEPT_LIST = [];
+
+  function deptName(id) {
+    for (var i = 0; i < DEPT_LIST.length; i++) {
+      if (num(DEPT_LIST[i].department_id) === id) {
+        return DEPT_LIST[i].department_name;
+      }
+    }
+    return "";
+  }
+
+  /* ใส่ตัวเลือกครั้งเดียว ครั้งต่อไปแค่อัปเดตป้าย "ตั้งเอง N รายการ" */
+  function fillDepartments(list) {
+    var sel = el("kitDept");
+    if (!DEPTS_FILLED) {
+      DEPT_LIST = list;
+      for (var i = 0; i < list.length; i++) {
+        var op = document.createElement("option");
+        op.value = list[i].department_id;
+        op.textContent = list[i].department_name;
+        sel.appendChild(op);
+      }
+      DEPTS_FILLED = true;
+    }
+    labelDepartments();
+    sel.value = String(DEPT);
+    if (window.SelectSearch) {
+      window.SelectSearch.refresh(sel);
+    }
+  }
+
+  function labelDepartments() {
+    var sel = el("kitDept");
+    for (var i = 0; i < DEPT_LIST.length; i++) {
+      var d = DEPT_LIST[i];
+      var op = sel.querySelector('option[value="' + d.department_id + '"]');
+      if (!op) {
+        continue;
+      }
+      var n = DEPT_KITS[d.department_id];
+      var sub = d.label_sub ? d.label_sub + " · " : "";
+      op.setAttribute("data-sub", sub + (n ? "ตั้งชุดเอง " + n + " รายการ" : "ใช้ชุดกลาง"));
+    }
+    if (window.SelectSearch) {
+      window.SelectSearch.refresh(sel);
+    }
+  }
+
+  /* บอกว่าชุดที่กำลังแก้ใช้กับใคร + ปุ่มคัดลอกชุดกลางมาเริ่มต้น */
+  function renderScope() {
+    var note;
+    if (DEPT === 0) {
+      note = "ใช้กับทุกแผนกที่ไม่ได้ตั้งชุดของตัวเอง";
+    } else if (ROWS.length > 0) {
+      note = "ชุดของแผนกนี้ใช้แทนชุดกลาง — ลบรายการจนว่างแล้วบันทึก = กลับไปใช้ชุดกลาง";
+    } else {
+      note = "แผนกนี้ยังใช้ชุดกลาง (" + CENTRAL.length + " รายการ) — เพิ่มรายการเพื่อตั้งชุดของแผนกนี้";
+    }
+    el("kitScopeNote").textContent = note;
+    setHidden(el("btnCopyCentral"), !(DEPT > 0 && ROWS.length === 0 && CENTRAL.length > 0));
+    el("kitEmptyText").textContent =
+      DEPT > 0
+        ? "แผนกนี้ยังไม่ได้ตั้งชุดเอง — กด \"คัดลอกจากชุดกลาง\" หรือค้นหาสินค้าด้านบนแล้วกด \"เพิ่มในชุด\""
+        : 'ยังไม่มีรายการในชุด — ค้นหาสินค้าด้านบนแล้วกด "เพิ่มในชุด"';
+  }
+
+  function switchDept(next) {
+    var go = function (yes) {
+      if (!yes) {
+        el("kitDept").value = String(DEPT);
+        if (window.SelectSearch) {
+          window.SelectSearch.refresh(el("kitDept"));
+        }
+        return;
+      }
+      clearError();
+      load(next);
+    };
+    if (!isDirty()) {
+      go(true);
+    } else if (typeof window.appConfirm === "function") {
+      window
+        .appConfirm({
+          title: "ทิ้งการแก้ไขที่ยังไม่ได้บันทึก?",
+          text: "เปลี่ยนแผนกแล้วการแก้ไขชุดนี้ที่ยังไม่ได้บันทึกจะหายไป",
+          confirmText: "เปลี่ยนแผนก",
+        })
+        .then(go);
+    } else {
+      go(window.confirm("ทิ้งการแก้ไขที่ยังไม่ได้บันทึก?"));
+    }
+  }
+
+  function load(dept) {
     post(
-      { action: "kit_get" },
+      { action: "kit_get", department_id: dept === undefined ? DEPT : dept },
       function (res) {
         LOADED = res;
         setHidden(el("kitLoading"), true);
@@ -475,6 +597,18 @@
       el("btnKitAdd").disabled = num(this.value) <= 0;
     });
     el("btnKitAdd").addEventListener("click", addRow);
+    el("kitDept").addEventListener("change", function () {
+      var next = num(this.value);
+      if (next !== DEPT) {
+        switchDept(next);
+      }
+    });
+    el("btnCopyCentral").addEventListener("click", function () {
+      /* เริ่มจากชุดกลางแล้วแก้ต่อ — ยังไม่บันทึกจนกว่าจะกดบันทึก */
+      ROWS = CENTRAL.map(toRow);
+      clearError();
+      render();
+    });
     el("termsInput").addEventListener("input", function () {
       renderTerms();
       refreshBar();

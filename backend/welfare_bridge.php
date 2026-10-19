@@ -246,20 +246,22 @@ function welfare_catalog($item_codes, $logo, $site_id, $event = '')
     }
 
     $new_staff = ($event === 'START');
+    $dept      = welfare_site_department($site_id);
     return array(
-        'department' => welfare_site_department($site_id),
+        'department' => $dept,
         'items'      => $items,
         'doc_kind'   => $new_staff ? 'new_staff' : 'request',
-        'kit'        => $new_staff ? welfare_new_staff_kit() : array()
+        /* ชุดของแผนกที่ใบจะลง — แผนกไม่ได้ตั้งชุดเอง = ชุดกลาง (ดู sql/080) */
+        'kit'        => $new_staff ? welfare_new_staff_kit($dept === null ? 0 : $dept['department_id']) : array()
     );
 }
 
-/* ชุดของพนักงานใหม่ที่เปิดใช้งาน พร้อมชื่อและยอดคงเหลือ (ให้ระบบสวัสดิการแสดงก่อนส่ง) */
-function welfare_new_staff_kit()
+/* ชุดของพนักงานใหม่ของแผนกนี้ พร้อมชื่อและยอดคงเหลือ (ให้ระบบสวัสดิการแสดงก่อนส่ง) */
+function welfare_new_staff_kit($department_id)
 {
     if (!new_staff_ready()) { return array(); }
 
-    $kit = new_staff_kit_list();
+    $kit = new_staff_kit_list($department_id);
     $out = array();
     for ($i = 0; $i < count($kit); $i++) {
         $p = product_find($kit[$i]['product_id']);
@@ -364,9 +366,10 @@ function welfare_submit($p)
     }
 
     /* ---------- พนักงานใหม่: ใส่ชุดของพนักงานใหม่ให้ เหมือนฟอร์มหน้า "เบิกพนักงานใหม่" ----------
+     * ใช้ชุดของแผนกที่ใบลง (ไม่ได้ตั้งเอง = ชุดกลาง — ดู sql/080)
      * ของที่ซ้ำกับรายการชุดฟอร์ม ใช้จำนวนจากระบบสวัสดิการ แต่ธง "ต้องคืน" ตามชุดของ */
     if ($new_staff) {
-        $kit = new_staff_kit_list();
+        $kit = new_staff_kit_list($dept['department_id']);
         for ($k = 0; $k < count($kit); $k++) {
             $found = false;
             for ($i = 0; $i < count($items); $i++) {

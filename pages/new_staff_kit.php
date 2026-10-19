@@ -4,6 +4,7 @@
  *
  *  สองเรื่องที่ต้องแก้คู่กันเสมอ จึงอยู่หน้าเดียวและบันทึกพร้อมกัน:
  *    ซ้าย  รายการพื้นฐาน (tb_new_staff_kit) — ใส่ให้อัตโนมัติในฟอร์มเบิกพนักงานใหม่
+ *          เลือกได้ว่าแก้ชุดกลาง หรือชุดของแผนกไหน (ชุดแผนกแทนชุดกลาง — ดู sql/080)
  *    ขวา   หมายเหตุท้ายฟอร์ม (tb_app_setting.new_staff_terms)
  *          อ้างเลขรายการ ("รายการที่ 1-4", "ลำดับที่ 4") ถ้าแก้ชุดแล้วลืมแก้หมายเหตุ
  *          เงื่อนไขบนใบที่พนักงานเซ็นจะไม่ตรงกับของที่ได้จริง
@@ -57,6 +58,22 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
           </span>
         </div>
 
+        <!-- ชุดของแผนกไหน (ดู sql/080) — 0 = ชุดกลาง ใช้กับแผนกที่ไม่ได้ตั้งชุดเอง -->
+        <div id="kitDeptBox" class="space-y-2 border-b border-slate-100 p-5 dark:border-slate-800">
+          <label for="kitDept" class="block text-sm font-medium text-slate-700 dark:text-slate-200">ชุดของแผนก</label>
+          <select id="kitDept" class="<?php echo $input; ?>"
+                  data-search data-search-placeholder="พิมพ์ชื่อแผนก">
+            <option value="0">ชุดกลาง — ใช้กับแผนกที่ไม่ได้ตั้งชุดเอง</option>
+          </select>
+          <div class="flex flex-wrap items-center gap-2">
+            <span id="kitScopeNote" class="text-sm text-slate-500 dark:text-slate-400"></span>
+            <button type="button" id="btnCopyCentral" hidden class="<?php echo $btn_soft; ?> !py-1.5">
+              <i data-lucide="copy" class="h-4 w-4" aria-hidden="true"></i>
+              คัดลอกจากชุดกลาง
+            </button>
+          </div>
+        </div>
+
         <!-- เพิ่มสินค้า -->
         <div id="kitAddBox" class="flex flex-col gap-2 border-b border-slate-100 p-5 sm:flex-row dark:border-slate-800">
           <div class="min-w-0 flex-1">
@@ -85,7 +102,7 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
 
         <div id="kitEmpty" hidden class="flex flex-col items-center gap-2 px-5 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
           <i data-lucide="inbox" class="h-6 w-6" aria-hidden="true"></i>
-          ยังไม่มีรายการในชุด — ค้นหาสินค้าด้านบนแล้วกด "เพิ่มในชุด"
+          <span id="kitEmptyText">ยังไม่มีรายการในชุด — ค้นหาสินค้าด้านบนแล้วกด "เพิ่มในชุด"</span>
         </div>
       </section>
 
@@ -99,7 +116,7 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
           </span>
           <span class="min-w-0 flex-1">
             <span class="block font-semibold text-slate-800 dark:text-slate-100">หมายเหตุท้ายฟอร์ม</span>
-            <span class="block text-sm text-slate-500 dark:text-slate-400">พิมพ์บรรทัดละหนึ่งข้อ ระบบใส่เลขข้อให้เอง</span>
+            <span class="block text-sm text-slate-500 dark:text-slate-400">พิมพ์บรรทัดละหนึ่งข้อ ระบบใส่เลขข้อให้เอง · ใช้ร่วมกันทุกแผนก</span>
           </span>
         </div>
 
