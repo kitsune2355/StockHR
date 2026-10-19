@@ -13,10 +13,10 @@
 --  ข้ามให้เงียบ ๆ อยู่แล้ว
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/060_guide_adjust_history_icons.sql
+--      mysql -u root -p1234 stock_hr < sql/060_guide_adjust_history_icons.sql
 --
 --  ย้อนกลับ (กลับไปคู่มือชุดของ sql/057 + sql/059):
---      mysql -u root -p1234 stock_hl < sql/060_guide_adjust_history_icons_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/060_guide_adjust_history_icons_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

@@ -7,10 +7,10 @@
 --  ในช่องแรกของบรรทัด แบบเดียวกับหน้าบันทึกรับเข้า
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/058_guide_adjust_addrow.sql
+--      mysql -u root -p1234 stock_hr < sql/058_guide_adjust_addrow.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/058_guide_adjust_addrow_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/058_guide_adjust_addrow_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

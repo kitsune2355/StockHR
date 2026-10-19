@@ -8,7 +8,7 @@
 --  ตัวหน้าและการตั้งค่าขนาดตัวอักษรยังทำงานเหมือนเดิมทุกอย่าง
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/048_guide_font_size_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/048_guide_font_size_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

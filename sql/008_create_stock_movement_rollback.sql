@@ -12,7 +12,7 @@
 --    doc_header -> อ้างตัวเอง (ref_doc_id) และ department
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/008_create_stock_movement_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/008_create_stock_movement_rollback.sql
 -- ============================================================
 
 SET FOREIGN_KEY_CHECKS = 0;

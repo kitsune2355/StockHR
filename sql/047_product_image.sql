@@ -32,10 +32,10 @@
 --  product_image_save() ใน backend/product_image.php ที่เดียว
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/047_product_image.sql
+--      mysql -u root -p1234 stock_hr < sql/047_product_image.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/047_product_image_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/047_product_image_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

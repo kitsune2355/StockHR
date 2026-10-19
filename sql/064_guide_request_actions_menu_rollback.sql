@@ -6,7 +6,7 @@
 --  เลขของขั้นอื่นแล้วได้ลำดับซ้ำ
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/064_guide_request_actions_menu_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/064_guide_request_actions_menu_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

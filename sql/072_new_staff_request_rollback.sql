@@ -9,7 +9,7 @@
 --  ย้อนโค้ดก่อนแล้วค่อยรันไฟล์นี้ ไม่งั้นหน้ารายการเอกสารจะ query ไม่ผ่าน
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/072_new_staff_request_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/072_new_staff_request_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

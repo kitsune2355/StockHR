@@ -29,7 +29,7 @@ body.app-shell {
 }
 
 /* ---------- พื้นหลังของพื้นที่เนื้อหา ----------
-   พื้นขาวสะอาด แล้ววางแสงสีเขียวจาง ๆ เบลอหนักไว้ข้างหลัง
+   พื้นเทาอมฟ้าอ่อน แล้ววางแสงน้ำเงิน–เขียวจาง ๆ เบลอหนักไว้ข้างหลัง (โทนเดียวกับระบบสวัสดิการ)
    ให้ไม่แบนจนดูตาย แต่ก็ไม่แย่งสายตาไปจากตัวเลขและตาราง
 
    ทำไมต้องเบลอที่ชั้นแยก ไม่ใช่ใส่ filter ที่ตัว #appMain:
@@ -41,19 +41,88 @@ body.app-shell {
    transform: scale() กันขอบจาง — เวลาเบลอ ขอบจะโปร่งออกไป
    ถ้าไม่ขยายเผื่อไว้จะเห็นกรอบซีด ๆ รอบพื้นที่เนื้อหา */
 :root {
-    --app-bg-color:  #ffffff;
+    --app-bg-color:  #f7f8fc;                  /* --bg ของระบบสวัสดิการ */
     --app-bg-blur:   64px;
-    --app-bg-tint-1: rgba(2, 148, 136, .13);   /* เขียวแบรนด์ */
-    --app-bg-tint-2: rgba(16, 185, 129, .10);  /* มรกต */
-    --app-bg-tint-3: rgba(2, 148, 136, .07);
+    --app-bg-tint-1: rgba(29, 78, 216, .09);   /* น้ำเงิน (ต้น gradient) */
+    --app-bg-tint-2: rgba(4, 120, 87, .09);    /* เขียว (ปลาย gradient) */
+    --app-bg-tint-3: rgba(14, 116, 144, .08);  /* ฟ้าอมเขียว (สีหลัก) */
+
+    /* gradient ประจำระบบ — ชุดเดียวกับ --grad / --grad-soft ของ HL Welfare
+       อยากเปลี่ยนโทน แก้สามค่านี้ที่เดียว */
+    --grad-start: #1d4ed8;
+    --grad-mid:   #0e7490;
+    --grad-end:   #047857;
+    --grad:      linear-gradient(135deg, var(--grad-start) 0%, var(--grad-mid) 55%, var(--grad-end) 100%);
+    --grad-soft: linear-gradient(135deg, #eaf1ff 0%, #e6f6f8 55%, #e7f8f1 100%);
 }
 
 /* โหมดมืดใช้พื้นเข้ม และเพิ่มความเข้มของแสงเล็กน้อยให้ยังเห็นมิติ */
 .dark {
-    --app-bg-color:  #020617;
-    --app-bg-tint-1: rgba(2, 148, 136, .20);
-    --app-bg-tint-2: rgba(16, 185, 129, .14);
-    --app-bg-tint-3: rgba(2, 148, 136, .10);
+    --app-bg-color:  #0b0d14;                  /* --bg โหมดมืดของระบบสวัสดิการ */
+    --app-bg-tint-1: rgba(37, 99, 235, .16);
+    --app-bg-tint-2: rgba(5, 150, 105, .13);
+    --app-bg-tint-3: rgba(14, 116, 144, .14);
+
+    --grad-start: #2563eb;
+    --grad-mid:   #0e7490;
+    --grad-end:   #059669;
+    --grad-soft: linear-gradient(135deg, #12203f 0%, #0c2a33 55%, #0b2a22 100%);
+}
+
+/* ============================================================
+ *  ลวดลาย gradient น้ำเงิน → ฟ้าอมเขียว → เขียว แบบระบบสวัสดิการ
+ *  ใช้ทับ class ของ Tailwind ที่มีอยู่แล้ว หน้าไม่ต้องแก้ markup
+ * ============================================================ */
+
+/* ชื่อระบบบนหัวเมนู — ตัวอักษรไล่สี */
+.nav-brand .brand-title {
+    background: var(--grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+/* ปุ่มหลัก (ปุ่ม/ลิงก์พื้น brand-600) — พื้นไล่สี ชี้แล้วสีเลื่อน */
+button.bg-brand-600,
+a.bg-brand-600,
+input[type="submit"].bg-brand-600 {
+    background-image: var(--grad);
+    background-size: 180% 180%;
+    background-position: 0% 50%;
+    transition-property: background-position, box-shadow, transform, opacity, color;
+    transition-duration: .45s;
+}
+button.bg-brand-600:hover:not(:disabled),
+a.bg-brand-600:hover {
+    background-position: 100% 50%;
+}
+button.bg-brand-600:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+/* เมนูที่เลือกอยู่ (ระดับบน) — พื้นไล่สีอ่อน + แถบสีด้านซ้าย */
+#sidebar .nav-link.bg-brand-50 {
+    background-image: var(--grad-soft);
+}
+.dark #sidebar .nav-link[class*="bg-brand-500/15"] {
+    background-image: var(--grad-soft);
+}
+#sidebar .nav-item > .nav-link.bg-brand-50::before,
+.dark #sidebar .nav-item > .nav-link[class*="bg-brand-500/15"]::before {
+    content: '';
+    position: absolute;
+    left: -.75rem;
+    top: .5rem;
+    bottom: .5rem;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--grad);
+}
+
+/* checkbox / radio ใช้สีหลัก */
+input[type="checkbox"],
+input[type="radio"] {
+    accent-color: #0e7490;
 }
 
 #appMain {
@@ -437,8 +506,8 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 .tabulator .tabulator-col[aria-sort="ascending"] .tabulator-arrow,
 .tabulator .tabulator-col[aria-sort="descending"] .tabulator-arrow {
     opacity: 1;
-    border-bottom-color: #029488 !important;
-    border-top-color: #029488 !important;
+    border-bottom-color: #0891b2 !important;
+    border-top-color: #0891b2 !important;
 }
 
 /* ---------- ช่องกรองที่หัวคอลัมน์ ----------
@@ -481,19 +550,19 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     margin-right: 16px;
 }
 .grid-filter-toggle svg { width: 13px; height: 13px; }
-.grid-filter-toggle:hover { background: rgba(2, 148, 136, .12); color: #029488; }
+.grid-filter-toggle:hover { background: rgba(8, 145, 178, .12); color: #0891b2; }
 
 /* คอลัมน์ที่กำลังกรองอยู่ — ไอคอนติดสีธีมเพื่อให้เห็นแต่ไกลว่าตารางถูกกรองอยู่ */
 .tabulator-col.filter-on .grid-filter-toggle {
-    background: #029488;
+    background: #0891b2;
     color: #fff;
 }
-.tabulator-col.filter-on .grid-filter-toggle:hover { background: #055f59; color: #fff; }
-.tabulator-col.filter-on .tabulator-col-title { color: #029488; }
+.tabulator-col.filter-on .grid-filter-toggle:hover { background: #155e75; color: #fff; }
+.tabulator-col.filter-on .tabulator-col-title { color: #0891b2; }
 
 .dark .grid-filter-toggle { color: #475569; }
-.dark .grid-filter-toggle:hover { background: rgba(45, 212, 191, .16); color: #71dbd2; }
-.dark .tabulator-col.filter-on .tabulator-col-title { color: #71dbd2; }
+.dark .grid-filter-toggle:hover { background: rgba(45, 212, 191, .16); color: #67e8f9; }
+.dark .tabulator-col.filter-on .tabulator-col-title { color: #67e8f9; }
 
 /* ชื่อคอลัมน์ต้องไม่ดันไอคอนตกขอบเวลาชื่อยาว */
 .tabulator .tabulator-header .tabulator-col .tabulator-col-title-holder {
@@ -525,8 +594,8 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 .tabulator .tabulator-header .tabulator-header-filter input:focus,
 .tabulator .tabulator-header .tabulator-header-filter select:focus {
     outline: none;
-    border-color: #029488;
-    box-shadow: 0 0 0 3px rgba(2, 148, 136, .15);
+    border-color: #0891b2;
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, .15);
 }
 
 .dark .tabulator .tabulator-header .tabulator-header-filter input,
@@ -560,7 +629,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 
 /* ช่องที่กำลังแก้ไข */
 .tabulator .tabulator-row .tabulator-cell.tabulator-editing {
-    border: 2px solid #029488;
+    border: 2px solid #0891b2;
     padding: 8px 14px;
     border-radius: .5rem;
     background: #fff;
@@ -599,8 +668,8 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     transition: background .15s ease, color .15s ease;
 }
 .tabulator .tabulator-responsive-collapse-toggle:hover {
-    background: rgba(2, 148, 136, .16);
-    color: #029488;
+    background: rgba(8, 145, 178, .16);
+    color: #0891b2;
     opacity: 1;
 }
 .tabulator .tabulator-responsive-collapse-toggle svg {
@@ -658,7 +727,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 .grid-pill   {
     display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
     padding: .125rem .625rem; border-radius: 999px;
-    background: #effbf9; color: #055f59; font-size: 0.75rem; font-weight: 500;
+    background: #ecfeff; color: #155e75; font-size: 0.75rem; font-weight: 500;
 }
 .grid-tag {
     display: inline-block; padding: .0625rem .375rem; border-radius: .375rem;
@@ -687,11 +756,11 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     cursor: pointer;
 }
 .grid-switch:hover      { background: #94a3b8; }
-.grid-switch.is-on      { background: #029488; }
-.grid-switch.is-on:hover{ background: #02776f; }
+.grid-switch.is-on      { background: #0891b2; }
+.grid-switch.is-on:hover{ background: #0e7490; }
 .grid-switch:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(2, 148, 136, .25);
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, .25);
 }
 
 .grid-switch-knob {
@@ -739,18 +808,18 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     transition: background .15s, border-color .15s, color .15s;
 }
 .grid-check svg { width: 13px; height: 13px; }
-.grid-check:hover { border-color: #029488; background: #f0faf9; }
+.grid-check:hover { border-color: #0891b2; background: #f0faf9; }
 
 .grid-check.is-on {
-    border-color: #029488;
-    background: #029488;
+    border-color: #0891b2;
+    background: #0891b2;
     color: #fff;
 }
-.grid-check.is-on:hover { border-color: #02776f; background: #02776f; }
+.grid-check.is-on:hover { border-color: #0e7490; background: #0e7490; }
 
 .grid-check:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(2, 148, 136, .25);
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, .25);
 }
 
 /* ช่องที่ติ๊กไว้ตายตัว แก้ไม่ได้ (สิทธิ์สูงสุดเข้าได้ทุกเมนูเสมอ) */
@@ -759,14 +828,14 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     opacity: .55;
 }
 .grid-check.is-locked:hover {
-    border-color: #029488;
-    background: #029488;
+    border-color: #0891b2;
+    background: #0891b2;
 }
 
 .dark .grid-check         { border-color: #475569; background: #0f172a; }
-.dark .grid-check:hover   { border-color: #029488; background: rgba(2, 148, 136, .18); }
-.dark .grid-check.is-on   { border-color: #029488; background: #029488; color: #fff; }
-.dark .grid-check.is-on:hover { background: #02776f; }
+.dark .grid-check:hover   { border-color: #0891b2; background: rgba(8, 145, 178, .18); }
+.dark .grid-check.is-on   { border-color: #0891b2; background: #0891b2; color: #fff; }
+.dark .grid-check.is-on:hover { background: #0e7490; }
 
 /* ---------- popup เลือกหน่วยงานพร้อมค้นหา ---------- */
 .user-dept-popup {
@@ -774,7 +843,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     z-index: 10000;
     width: min(360px, calc(100vw - 1rem));
     padding: .5rem;
-    border: 1px solid #99f6e4;
+    border: 1px solid #a5f3fc;
     border-radius: .75rem;
     background: #fff;
     box-shadow: 0 16px 36px -12px rgba(15, 23, 42, .45);
@@ -791,7 +860,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     color: #0f172a;
     outline: none;
 }
-.user-dept-search:focus { border-color: #029488; box-shadow: 0 0 0 3px rgba(2, 148, 136, .18); }
+.user-dept-search:focus { border-color: #0891b2; box-shadow: 0 0 0 3px rgba(8, 145, 178, .18); }
 .user-dept-popup-list {
     max-height: 260px;
     overflow-y: auto;
@@ -807,8 +876,8 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     line-height: 1.35;
     cursor: pointer;
 }
-.user-dept-popup-list label:hover { background: #e6f5f4; color: #055f59; }
-.user-dept-popup-list input { margin-right: .35rem; accent-color: #029488; }
+.user-dept-popup-list label:hover { background: #e6f5f4; color: #155e75; }
+.user-dept-popup-list input { margin-right: .35rem; accent-color: #0891b2; }
 .user-dept-popup-empty { padding: .75rem .5rem; color: #94a3b8; text-align: center; font-size: .8125rem; }
 .user-dept-popup-actions { display: flex; gap: .5rem; margin-top: .5rem; }
 .user-dept-popup-actions button {
@@ -820,14 +889,14 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     font-weight: 600;
     cursor: pointer;
 }
-.user-dept-popup-done { background: #029488; color: #fff; }
-.user-dept-popup-done:hover { background: #02776f; }
+.user-dept-popup-done { background: #0891b2; color: #fff; }
+.user-dept-popup-done:hover { background: #0e7490; }
 .user-dept-popup-cancel { background: #e2e8f0; color: #334155; }
 .user-dept-popup-cancel:hover { background: #cbd5e1; }
-.dark .user-dept-popup { border-color: #115e59; background: #0f172a; }
+.dark .user-dept-popup { border-color: #155e75; background: #0f172a; }
 .dark .user-dept-search { border-color: #475569; background: #1e293b; color: #e2e8f0; }
 .dark .user-dept-popup-list label { color: #cbd5e1; }
-.dark .user-dept-popup-list label:hover { background: #134e4a; color: #ccfbf1; }
+.dark .user-dept-popup-list label:hover { background: #164e63; color: #cffafe; }
 .dark .user-dept-popup-empty { color: #64748b; }
 .dark .user-dept-popup-cancel { background: #334155; color: #e2e8f0; }
 .dark .user-dept-popup-cancel:hover { background: #475569; }
@@ -857,11 +926,11 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     white-space: normal;
     overflow-wrap: anywhere;
 }
-.user-dept-chip-0 { background: #ccfbf1; border-color: #99f6e4; color: #115e59; }
+.user-dept-chip-0 { background: #cffafe; border-color: #a5f3fc; color: #155e75; }
 .user-dept-chip-1 { background: #dbeafe; border-color: #bfdbfe; color: #1e40af; }
 .user-dept-chip-2 { background: #fef3c7; border-color: #fde68a; color: #92400e; }
 .user-dept-chip-3 { background: #fce7f3; border-color: #fbcfe8; color: #9d174d; }
-.dark .user-dept-chip-0 { background: rgba(20, 184, 166, .2); border-color: rgba(45, 212, 191, .35); color: #99f6e4; }
+.dark .user-dept-chip-0 { background: rgba(6, 182, 212, .2); border-color: rgba(45, 212, 191, .35); color: #a5f3fc; }
 .dark .user-dept-chip-1 { background: rgba(59, 130, 246, .2); border-color: rgba(96, 165, 250, .35); color: #bfdbfe; }
 .dark .user-dept-chip-2 { background: rgba(245, 158, 11, .2); border-color: rgba(251, 191, 36, .35); color: #fde68a; }
 .dark .user-dept-chip-3 { background: rgba(236, 72, 153, .2); border-color: rgba(244, 114, 182, .35); color: #fbcfe8; }
@@ -876,13 +945,13 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     cursor: not-allowed;
 }
 .grid-switch.is-locked:hover { background: #cbd5e1; }
-.grid-switch.is-locked.is-on:hover { background: #029488; }
+.grid-switch.is-locked.is-on:hover { background: #0891b2; }
 
 /* ---------- ปุ่มแบบลิงก์ในตาราง (เช่น คืนรหัสผ่านเป็นค่าตั้งต้น) ---------- */
 .grid-linkbtn {
     padding: .25rem .5rem;
     border-radius: .5rem;
-    color: #0f766e;
+    color: #0e7490;
     font-size: 0.75rem;
     font-weight: 500;
     text-decoration: underline;
@@ -890,9 +959,9 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     cursor: pointer;
     transition: background .15s, color .15s;
 }
-.grid-linkbtn:hover { background: rgba(2, 148, 136, .12); color: #055f59; }
-.dark .grid-linkbtn { color: #71dbd2; }
-.dark .grid-linkbtn:hover { background: rgba(45, 212, 191, .16); color: #99f6e4; }
+.grid-linkbtn:hover { background: rgba(8, 145, 178, .12); color: #155e75; }
+.dark .grid-linkbtn { color: #67e8f9; }
+.dark .grid-linkbtn:hover { background: rgba(45, 212, 191, .16); color: #a5f3fc; }
 
 /* ---------- ปุ่มรูปตาในช่องรหัสผ่าน ---------- */
 .pw-toggle {
@@ -910,13 +979,13 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     cursor: pointer;
     transition: background .15s, color .15s;
 }
-.pw-toggle:hover { background: rgba(2, 148, 136, .12); color: #029488; }
+.pw-toggle:hover { background: rgba(8, 145, 178, .12); color: #0891b2; }
 .pw-toggle:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(2, 148, 136, .25);
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, .25);
 }
 .dark .pw-toggle { color: #64748b; }
-.dark .pw-toggle:hover { background: rgba(45, 212, 191, .16); color: #71dbd2; }
+.dark .pw-toggle:hover { background: rgba(45, 212, 191, .16); color: #67e8f9; }
 
 /* ---------- ปุ่มเอาแถวใหม่ออก ---------- */
 .grid-remove {
@@ -955,12 +1024,12 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
    ค่าเริ่มต้นของ library เป็นเทา #d6d6d6 กับน้ำเงิน #3876ca ตายตัว
    ไม่เข้าธีมและมองไม่ออกบนพื้นเข้ม */
 .tabulator .tabulator-row.tabulator-range-highlight .tabulator-cell.tabulator-range-row-header {
-    background-color: rgba(2, 148, 136, .10);
+    background-color: rgba(8, 145, 178, .10);
     color: inherit;
 }
 .tabulator .tabulator-row.tabulator-range-selected .tabulator-cell.tabulator-range-row-header,
 .tabulator .tabulator-row.tabulator-range-highlight.tabulator-range-selected .tabulator-cell.tabulator-range-row-header {
-    background-color: #029488;
+    background-color: #0891b2;
     color: #fff;
 }
 .dark .tabulator .tabulator-row.tabulator-range-highlight .tabulator-cell.tabulator-range-row-header {
@@ -969,25 +1038,25 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 
 /* กรอบล้อมพื้นที่ที่เลือก + จุดมุมขวาล่างแบบ Excel */
 .tabulator .tabulator-tableholder .tabulator-range-overlay .tabulator-range {
-    border-color: #029488;
+    border-color: #0891b2;
 }
 .tabulator .tabulator-tableholder .tabulator-range-overlay .tabulator-range.tabulator-range-active::after {
-    background-color: #029488;
+    background-color: #0891b2;
 }
 /* ช่องที่เป็นจุดตั้งต้น (active cell) — กรอบหนากว่าเพื่อให้รู้ว่าพิมพ์ทับตรงไหน */
 .tabulator .tabulator-tableholder .tabulator-range-overlay .tabulator-range-cell-active {
-    border-color: #029488;
+    border-color: #0891b2;
 }
 
 .tabulator .tabulator-row .tabulator-cell.tabulator-range-selected:not(.tabulator-range-only-cell-selected):not(.tabulator-range-row-header) {
-    background-color: rgba(2, 148, 136, .12);
+    background-color: rgba(8, 145, 178, .12);
 }
 .tabulator .tabulator-header .tabulator-col.tabulator-range-highlight {
-    background-color: rgba(2, 148, 136, .10);
+    background-color: rgba(8, 145, 178, .10);
     color: inherit;
 }
 .tabulator .tabulator-header .tabulator-col.tabulator-range-selected {
-    background-color: #029488;
+    background-color: #0891b2;
     color: #fff;
 }
 
@@ -1023,20 +1092,20 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     height: 10px;
     border: 2px solid #fff;
     border-radius: 999px;
-    background: #029488;
-    box-shadow: 0 0 0 1px rgba(2, 148, 136, .45);
+    background: #0891b2;
+    box-shadow: 0 0 0 1px rgba(8, 145, 178, .45);
     cursor: crosshair;
 }
 .dark .grid-fill-handle {
     border-color: #0f172a;
-    background: #2dd4bf;
+    background: #22d3ee;
     box-shadow: 0 0 0 1px rgba(45, 212, 191, .45);
 }
 
 /* ช่องที่กำลังจะโดนเติม — เฉพาะคอลัมน์ที่เลือกไว้ ไม่ใช่ทั้งแถว
    ใช้พื้นหลังอย่างเดียว ไม่ใส่เส้นขอบ เพราะเส้นขอบจะดันเนื้อหาในช่องขยับ */
 .tabulator .tabulator-row .tabulator-cell.fill-preview {
-    background: rgba(2, 148, 136, .10);
+    background: rgba(8, 145, 178, .10);
 }
 .dark .tabulator .tabulator-row .tabulator-cell.fill-preview {
     background: rgba(45, 212, 191, .14);
@@ -1048,10 +1117,10 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     position: absolute;
     z-index: 15;
     pointer-events: none;
-    border: 1px dashed #029488;
+    border: 1px dashed #0891b2;
     border-radius: 2px;
 }
-.dark .grid-fill-preview { border-color: #2dd4bf; }
+.dark .grid-fill-preview { border-color: #22d3ee; }
 
 /* ระหว่างลาก เมาส์เป็นเป้าเล็งทั้งตาราง จะได้รู้ว่ายังอยู่ในโหมดลากเติมอยู่ */
 .tabulator.is-filling,
@@ -1095,7 +1164,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 }
 .tabulator-edit-list .tabulator-edit-list-item:hover {
     background: #e6f5f4;
-    color: #055f59;
+    color: #155e75;
     outline: none;
 }
 .tabulator-edit-list .tabulator-edit-list-item.focused:not(.active) {
@@ -1105,7 +1174,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     outline-offset: -1px;
 }
 .tabulator-edit-list .tabulator-edit-list-item.active {
-    background: #029488;
+    background: #0891b2;
     color: #fff;
 }
 /* ช่องนี้เลือกได้ทีละอัน ไม่ใช่ checkbox หลายอัน — จึงโชว์แค่เครื่องหมายถูก
@@ -1166,10 +1235,10 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 .dark .tabulator-edit-list .tabulator-edit-list-item { color: #cbd5e1; }
 .dark .tabulator-edit-list .tabulator-edit-list-item.focused,
 .dark .tabulator-edit-list .tabulator-edit-list-item:hover {
-    background: rgba(2, 148, 136, .22);
-    color: #71dbd2;
+    background: rgba(8, 145, 178, .22);
+    color: #67e8f9;
 }
-.dark .tabulator-edit-list .tabulator-edit-list-item.active { background: #029488; color: #fff; }
+.dark .tabulator-edit-list .tabulator-edit-list-item.active { background: #0891b2; color: #fff; }
 .dark .tabulator-edit-list .tabulator-edit-list-placeholder { color: #64748b; }
 
 /* ============================================================
@@ -1315,12 +1384,12 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 .tabulator .tabulator-footer .tabulator-page:not(.disabled):not([disabled]):hover {
     border-color: #5bc9c0;
     background: #f0faf9;
-    color: #055f59;
+    color: #155e75;
 }
 .tabulator .tabulator-footer .tabulator-page.active,
 .tabulator .tabulator-footer .tabulator-page.active:hover {
-    border-color: #029488;
-    background: #029488;
+    border-color: #0891b2;
+    background: #0891b2;
     color: #fff;
     font-weight: 600;
 }
@@ -1501,8 +1570,8 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     color: #94a3b8;
 }
 .dark .tabulator .tabulator-responsive-collapse-toggle:hover {
-    background: rgba(2, 148, 136, .22);
-    color: #71dbd2;
+    background: rgba(8, 145, 178, .22);
+    color: #67e8f9;
 }
 
 .dark .tabulator .tabulator-row.row-new { background: rgba(16, 185, 129, .12); }
@@ -1522,12 +1591,12 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 
 /* สีเดิม (#475569) จางเกินไปบนพื้นเข้ม อ่านคำว่า "ไม่ระบุ" กับจุดรหัสผ่านแทบไม่ออก */
 .dark .grid-empty  { color: #94a3b8; }
-.dark .grid-pill   { background: rgba(2, 148, 136, .18); color: #71dbd2; }
+.dark .grid-pill   { background: rgba(8, 145, 178, .18); color: #67e8f9; }
 .dark .grid-tag-new  { background: rgba(16, 185, 129, .2); color: #6ee7b7; }
 .dark .grid-tag-self { background: rgba(99, 102, 241, .2); color: #a5b4fc; }
 .dark .grid-tag-pwd  { background: rgba(245, 158, 11, .2); color: #fcd34d; }
 .dark .grid-switch.is-locked:hover { background: #334155; }
-.dark .grid-switch.is-locked.is-on:hover { background: #029488; }
+.dark .grid-switch.is-locked.is-on:hover { background: #0891b2; }
 
 .dark .tabulator .tabulator-footer {
     border-top-color: #1e293b; color: #94a3b8;
@@ -1543,14 +1612,14 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     color: #cbd5e1;
 }
 .dark .tabulator .tabulator-footer .tabulator-page:not(.disabled):not([disabled]):hover {
-    border-color: #029488;
-    background: rgba(2, 148, 136, .18);
-    color: #71dbd2;
+    border-color: #0891b2;
+    background: rgba(8, 145, 178, .18);
+    color: #67e8f9;
 }
 .dark .tabulator .tabulator-footer .tabulator-page.active,
 .dark .tabulator .tabulator-footer .tabulator-page.active:hover {
-    border-color: #029488;
-    background: #029488;
+    border-color: #0891b2;
+    background: #0891b2;
     color: #fff;
 }
 .dark .tabulator .tabulator-footer .tabulator-page[disabled] {
@@ -1564,7 +1633,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     background: #0f172a; border-color: #334155; color: #e2e8f0;
 }
 .dark .tabulator-edit-list .tabulator-edit-list-item:hover,
-.dark .tabulator-edit-list .tabulator-edit-list-item.active { background: #1e293b; color: #71dbd2; }
+.dark .tabulator-edit-list .tabulator-edit-list-item.active { background: #1e293b; color: #67e8f9; }
 
 /* ============================================================
  *  กล่องข้อความ SweetAlert2 — ปรับให้เข้ากับธีมของระบบ
@@ -1617,9 +1686,9 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     cursor: pointer;
 }
 
-.app-swal-confirm        { background: #029488; color: #fff; }
-.app-swal-confirm:hover  { background: #02776f; }
-.app-swal-confirm:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(2, 148, 136, .25); }
+.app-swal-confirm        { background: #0891b2; color: #fff; }
+.app-swal-confirm:hover  { background: #0e7490; }
+.app-swal-confirm:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(8, 145, 178, .25); }
 
 .app-swal-danger         { background: #dc2626; color: #fff; }
 .app-swal-danger:hover   { background: #b91c1c; }
@@ -1678,7 +1747,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
    ============================================================ */
 
 /* ---------- ตัวเลขในตารางเอกสาร ---------- */
-.doc-stock { font-variant-numeric: tabular-nums; font-weight: 600; color: #0f766e; }
+.doc-stock { font-variant-numeric: tabular-nums; font-weight: 600; color: #0e7490; }
 .doc-stock.is-low { color: #b45309; }
 .doc-stock.is-out { color: #dc2626; }
 
@@ -1686,7 +1755,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 .doc-qty.is-over { color: #b45309; }
 .doc-qty.is-bad  { color: #dc2626; text-decoration: underline wavy #dc2626; }
 
-.doc-in  { color: #0f766e; font-variant-numeric: tabular-nums; }
+.doc-in  { color: #0e7490; font-variant-numeric: tabular-nums; }
 .doc-out { color: #b91c1c; font-variant-numeric: tabular-nums; }
 
 .doc-no { font-weight: 600; }
@@ -1784,8 +1853,8 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     font-size: 0.875rem; font-weight: 600;
     transition: background .15s, border-color .15s;
 }
-.doc-act.is-ok  { background: #029488; color: #fff; }
-.doc-act.is-ok:hover  { background: #02776f; }
+.doc-act.is-ok  { background: #0891b2; color: #fff; }
+.doc-act.is-ok:hover  { background: #0e7490; }
 .doc-act.is-bad { background: #fff; color: #b91c1c; border: 1px solid #fecaca; }
 .doc-act.is-bad:hover { background: #fef2f2; border-color: #f87171; }
 
@@ -1911,26 +1980,26 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 .rep-tile-label { font-size: 0.6875rem; color: #64748b; }
 .rep-tile-value { font-size: 1.125rem; font-weight: 700; color: #0f172a; line-height: 1.2; }
 
-.rep-tile.is-in  { background: #f0fdfa; border-color: #99f6e4; }
-.rep-tile.is-in  .rep-tile-value { color: #0f766e; }
+.rep-tile.is-in  { background: #ecfeff; border-color: #a5f3fc; }
+.rep-tile.is-in  .rep-tile-value { color: #0e7490; }
 .rep-tile.is-low { background: #fffbeb; border-color: #fde68a; }
 .rep-tile.is-low .rep-tile-value { color: #b45309; }
 .rep-tile.is-out { background: #fef2f2; border-color: #fecaca; }
 .rep-tile.is-out .rep-tile-value { color: #b91c1c; }
 
 /* ช่องติ๊กแบบมาตรฐานในแถบเครื่องมือ (ไม่ใช่ในตาราง จึงไม่ใช้ .grid-check) */
-.grid-check-native { width: 1rem; height: 1rem; accent-color: #029488; }
+.grid-check-native { width: 1rem; height: 1rem; accent-color: #0891b2; }
 
 
 /* ============================================================
    โหมดมืดของส่วนเอกสารและรายงาน
    ============================================================ */
-.dark .doc-stock       { color: #5eead4; }
+.dark .doc-stock       { color: #67e8f9; }
 .dark .doc-stock.is-low { color: #fbbf24; }
 .dark .doc-stock.is-out { color: #f87171; }
 .dark .doc-qty.is-over { color: #fbbf24; }
 .dark .doc-qty.is-bad  { color: #f87171; text-decoration-color: #f87171; }
-.dark .doc-in  { color: #5eead4; }
+.dark .doc-in  { color: #67e8f9; }
 .dark .doc-out { color: #fca5a5; }
 .dark .doc-pname { color: #94a3b8; }
 
@@ -1964,8 +2033,8 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 .dark .rep-tile { background: #0b1220; border-color: #1e293b; }
 .dark .rep-tile-label { color: #94a3b8; }
 .dark .rep-tile-value { color: #f1f5f9; }
-.dark .rep-tile.is-in  { background: rgba(2, 148, 136, .12);  border-color: rgba(2, 148, 136, .35); }
-.dark .rep-tile.is-in  .rep-tile-value { color: #5eead4; }
+.dark .rep-tile.is-in  { background: rgba(8, 145, 178, .12);  border-color: rgba(8, 145, 178, .35); }
+.dark .rep-tile.is-in  .rep-tile-value { color: #67e8f9; }
 .dark .rep-tile.is-low { background: rgba(245, 158, 11, .12); border-color: rgba(245, 158, 11, .35); }
 .dark .rep-tile.is-low .rep-tile-value { color: #fcd34d; }
 .dark .rep-tile.is-out { background: rgba(239, 68, 68, .12);  border-color: rgba(239, 68, 68, .35); }
@@ -2014,7 +2083,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     border: 1px solid #e2e8f0; border-radius: .5rem;
     font-size: 0.875rem; color: #0f172a; background: #fff;
 }
-.ss-search:focus { outline: none; border-color: #029488; box-shadow: 0 0 0 3px rgba(2, 148, 136, .18); }
+.ss-search:focus { outline: none; border-color: #0891b2; box-shadow: 0 0 0 3px rgba(8, 145, 178, .18); }
 
 .ss-list { max-height: 15rem; overflow-y: auto; padding: .25rem; }
 
@@ -2024,7 +2093,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ss-item:hover, .ss-item.is-active { background: #f1f5f9; }
-.ss-item.is-selected { background: #effbf9; color: #055f59; font-weight: 500; }
+.ss-item.is-selected { background: #ecfeff; color: #155e75; font-weight: 500; }
 .ss-item.is-hidden   { display: none; }
 .ss-item.is-disabled { opacity: .45; cursor: not-allowed; }
 
@@ -2053,7 +2122,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 .dark .ss-search { background: #1e293b; border-color: #334155; color: #e2e8f0; }
 .dark .ss-item  { color: #cbd5e1; }
 .dark .ss-item:hover, .dark .ss-item.is-active { background: #1e293b; }
-.dark .ss-item.is-selected { background: rgba(2, 148, 136, .18); color: #71dbd2; }
+.dark .ss-item.is-selected { background: rgba(8, 145, 178, .18); color: #67e8f9; }
 .dark .ss-empty { color: #64748b; }
 
 
@@ -2099,7 +2168,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     padding: .0625rem .5rem; border-radius: 999px;
     background: #f1f5f9; color: #64748b; font-size: 0.6875rem; font-weight: 500;
 }
-.tf-badge.is-on { background: #effbf9; color: #055f59; }
+.tf-badge.is-on { background: #ecfeff; color: #155e75; }
 
 .tf-clear {
     margin-left: auto; font-size: 0.75rem; color: #94a3b8;
@@ -2161,7 +2230,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     border: 1px solid transparent;
 }
 .tf-item:hover { background: #f8fafc; border-color: #e2e8f0; }
-.tf-item.is-picked { background: #effbf9; border-color: #99f6e4; }
+.tf-item.is-picked { background: #ecfeff; border-color: #a5f3fc; }
 
 .tf-item-main { flex: 1 1 auto; min-width: 0; }
 .tf-item-side { flex: none; text-align: right; }
@@ -2169,7 +2238,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 .tf-code {
     display: block;
     font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-    font-size: 0.75rem; color: #0f766e; font-weight: 600;
+    font-size: 0.75rem; color: #0e7490; font-weight: 600;
 }
 .tf-name {
     display: block; font-size: 0.8125rem; color: #1e293b; line-height: 1.35;
@@ -2227,7 +2296,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     .tf-tag { padding: 0 .3rem; max-width: 9rem; }
 }
 
-.tf-stock { display: block; font-size: 0.8125rem; font-weight: 600; color: #0f766e; font-variant-numeric: tabular-nums; }
+.tf-stock { display: block; font-size: 0.8125rem; font-weight: 600; color: #0e7490; font-variant-numeric: tabular-nums; }
 .tf-stock.is-low { color: #b45309; }
 .tf-stock.is-out { color: #dc2626; }
 
@@ -2237,7 +2306,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     width: 1.5rem; height: 1.5rem; border-radius: 999px;
     background: #f1f5f9; color: #64748b; font-size: 0.8125rem; font-weight: 700;
 }
-.tf-item.is-picked .tf-mark { background: #029488; color: #fff; }
+.tf-item.is-picked .tf-mark { background: #0891b2; color: #fff; }
 
 .tf-empty { padding: 2rem 1rem; text-align: center; font-size: 0.8125rem; color: #94a3b8; }
 .tf-empty-hint { font-size: 0.75rem; color: #cbd5e1; }
@@ -2272,7 +2341,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
     -moz-appearance: textfield;
 }
 .tf-qty::-webkit-outer-spin-button, .tf-qty::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.tf-qty:focus { outline: none; background: #f0fdfa; }
+.tf-qty:focus { outline: none; background: #ecfeff; }
 
 .tf-avail { margin-left: auto; font-size: 0.6875rem; color: #94a3b8; }
 .tf-warn  { margin-top: .375rem; font-size: 0.6875rem; color: #b45309; }
@@ -2282,17 +2351,17 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 .dark .tf-pane-head, .dark .tf-filters { border-bottom-color: #1e293b; }
 .dark .tf-pane-title { color: #cbd5e1; }
 .dark .tf-badge      { background: rgba(148, 163, 184, .16); color: #94a3b8; }
-.dark .tf-badge.is-on { background: rgba(2, 148, 136, .2); color: #71dbd2; }
+.dark .tf-badge.is-on { background: rgba(8, 145, 178, .2); color: #67e8f9; }
 .dark .tf-clear      { color: #64748b; }
 .dark .tf-clear:hover { background: rgba(239, 68, 68, .12); color: #fca5a5; }
 .dark .tf-check      { border-color: #334155; color: #cbd5e1; }
 
 .dark .tf-item:hover { background: #1e293b; border-color: #334155; }
-.dark .tf-item.is-picked { background: rgba(2, 148, 136, .14); border-color: rgba(2, 148, 136, .4); }
-.dark .tf-code  { color: #5eead4; }
+.dark .tf-item.is-picked { background: rgba(8, 145, 178, .14); border-color: rgba(8, 145, 178, .4); }
+.dark .tf-code  { color: #67e8f9; }
 .dark .tf-name  { color: #e2e8f0; }
 .dark .tf-sub, .dark .tf-unit, .dark .tf-avail { color: #64748b; }
-.dark .tf-stock { color: #5eead4; }
+.dark .tf-stock { color: #67e8f9; }
 .dark .tf-stock.is-low { color: #fbbf24; }
 .dark .tf-stock.is-out { color: #f87171; }
 .dark .tf-mark  { background: #1e293b; color: #94a3b8; }
@@ -2306,7 +2375,7 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 .dark .tf-step button { background: #1e293b; color: #cbd5e1; }
 .dark .tf-step button:hover { background: #334155; }
 .dark .tf-qty   { background: #0f172a; color: #f1f5f9; }
-.dark .tf-qty:focus { background: rgba(2, 148, 136, .14); }
+.dark .tf-qty:focus { background: rgba(8, 145, 178, .14); }
 .dark .tf-warn  { color: #fbbf24; }
 /* ============================================================
    จอเล็ก: สลับสองฝั่งด้วยแท็บ แทนการวางเรียงบนล่าง
@@ -2358,11 +2427,11 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 
     .tf-tab.is-active {
         background: #fff;
-        color: #0f766e;
+        color: #0e7490;
         font-weight: 600;
         box-shadow: 0 1px 2px rgba(15, 23, 42, .08);
     }
-    .dark .tf-tab.is-active { background: #0f172a; color: #5eead4; }
+    .dark .tf-tab.is-active { background: #0f172a; color: #67e8f9; }
 
     /* ชื่อฝั่งยาวกว่าครึ่งจอได้ ตัดด้วย … แล้วให้ตัวเลขอยู่ครบเสมอ
        เพราะตัวเลขคือเหตุผลที่แท็บนี้มีอยู่ */
@@ -2386,8 +2455,8 @@ html { font-size: 100%; }      /* = ค่าที่ผู้ใช้ตั�
 
     /* ตัวเลขฝั่ง "ที่เลือกไว้" ใช้สีของระบบ เพราะคือผลลัพธ์ที่จะถูกบันทึก
        ต้องสะดุดตาแม้ตอนที่กำลังดูอีกฝั่งอยู่ */
-    .tf-tab-num.is-on { background: #ccfbf1; color: #0f766e; }
-    .dark .tf-tab-num.is-on { background: rgba(20, 184, 166, .18); color: #5eead4; }
+    .tf-tab-num.is-on { background: #cffafe; color: #0e7490; }
+    .dark .tf-tab-num.is-on { background: rgba(6, 182, 212, .18); color: #67e8f9; }
 
     /* ---------- แสดงทีละฝั่ง ---------- */
     .tf-wrap.is-tab-dst .tf-pane-src,
@@ -2657,12 +2726,12 @@ input[type="date"].input-control { min-height: 2.75rem; }
     cursor: pointer;
     transition: background .15s, border-color .15s, color .15s, box-shadow .15s;
 }
-.fp-status-toggle:hover { border-color: #029488; color: #055f59; background: #e6f5f4; }
+.fp-status-toggle:hover { border-color: #0891b2; color: #155e75; background: #e6f5f4; }
 .fp-status-toggle.is-active {
-    border-color: #029488;
-    background: #029488;
+    border-color: #0891b2;
+    background: #0891b2;
     color: #fff;
-    box-shadow: 0 2px 6px rgba(2, 148, 136, .22);
+    box-shadow: 0 2px 6px rgba(8, 145, 178, .22);
 }
 .fp-bar-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-left: auto; }
 
@@ -2676,7 +2745,7 @@ button.fp-toggle { display: none; }
 .fp-count {
     display: inline-flex; align-items: center; justify-content: center;
     min-width: 1.125rem; height: 1.125rem; padding: 0 .25rem;
-    border-radius: 999px; background: #029488; color: #fff;
+    border-radius: 999px; background: #0891b2; color: #fff;
     font-size: 0.625rem; font-weight: 700; line-height: 1;
 }
 
@@ -2730,8 +2799,8 @@ button.fp-toggle { display: none; }
 .dark .fp-bar-info { color: #94a3b8; }
 .dark .fp-bar-info b { color: #f1f5f9; }
 .dark .fp-status-toggle { border-color: #334155; background: #0f172a; color: #cbd5e1; }
-.dark .fp-status-toggle:hover { border-color: #2dd4bf; background: rgba(2, 148, 136, .16); color: #99f6e4; }
-.dark .fp-status-toggle.is-active { border-color: #029488; background: #029488; color: #fff; }
+.dark .fp-status-toggle:hover { border-color: #22d3ee; background: rgba(8, 145, 178, .16); color: #a5f3fc; }
+.dark .fp-status-toggle.is-active { border-color: #0891b2; background: #0891b2; color: #fff; }
 /* ค่าที่ต้องกรอกแต่ยังว่าง และมีผลต่อการทำงาน (เช่น หน่วยงานของผู้อนุมัติ)
    ต่างจาก .grid-empty ที่แปลว่า "ไม่ได้ระบุ ซึ่งก็ไม่เป็นไร" */
 .grid-warn { color: #b45309; font-weight: 500; }
@@ -2769,9 +2838,9 @@ button.fp-toggle { display: none; }
 
 .bn-tile.is-link { transition: border-color .15s, transform .15s, box-shadow .15s; }
 .bn-tile.is-link:hover {
-    border-color: #99f6e4;
+    border-color: #a5f3fc;
     transform: translateY(-2px);
-    box-shadow: 0 10px 24px rgba(2, 148, 136, .12);
+    box-shadow: 0 10px 24px rgba(8, 145, 178, .12);
 }
 
 .bn-dot { color: #cbd5e1; margin: 0 .25rem; }
@@ -2780,10 +2849,10 @@ button.fp-toggle { display: none; }
 .bn-tile-head { display: flex; align-items: center; gap: .75rem; margin-bottom: .875rem; }
 .bn-tile-head h3 { font-size: 0.8125rem; font-weight: 600; color: #334155; }
 .bn-more {
-    margin-left: auto; font-size: 0.75rem; font-weight: 500; color: #0f766e;
+    margin-left: auto; font-size: 0.75rem; font-weight: 500; color: #0e7490;
     padding: .125rem .375rem; border-radius: .375rem;
 }
-.bn-more:hover { background: #f0fdfa; }
+.bn-more:hover { background: #ecfeff; }
 
 .bn-blank { padding: 1rem 0; font-size: 0.75rem; color: #94a3b8; }
 
@@ -2793,7 +2862,7 @@ button.fp-toggle { display: none; }
    ============================================================ */
 .bn-hero {
     grid-column: span 1;
-    background: linear-gradient(150deg, #073b39 0%, #0b524d 55%, #0f766e 100%);
+    background: linear-gradient(150deg, #073b39 0%, #0b524d 55%, #0e7490 100%);
     border-color: transparent;
     color: #fff;
 }
@@ -2837,7 +2906,7 @@ button.fp-toggle { display: none; }
     flex: none; width: .5rem; height: .5rem; border-radius: 999px; background: #94a3b8;
 }
 .bn-bullet.is-amber  { background: #fbbf24; }
-.bn-bullet.is-brand  { background: #5eead4; }
+.bn-bullet.is-brand  { background: #67e8f9; }
 .bn-bullet.is-sky    { background: #7dd3fc; }
 .bn-bullet.is-violet { background: #c4b5fd; }
 
@@ -2862,14 +2931,14 @@ button.fp-toggle { display: none; }
 .bn-q-no {
     flex: none;
     font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-    font-weight: 600; color: #5eead4;
+    font-weight: 600; color: #67e8f9;
 }
 .bn-q-text {
     min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     color: rgba(255,255,255,.72);
 }
 .bn-q-go { flex: none; margin-left: auto; color: rgba(255,255,255,.4); }
-.bn-q:hover .bn-q-go { color: #5eead4; }
+.bn-q:hover .bn-q-go { color: #67e8f9; }
 
 
 /* ============================================================
@@ -2895,7 +2964,7 @@ button.fp-toggle { display: none; }
 .bn-legend { margin-left: auto; display: flex; gap: .75rem; font-size: 0.6875rem; color: #94a3b8; }
 .bn-legend span { display: inline-flex; align-items: center; gap: .3125rem; }
 .bn-key { width: .5rem; height: .5rem; border-radius: .125rem; display: inline-block; }
-.bn-key.is-in  { background: #0d9488; }
+.bn-key.is-in  { background: #0891b2; }
 .bn-key.is-out { background: #f59e0b; }
 
 /* ---------- กรอบที่ ECharts วาดลงไป ----------
@@ -2943,13 +3012,13 @@ button.fp-toggle { display: none; }
 .bn-cf-btn:hover  { color: #0f172a; }
 .bn-cf-btn.is-on  {
     background: #fff;
-    color: #02776f;
+    color: #0e7490;
     font-weight: 600;
     box-shadow: 0 1px 2px rgba(15, 23, 42, .08);
 }
 .bn-cf-btn:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(2, 148, 136, .3);
+    box-shadow: 0 0 0 2px rgba(8, 145, 178, .3);
 }
 
 .bn-cf-range { display: inline-flex; align-items: center; gap: .375rem; }
@@ -2965,8 +3034,8 @@ button.fp-toggle { display: none; }
 }
 .bn-cf-date:focus {
     outline: none;
-    border-color: #029488;
-    box-shadow: 0 0 0 3px rgba(2, 148, 136, .14);
+    border-color: #0891b2;
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, .14);
 }
 .bn-cf-sep  { font-size: 0.6875rem; color: #94a3b8; }
 .bn-cf-warn { color: #b45309; }
@@ -2974,7 +3043,7 @@ button.fp-toggle { display: none; }
 .dark .bn-cf-quick, .dark .bn-cf-unit { border-color: #334155; background: #0f172a; }
 .dark .bn-cf-btn        { color: #94a3b8; }
 .dark .bn-cf-btn:hover  { color: #e2e8f0; }
-.dark .bn-cf-btn.is-on  { background: #1e293b; color: #71dbd2; }
+.dark .bn-cf-btn.is-on  { background: #1e293b; color: #67e8f9; }
 .dark .bn-cf-date       { border-color: #334155; background: #0f172a; color: #cbd5e1; }
 .dark .bn-cf-warn       { color: #fbbf24; }
 
@@ -3001,7 +3070,7 @@ button.fp-toggle { display: none; }
 
 .bn-code {
     font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-    font-size: 0.6875rem; font-weight: 600; color: #0f766e;
+    font-size: 0.6875rem; font-weight: 600; color: #0e7490;
 }
 
 .bn-low + .bn-low { margin-top: .75rem; }
@@ -3036,10 +3105,10 @@ button.fp-toggle { display: none; }
     font-size: 0.75rem; color: #475569;
     transition: background .15s, border-color .15s, color .15s;
 }
-.bn-link:hover { background: #f0fdfa; border-color: #99f6e4; color: #0f766e; }
+.bn-link:hover { background: #ecfeff; border-color: #a5f3fc; color: #0e7490; }
 .bn-link > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bn-link > i { flex: none; color: #94a3b8; }
-.bn-link:hover > i { color: #0f766e; }
+.bn-link:hover > i { color: #0e7490; }
 
 
 /* ============================================================
@@ -3057,7 +3126,7 @@ button.fp-toggle { display: none; }
     flex: none; display: flex; align-items: center; justify-content: center;
     width: 1.5rem; height: 1.5rem; border-radius: 999px;
 }
-.bn-move-mark.is-in     { background: #f0fdfa; color: #0f766e; }
+.bn-move-mark.is-in     { background: #ecfeff; color: #0e7490; }
 .bn-move-mark.is-out    { background: #fef3c7; color: #b45309; }
 .bn-move-mark.is-adjust { background: #f5f3ff; color: #7c3aed; }
 
@@ -3078,12 +3147,12 @@ button.fp-toggle { display: none; }
    โหมดมืด
    ============================================================ */
 .dark .bn-tile { background: #0f172a; border-color: #1e293b; }
-.dark .bn-tile.is-link:hover { border-color: rgba(2, 148, 136, .5); box-shadow: 0 10px 24px rgba(0,0,0,.4); }
+.dark .bn-tile.is-link:hover { border-color: rgba(8, 145, 178, .5); box-shadow: 0 10px 24px rgba(0,0,0,.4); }
 .dark .bn-dot { color: #334155; }
 
 .dark .bn-tile-head h3 { color: #e2e8f0; }
-.dark .bn-more { color: #5eead4; }
-.dark .bn-more:hover { background: rgba(2, 148, 136, .14); }
+.dark .bn-more { color: #67e8f9; }
+.dark .bn-more:hover { background: rgba(8, 145, 178, .14); }
 .dark .bn-blank { color: #64748b; }
 
 /* ไทล์ใหญ่เข้มอยู่แล้ว โหมดมืดแค่ลดความสว่างลงให้เข้ากับพื้นหลัง */
@@ -3097,14 +3166,14 @@ button.fp-toggle { display: none; }
 .dark .bn-stat.is-warn .bn-stat-note { color: #fbbf24; }
 
 .dark .bn-legend { color: #64748b; }
-.dark .bn-key.is-in  { background: #14b8a6; }
+.dark .bn-key.is-in  { background: #06b6d4; }
 .dark .bn-key.is-out { background: #fbbf24; }
 /* แท่ง CSS ของกราฟเดิมถูกแทนที่ด้วย ECharts แล้ว สีของกราฟอยู่ในตัวเลือก
    ของ ECharts ที่ assets/js/dashboard-chart.js ซึ่งอ่านโหมดมืดเองแล้ววาดใหม่ */
 .dark .bn-chart-foot { border-top-color: #1e293b; color: #94a3b8; }
 .dark .bn-chart-today { color: #64748b; }
 
-.dark .bn-code      { color: #5eead4; }
+.dark .bn-code      { color: #67e8f9; }
 .dark .bn-low-name  { color: #cbd5e1; }
 .dark .bn-low-min   { color: #475569; }
 .dark .bn-low-bar   { background: #1e293b; }
@@ -3112,13 +3181,13 @@ button.fp-toggle { display: none; }
 .dark .bn-low-qty.is-out { color: #f87171; }
 
 .dark .bn-link { border-color: #1e293b; color: #cbd5e1; }
-.dark .bn-link:hover { background: rgba(2, 148, 136, .14); border-color: rgba(2, 148, 136, .45); color: #5eead4; }
+.dark .bn-link:hover { background: rgba(8, 145, 178, .14); border-color: rgba(8, 145, 178, .45); color: #67e8f9; }
 .dark .bn-link > i { color: #64748b; }
-.dark .bn-link:hover > i { color: #5eead4; }
+.dark .bn-link:hover > i { color: #67e8f9; }
 
 .dark .bn-move + .bn-move { border-top-color: #1e293b; }
 .dark .bn-move-time { color: #64748b; }
-.dark .bn-move-mark.is-in     { background: rgba(2, 148, 136, .18); color: #5eead4; }
+.dark .bn-move-mark.is-in     { background: rgba(8, 145, 178, .18); color: #67e8f9; }
 .dark .bn-move-mark.is-out    { background: rgba(245, 158, 11, .18); color: #fbbf24; }
 .dark .bn-move-mark.is-adjust { background: rgba(139, 92, 246, .18); color: #c4b5fd; }
 .dark .bn-move-name { color: #e2e8f0; }
@@ -3197,7 +3266,7 @@ button.fp-toggle { display: none; }
 /* ---------- หัวรายงาน ---------- */
 .rc-head {
     padding-bottom: 1rem; margin-bottom: 1.25rem;
-    border-bottom: 2px solid #0f766e;
+    border-bottom: 2px solid #0e7490;
 }
 .rc-title  { font-size: 1.25rem; font-weight: 700; color: #0f172a; }
 .rc-sub    { margin-top: .25rem; font-size: 0.8125rem; color: #64748b; }
@@ -3212,7 +3281,7 @@ button.fp-toggle { display: none; }
     padding: .875rem 1rem;
     border: 1px solid #e2e8f0; border-radius: .875rem; background: #fff;
 }
-.rc-total.is-main { border-color: #0f766e; background: #f0fdfa; }
+.rc-total.is-main { border-color: #0e7490; background: #ecfeff; }
 
 .rc-total-cap { display: block; font-size: 0.75rem; color: #64748b; }
 .rc-total-num {
@@ -3220,7 +3289,7 @@ button.fp-toggle { display: none; }
     font-size: 1.5rem; font-weight: 700; color: #0f172a;
     text-align: left; line-height: 1.15;
 }
-.rc-total.is-main .rc-total-num { color: #0f766e; font-size: 1.75rem; }
+.rc-total.is-main .rc-total-num { color: #0e7490; font-size: 1.75rem; }
 .rc-total-sub { display: block; margin-top: .125rem; font-size: 0.6875rem; color: #94a3b8; }
 
 /* ---------- ส่วนของรายงาน ---------- */
@@ -3233,7 +3302,7 @@ button.fp-toggle { display: none; }
 .rc-no {
     display: inline-flex; align-items: center; justify-content: center;
     width: 1.5rem; height: 1.5rem; border-radius: .5rem;
-    background: #0f766e; color: #fff; font-size: 0.75rem; font-weight: 700;
+    background: #0e7490; color: #fff; font-size: 0.75rem; font-weight: 700;
 }
 .rc-note { margin: -.25rem 0 .5rem; font-size: 0.6875rem; color: #94a3b8; }
 
@@ -3270,7 +3339,7 @@ button.fp-toggle { display: none; }
 
 .rc-code {
     font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-    font-size: 0.75rem; color: #0f766e;
+    font-size: 0.75rem; color: #0e7490;
 }
 .rc-empty { padding: 1.5rem 1rem; text-align: center; color: #94a3b8; font-size: 0.8125rem; }
 
@@ -3381,28 +3450,28 @@ button.fp-toggle { display: none; }
 .dark .rc-bar-label { color: #cbd5e1; }
 .dark .rc-bar-hint  { color: #64748b; }
 .dark .rc-loading   { color: #94a3b8; }
-.dark .rc-head  { border-bottom-color: #14b8a6; }
+.dark .rc-head  { border-bottom-color: #06b6d4; }
 .dark .rc-title { color: #f1f5f9; }
 .dark .rc-sub   { color: #94a3b8; }
 .dark .rc-dot   { color: #334155; }
 .dark .rc-method { color: #64748b; }
 
 .dark .rc-total { background: #0f172a; border-color: #1e293b; }
-.dark .rc-total.is-main { border-color: rgba(2,148,136,.5); background: rgba(2,148,136,.12); }
+.dark .rc-total.is-main { border-color: rgba(8, 145, 178,.5); background: rgba(8, 145, 178,.12); }
 .dark .rc-total-cap { color: #94a3b8; }
 .dark .rc-total-num { color: #f1f5f9; }
-.dark .rc-total.is-main .rc-total-num { color: #5eead4; }
+.dark .rc-total.is-main .rc-total-num { color: #67e8f9; }
 .dark .rc-total-sub { color: #64748b; }
 
 .dark .rc-sec-title { color: #e2e8f0; }
-.dark .rc-no    { background: #0d9488; }
+.dark .rc-no    { background: #0891b2; }
 .dark .rc-note  { color: #64748b; }
 .dark .rc-table-wrap { background: #0f172a; border-color: #1e293b; }
 .dark .rc-table thead th { background: #1e293b; color: #cbd5e1; border-bottom-color: #334155; }
 .dark .rc-table tbody tr + tr td { border-top-color: #1e293b; }
 .dark .rc-table tbody tr:hover { background: #1e293b; }
 .dark .rc-table tfoot td { background: #1e293b; border-top-color: #475569; color: #f1f5f9; }
-.dark .rc-code  { color: #5eead4; }
+.dark .rc-code  { color: #67e8f9; }
 .dark .rc-empty { color: #64748b; }
 .dark .rc-sign-line { background: #334155; }
 .dark .rc-sign-cap  { color: #94a3b8; }
@@ -3418,7 +3487,7 @@ button.fp-toggle { display: none; }
     display: inline-flex; align-items: center; gap: .5rem;
     font-size: 0.8125rem; color: #475569; cursor: pointer; user-select: none;
 }
-.sp-check input { width: 1rem; height: 1rem; accent-color: #0f766e; cursor: pointer; }
+.sp-check input { width: 1rem; height: 1rem; accent-color: #0e7490; cursor: pointer; }
 
 .sp-wrap {
     position: relative;
@@ -3468,13 +3537,13 @@ button.fp-toggle { display: none; }
 .sp-table .sp-g-dept     { background: #fff; }
 .sp-table .sp-g-dept-alt { background: #f8fafc; }
 .sp-table .sp-g-out      { background: #fef3c7; }
-.sp-table .sp-g-close    { background: #f0fdfa; }
+.sp-table .sp-g-close    { background: #ecfeff; }
 
 .sp-table thead .sp-g-open  { color: #9a3412; }
 .sp-table thead .sp-g-buy   { color: #1d4ed8; }
 .sp-table thead .sp-g-adj   { color: #a16207; }
 .sp-table thead .sp-g-out   { color: #92400e; }
-.sp-table thead .sp-g-close { color: #0f766e; }
+.sp-table thead .sp-g-close { color: #0e7490; }
 
 /* ---------- คอลัมน์ที่ตรึงไว้ทางซ้าย ----------
    ความกว้างต้องคงที่ ไม่งั้นค่า left ของคอลัมน์ถัดไปจะคำนวณไม่ได้
@@ -3508,7 +3577,7 @@ button.fp-toggle { display: none; }
     pointer-events: none;
 }
 
-.sp-code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; color: #0f766e; }
+.sp-code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; color: #0e7490; }
 /* ช่องแจกแจงราคาที่ซื้อจริง อยู่กลางกลุ่ม "ซื้อเข้า"
    ชิดขวาให้เรียงกับตัวเลขข้าง ๆ และย่อขนาดลง เพราะเดือนที่ซื้อหลายล็อต
    ข้อความจะยาวกว่าช่องตัวเลขปกติหลายเท่า */
@@ -3598,7 +3667,7 @@ button.fp-toggle { display: none; }
 .sp-table tbody tr:hover .sp-g-adj   { background: #fef9c3; }
 .sp-table tbody tr:hover .sp-g-dept-alt { background: #f1f5f9; }
 .sp-table tbody tr:hover .sp-g-out   { background: #fde68a; }
-.sp-table tbody tr:hover .sp-g-close { background: #ccfbf1; }
+.sp-table tbody tr:hover .sp-g-close { background: #cffafe; }
 
 /* ---------- แถวรวมท้ายตาราง ---------- */
 .sp-table tfoot td {
@@ -3639,11 +3708,11 @@ button.fp-toggle { display: none; }
 .dark .sp-table thead .sp-g-buy   { color: #93c5fd; }
 .dark .sp-table thead .sp-g-adj   { color: #fde047; }
 .dark .sp-table thead .sp-g-out   { color: #fcd34d; }
-.dark .sp-table thead .sp-g-close { color: #5eead4; }
+.dark .sp-table thead .sp-g-close { color: #67e8f9; }
 
 .dark .sp-table .sp-fix-1 { color: #64748b; }
 .dark .sp-table .sp-fix-4 { color: #94a3b8; }
-.dark .sp-code  { color: #5eead4; }
+.dark .sp-code  { color: #67e8f9; }
 .dark .sp-zero  { color: #334155; }
 .dark .sp-table .sp-cat td { background: rgba(54,21,50,1); color: #fbcfe8; border-bottom-color: #831843; }
 /* ---------- แถวหัวหมวดหมู่ย่อย ----------
@@ -3688,7 +3757,7 @@ button.fp-toggle { display: none; }
     display: inline-flex; align-items: center; gap: .5rem;
     font-size: 0.8125rem; color: #475569; cursor: pointer; user-select: none;
 }
-.sp-export-opt input { width: 1rem; height: 1rem; accent-color: #0f766e; cursor: pointer; }
+.sp-export-opt input { width: 1rem; height: 1rem; accent-color: #0e7490; cursor: pointer; }
 .dark .sp-export-opt { color: #cbd5e1; }
 
 /* ---------- แผงเลือกคอลัมน์ ----------
@@ -3714,10 +3783,10 @@ button.fp-toggle { display: none; }
 
 .sp-cols-link {
     padding: .125rem .375rem; border: 0; border-radius: .375rem;
-    background: transparent; color: #0f766e;
+    background: transparent; color: #0e7490;
     font: inherit; font-size: 0.6875rem; font-weight: 500; cursor: pointer;
 }
-.sp-cols-link:hover { background: #f0fdfa; }
+.sp-cols-link:hover { background: #ecfeff; }
 
 .sp-cols-list { padding-top: .375rem; }
 
@@ -3728,7 +3797,7 @@ button.fp-toggle { display: none; }
 }
 .sp-cols-item:hover { background: #f8fafc; }
 .sp-cols-item.is-child { padding-left: 1.5rem; }
-.sp-cols-item input { margin-top: .1875rem; width: .9375rem; height: .9375rem; accent-color: #0f766e; cursor: pointer; }
+.sp-cols-item input { margin-top: .1875rem; width: .9375rem; height: .9375rem; accent-color: #0e7490; cursor: pointer; }
 .sp-cols-item small { display: block; font-size: 0.625rem; color: #94a3b8; }
 
 .sp-cols-sep {
@@ -3738,8 +3807,8 @@ button.fp-toggle { display: none; }
 
 .dark .sp-cols { background: #0f172a; border-color: #1e293b; box-shadow: 0 12px 32px rgba(0,0,0,.5); }
 .dark .sp-cols-head { color: #cbd5e1; border-bottom-color: #1e293b; }
-.dark .sp-cols-link { color: #5eead4; }
-.dark .sp-cols-link:hover { background: rgba(2,148,136,.16); }
+.dark .sp-cols-link { color: #67e8f9; }
+.dark .sp-cols-link:hover { background: rgba(8, 145, 178,.16); }
 .dark .sp-cols-item { color: #cbd5e1; }
 .dark .sp-cols-item:hover { background: #1e293b; }
 .dark .sp-cols-item small { color: #64748b; }
@@ -3777,14 +3846,14 @@ button.fp-toggle { display: none; }
     width: 2px; border-radius: 1px; background: transparent;
     transition: background .12s;
 }
-.sp-grip:hover::after { background: #0f766e; }
+.sp-grip:hover::after { background: #0e7490; }
 
 /* ระหว่างลาก ห้ามให้เมาส์ไปเลือกข้อความในตาราง ไม่งั้นจะลากติดแถบน้ำเงินไปด้วย */
 body.sp-resizing { cursor: col-resize; user-select: none; }
-body.sp-resizing .sp-grip::after { background: #0f766e; }
+body.sp-resizing .sp-grip::after { background: #0e7490; }
 
 .dark .sp-grip:hover::after,
-.dark body.sp-resizing .sp-grip::after { background: #5eead4; }
+.dark body.sp-resizing .sp-grip::after { background: #67e8f9; }
 
 /* กระดาษไม่มีอะไรให้ลาก */
 @media print { .sp-grip { display: none !important; } }
@@ -3797,8 +3866,8 @@ body.sp-resizing .sp-grip::after { background: #0f766e; }
 
 
 /* เงินในตารางเอกสาร (หน้ารับเข้า) */
-.doc-money { font-variant-numeric: tabular-nums; color: #0f766e; }
-.dark .doc-money { color: #5eead4; }
+.doc-money { font-variant-numeric: tabular-nums; color: #0e7490; }
+.dark .doc-money { color: #67e8f9; }
 
 
 /* ============================================================
@@ -3867,7 +3936,7 @@ body.sp-resizing .sp-grip::after { background: #0f766e; }
 /* เบิกใช้ = เงินออก, ซื้อเข้า = เงินเข้า ใช้สีชุดเดียวกับรายงานความเคลื่อนไหว
    จะได้ไม่ต้องจำใหม่ว่าสีไหนแปลว่าอะไรในแต่ละหน้า */
 .bn-money-cell.is-out .bn-money-num { color: #b45309; }
-.bn-money-cell.is-in  .bn-money-num { color: #0f766e; }
+.bn-money-cell.is-in  .bn-money-num { color: #0e7490; }
 
 .bn-money-top { margin-top: .875rem; }
 .bn-money-top-cap { font-size: 0.6875rem; color: #94a3b8; margin-bottom: .5rem; }
@@ -3883,18 +3952,18 @@ body.sp-resizing .sp-grip::after { background: #0f766e; }
     display: block; height: 4px; margin-top: .3125rem;
     border-radius: 999px; background: #f1f5f9; overflow: hidden;
 }
-.bn-dept-fill { display: block; height: 100%; border-radius: 999px; background: #0d9488; }
+.bn-dept-fill { display: block; height: 100%; border-radius: 999px; background: #0891b2; }
 
 .dark .bn-money-row { border-bottom-color: #1e293b; }
 .dark .bn-money-cap { color: #64748b; }
 .dark .bn-money-num { color: #f1f5f9; }
 .dark .bn-money-cell.is-out .bn-money-num { color: #fbbf24; }
-.dark .bn-money-cell.is-in  .bn-money-num { color: #5eead4; }
+.dark .bn-money-cell.is-in  .bn-money-num { color: #67e8f9; }
 .dark .bn-money-top-cap { color: #64748b; }
 .dark .bn-dept-name { color: #cbd5e1; }
 .dark .bn-dept-num  { color: #f1f5f9; }
 .dark .bn-dept-bar  { background: #1e293b; }
-.dark .bn-dept-fill { background: #14b8a6; }
+.dark .bn-dept-fill { background: #06b6d4; }
 
 /* จอแคบมาก ตัวเลขเงิน 3 ช่องเรียงกันจะแคบจนอ่านไม่ออก ให้เหลือ 1 ช่องต่อแถว */
 @media (max-width: 419px) {
@@ -3988,11 +4057,11 @@ body.sp-resizing .sp-grip::after { background: #0f766e; }
 }
 
 .driver-popover.hl-guide .driver-popover-next-btn {
-    background: #0d9488;
+    background: #0891b2;
     color: #ffffff;
 }
 .driver-popover.hl-guide .driver-popover-next-btn:hover {
-    background: #0f766e;
+    background: #0e7490;
 }
 
 .driver-popover.hl-guide .driver-popover-prev-btn {
@@ -4062,11 +4131,11 @@ body.sp-resizing .sp-grip::after { background: #0f766e; }
     background: none;
     transition: color 0.15s ease, border-color 0.15s ease;
 }
-.st-tab:hover        { color: #0f766e; }
-.st-tab.is-on        { color: #0f766e; border-bottom-color: #0d9488; }
+.st-tab:hover        { color: #0e7490; }
+.st-tab.is-on        { color: #0e7490; border-bottom-color: #0891b2; }
 .dark .st-tab        { color: #94a3b8; }
-.dark .st-tab:hover  { color: #5eead4; }
-.dark .st-tab.is-on  { color: #5eead4; border-bottom-color: #14b8a6; }
+.dark .st-tab:hover  { color: #67e8f9; }
+.dark .st-tab.is-on  { color: #67e8f9; border-bottom-color: #06b6d4; }
 
 .st-label {
     display: block;
@@ -4090,8 +4159,8 @@ body.sp-resizing .sp-grip::after { background: #0f766e; }
 }
 .st-input:focus {
     outline: none;
-    border-color: #0d9488;
-    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+    border-color: #0891b2;
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.15);
 }
 .st-input::placeholder { color: #94a3b8; }
 .dark .st-input {
@@ -4123,8 +4192,8 @@ body.sp-resizing .sp-grip::after { background: #0f766e; }
     cursor: not-allowed;
 }
 
-.st-btn-primary          { background: #0d9488; color: #ffffff; }
-.st-btn-primary:hover:not(:disabled) { background: #0f766e; }
+.st-btn-primary          { background: #0891b2; color: #ffffff; }
+.st-btn-primary:hover:not(:disabled) { background: #0e7490; }
 
 .st-btn {
     background: #f1f5f9;
@@ -4149,8 +4218,8 @@ body.sp-resizing .sp-grip::after { background: #0f766e; }
     color: #94a3b8;
     transition: background-color 0.15s ease, color 0.15s ease;
 }
-.st-icon-btn:hover { background: #f1f5f9; color: #0f766e; }
-.dark .st-icon-btn:hover { background: #1e293b; color: #5eead4; }
+.st-icon-btn:hover { background: #f1f5f9; color: #0e7490; }
+.dark .st-icon-btn:hover { background: #1e293b; color: #67e8f9; }
 
 /* ---------- จอแคบ ----------
    .st-pane เป็น flex item ต้องใส่ min-width: 0 ไม่งั้นไม่ยอมหดต่ำกว่าเนื้อหา
@@ -4214,9 +4283,9 @@ body.sp-resizing .sp-grip::after { background: #0f766e; }
     background: #f8fafc;
     font-size: 0.8125rem;
     font-weight: 700;
-    color: #0f766e;
+    color: #0e7490;
 }
-.dark .st-page-head { background: #020617; color: #5eead4; }
+.dark .st-page-head { background: #020617; color: #67e8f9; }
 
 /* ---------- แท็บของหน้าตั้งค่าระบบ ----------
    ทำไมไม่ใช้แอตทริบิวต์ hidden สลับแท็บเหมือนที่อื่น:
@@ -4262,12 +4331,12 @@ body.sp-resizing .sp-grip::after { background: #0f766e; }
     border-radius: .4rem;
     font-size: 0.6875rem;
     font-weight: 600;
-    color: #0f766e;
-    background: #f0fdfa;
-    border: 1px solid #99f6e4;
+    color: #0e7490;
+    background: #ecfeff;
+    border: 1px solid #a5f3fc;
     transition: background-color .15s ease;
 }
-.logo-btn:hover { background: #ccfbf1; }
+.logo-btn:hover { background: #cffafe; }
 
 .logo-btn.is-empty {
     color: #64748b;
@@ -4284,7 +4353,7 @@ body.sp-resizing .sp-grip::after { background: #0f766e; }
 }
 .logo-del:hover { background: #fee2e2; }
 
-.dark .logo-btn          { color: #5eead4; background: rgba(20,184,166,.12); border-color: rgba(20,184,166,.3); }
+.dark .logo-btn          { color: #67e8f9; background: rgba(6, 182, 212,.12); border-color: rgba(6, 182, 212,.3); }
 .dark .logo-btn.is-empty { color: #94a3b8; background: #1e293b; border-color: #334155; }
 .dark .logo-del          { color: #fca5a5; background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.3); }
 
@@ -4333,9 +4402,9 @@ body.sp-resizing .sp-grip::after { background: #0f766e; }
    ได้ด้วย สีพื้นเต็มแถวจะกินหมึกและอ่านยากบนกระดาษขาวดำ */
 tr.rc-drill { cursor: pointer; }
 tr.rc-drill td:first-child { text-decoration: underline dotted #94a3b8; text-underline-offset: 3px; }
-tr.rc-drill:hover td       { background: #f0fdfa; }
-tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
-.dark tr.rc-drill:hover td { background: rgba(20, 184, 166, .1); }
+tr.rc-drill:hover td       { background: #ecfeff; }
+tr.rc-drill:focus          { outline: 2px solid #06b6d4; outline-offset: -2px; }
+.dark tr.rc-drill:hover td { background: rgba(6, 182, 212, .1); }
 
 .rc-drill-empty { padding: 2.5rem 1rem; text-align: center; font-size: 0.875rem; color: #94a3b8; }
 .rc-drill-empty.is-bad { color: #dc2626; }
@@ -4347,9 +4416,9 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
    เป็นรายการหักกลับ ไม่ใช่ค่าใช้จ่ายที่เกิดขึ้นจริง */
 #rcDrillBody tr.is-cancel td { color: #94a3b8; text-decoration: line-through; }
 
-.rc-doc-link { color: #0d9488; font-weight: 600; text-decoration: underline; }
-.rc-doc-link:hover { color: #0f766e; }
-.dark .rc-doc-link { color: #5eead4; }
+.rc-doc-link { color: #0891b2; font-weight: 600; text-decoration: underline; }
+.rc-doc-link:hover { color: #0e7490; }
+.dark .rc-doc-link { color: #67e8f9; }
 
 /* ตอนสั่งพิมพ์ กล่องเจาะรายละเอียดกับคำแนะนำ "กดที่บรรทัด" ต้องหายไป
    เพราะกระดาษกดอะไรไม่ได้ */
@@ -4406,7 +4475,7 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
 }
 
 
-/* ---------- ประกาศฝ่ายธุรการ บนหน้าทำรายการเบิก ----------
+/* ---------- ประกาศฝ่ายทรัพยากรบุคคล บนหน้าทำรายการเบิก ----------
    จัดข้อความชิดซ้ายทั้งหมด ไม่ใช้ค่ากึ่งกลางของ SweetAlert2
    เพราะเป็นรายการเงื่อนไขหลายข้อ ซึ่งอ่านเป็นสายตาไล่ลงมาได้ต่อเมื่อ
    ทุกบรรทัดเริ่มที่ตำแหน่งเดียวกัน */
@@ -4449,7 +4518,7 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     content: '•';
     position: absolute;
     left: .25rem;
-    color: #0d9488;
+    color: #0891b2;
     font-weight: 700;
 }
 
@@ -4580,7 +4649,7 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     transition: background .15s, color .15s, border-color .15s;
 }
 .ack-copy:hover, .ack-open:hover { background: #f1f5f9; color: #0f172a; }
-.ack-copy:focus-visible, .ack-open:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(2, 148, 136, .25); }
+.ack-copy:focus-visible, .ack-open:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(8, 145, 178, .25); }
 
 /* ไอคอนสองตัวซ้อนกันในปุ่มเดียว สลับด้วยคลาสตอนคัดลอกสำเร็จ
    ไม่สั่ง lucide วาดไอคอนใหม่กลางคัน เพราะจะเห็นปุ่มว่างไปหนึ่งเฟรม */
@@ -4678,12 +4747,12 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     font-weight: 600;
 }
 .logo-tile.is-empty:hover {
-    border-color: #14b8a6;
-    background: #f0fdfa;
-    color: #0f766e;
+    border-color: #06b6d4;
+    background: #ecfeff;
+    color: #0e7490;
 }
 .dark .logo-tile.is-empty { border-color: #334155; background: #0f172a; color: #64748b; }
-.dark .logo-tile.is-empty:hover { border-color: #14b8a6; background: rgba(20,184,166,.1); color: #5eead4; }
+.dark .logo-tile.is-empty:hover { border-color: #06b6d4; background: rgba(6, 182, 212,.1); color: #67e8f9; }
 
 .logo-tile-cap { line-height: 1; }
 
@@ -4758,7 +4827,7 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
    ก่อนหน้านี้กล่องนี้ไม่ได้ใส่คลาส app-swal จึงได้พื้นขาวติดมาจากค่าเริ่มต้น
    ของไลบรารี แล้วตัวอักษรสีจางบนพื้นขาวก็อ่านแทบไม่ออก */
 .dark .rn-popup .rn-list li { color: #cbd5e1; }
-.dark .rn-popup .rn-list li::before { color: #5eead4; }
+.dark .rn-popup .rn-list li::before { color: #67e8f9; }
 
 /* ============================================================
    กล่องข้อความ (SweetAlert2) บนจอเล็ก
@@ -4882,9 +4951,9 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
 
 /* สีขอบซ้ายบอกความหมายของแต่ละช่องโดยไม่ต้องอ่าน
    เขียว = ผลรวมที่เบิกได้จริง / เทา = ของกลาง / ฟ้าเข้ม = ที่กันไว้ */
-.pd-stat.is-total { border-left-color: #0d9488; }
-.pd-stat.is-total .pd-stat-num { color: #0f766e; }
-.dark .pd-stat.is-total .pd-stat-num { color: #5eead4; }
+.pd-stat.is-total { border-left-color: #0891b2; }
+.pd-stat.is-total .pd-stat-num { color: #0e7490; }
+.dark .pd-stat.is-total .pd-stat-num { color: #67e8f9; }
 
 .pd-stat.is-own { border-left-color: #6366f1; }
 .pd-stat.is-own .pd-stat-num { color: #4f46e5; }
@@ -4986,9 +5055,9 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     line-height: 1.5;
     color: #64748b;
 }
-.pd-bar-hint b { color: #0f766e; font-weight: 600; }
+.pd-bar-hint b { color: #0e7490; font-weight: 600; }
 .dark .pd-bar-hint   { color: #94a3b8; }
-.dark .pd-bar-hint b { color: #5eead4; }
+.dark .pd-bar-hint b { color: #67e8f9; }
 
 /* ---------- ตัวเลขสรุปแบบชิป ----------
    ให้ข้อมูลเท่าไทล์ใหญ่เดิม แต่สูง 24px แทน 78px
@@ -5019,10 +5088,10 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
 .dark .pd-chip { background: #1e293b; color: #94a3b8; }
 .dark .pd-chip-num { color: #f1f5f9; }
 
-.pd-chip.is-total          { background: #ccfbf1; color: #0f766e; }
-.pd-chip.is-total .pd-chip-num { color: #0f766e; }
-.dark .pd-chip.is-total    { background: rgba(20,184,166,.15); color: #5eead4; }
-.dark .pd-chip.is-total .pd-chip-num { color: #5eead4; }
+.pd-chip.is-total          { background: #cffafe; color: #0e7490; }
+.pd-chip.is-total .pd-chip-num { color: #0e7490; }
+.dark .pd-chip.is-total    { background: rgba(6, 182, 212,.15); color: #67e8f9; }
+.dark .pd-chip.is-total .pd-chip-num { color: #67e8f9; }
 
 .pd-chip.is-own            { background: #e0e7ff; color: #4338ca; }
 .pd-chip.is-own .pd-chip-num { color: #4338ca; }
@@ -5127,7 +5196,7 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
    หน้าตาแยกจากแถวข้อมูลให้ชัด: มีไทล์ไอคอน แถบสีด้านซ้าย และพื้นหลัง
    ไล่เฉด เพื่อให้กวาดตาแล้วแยกออกทันทีว่าบรรทัดไหนเป็นหัวข้อ บรรทัดไหนเป็นเมนู
 
-   สีทั้งหมดยึดจาก brand ใน assets/js/tailwind.config.js (#029488)
+   สีทั้งหมดยึดจาก brand ใน assets/js/tailwind.config.js (#0891b2)
    ============================================================ */
 .tabulator .tabulator-row.tabulator-group {
     position: relative;
@@ -5163,12 +5232,12 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     background: transparent;
     transition: background .18s ease;
 }
-.tabulator .tabulator-row.tabulator-group:hover::before { background: #a9ebe4; }
+.tabulator .tabulator-row.tabulator-group:hover::before { background: #a5f3fc; }
 .tabulator .tabulator-row.tabulator-group.tabulator-group-visible {
     background: #ffffff;
-    border-bottom-color: #d5f5f1;
+    border-bottom-color: #cffafe;
 }
-.tabulator .tabulator-row.tabulator-group.tabulator-group-visible::before { background: #029488; }
+.tabulator .tabulator-row.tabulator-group.tabulator-group-visible::before { background: #0891b2; }
 
 .pg-head {
     display: flex;
@@ -5209,9 +5278,9 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
 }
 .pg-ico svg { width: 17px; height: 17px; }
 .tabulator-group-visible .pg-ico {
-    border-color: #a9ebe4;
-    background: #effbf9;
-    color: #02776f;
+    border-color: #a5f3fc;
+    background: #ecfeff;
+    color: #0e7490;
 }
 
 .pg-title {
@@ -5247,8 +5316,8 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     transition: transform .2s ease, background .15s ease, color .15s ease;
 }
 .pg-chev svg { width: 16px; height: 16px; }
-.tabulator-group:hover .pg-chev   { background: #d5f5f1; color: #02776f; }
-.tabulator-group-visible .pg-chev { transform: rotate(180deg); color: #029488; }
+.tabulator-group:hover .pg-chev   { background: #cffafe; color: #0e7490; }
+.tabulator-group-visible .pg-chev { transform: rotate(180deg); color: #0891b2; }
 
 /* ---------- โหมดมืด ---------- */
 .dark .tabulator .tabulator-row.tabulator-group {
@@ -5260,23 +5329,23 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
 }
 .dark .tabulator .tabulator-row.tabulator-group.tabulator-group-visible {
     background: #16202f;
-    border-bottom-color: rgba(2, 148, 136, .35);
+    border-bottom-color: rgba(8, 145, 178, .35);
 }
-.dark .tabulator .tabulator-row.tabulator-group:hover::before { background: rgba(2, 148, 136, .5); }
-.dark .tabulator .tabulator-row.tabulator-group.tabulator-group-visible::before { background: #33c1b8; }
+.dark .tabulator .tabulator-row.tabulator-group:hover::before { background: rgba(8, 145, 178, .5); }
+.dark .tabulator .tabulator-row.tabulator-group.tabulator-group-visible::before { background: #22d3ee; }
 
 .dark .pg-ico { border-color: #334155; background: #0f172a; color: #94a3b8; }
 .dark .tabulator-group-visible .pg-ico {
     border-color: rgba(51, 193, 184, .4);
-    background: rgba(2, 148, 136, .14);
-    color: #71dbd2;
+    background: rgba(8, 145, 178, .14);
+    color: #67e8f9;
 }
 .dark .pg-name    { color: #f1f5f9; }
 .dark .pg-count   { color: #64748b; }
 .dark .pg-count b { color: #94a3b8; }
 
-.dark .tabulator-group:hover .pg-chev   { background: rgba(2, 148, 136, .22); color: #71dbd2; }
-.dark .tabulator-group-visible .pg-chev { color: #33c1b8; }
+.dark .tabulator-group:hover .pg-chev   { background: rgba(8, 145, 178, .22); color: #67e8f9; }
+.dark .tabulator-group-visible .pg-chev { color: #22d3ee; }
 
 /* ============================================================
    ช่องชื่อเมนูในตารางสิทธิ์
@@ -5365,19 +5434,19 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
 .rowact:hover { background: #f1f5f9; color: #0f172a; border-color: #e2e8f0; }
 .rowact:focus-visible {
     outline: none;
-    border-color: #029488;
-    box-shadow: 0 0 0 3px rgba(2, 148, 136, .18);
+    border-color: #0891b2;
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, .18);
 }
 
 /* สีบอกน้ำหนักของการกระทำ ไม่ใช่บอกประเภทของปุ่ม
    เขียว = เดินงานต่อ / แดง = ทำแล้วย้อนยาก / เทา = ดูหรือพิมพ์ ไม่เปลี่ยนอะไร
    ระบายเฉพาะตอนชี้ ไม่ระบายตลอดเวลา ไม่งั้นแถวหนึ่งจะมีสามสีแข่งกันเรียกสายตา */
-.rowact.is-ok:hover  { background: #effbf9; color: #02776f; border-color: #a9ebe4; }
+.rowact.is-ok:hover  { background: #ecfeff; color: #0e7490; border-color: #a5f3fc; }
 .rowact.is-bad:hover { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
 
 .dark .rowact        { color: #94a3b8; }
 .dark .rowact:hover  { background: #1e293b; color: #e2e8f0; border-color: #334155; }
-.dark .rowact.is-ok:hover  { background: rgba(2, 148, 136, .16); color: #71dbd2; border-color: rgba(51, 193, 184, .4); }
+.dark .rowact.is-ok:hover  { background: rgba(8, 145, 178, .16); color: #67e8f9; border-color: rgba(51, 193, 184, .4); }
 .dark .rowact.is-bad:hover { background: rgba(220, 38, 38, .14); color: #fca5a5; border-color: rgba(248, 113, 113, .35); }
 
 /* ช่องนี้มีปุ่มติดกันหลายอัน ตัดช่องว่างซ้ายขวาของช่องออกเพื่อให้ได้ที่คืนมา */
@@ -5427,11 +5496,11 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
 .rowmenu-item:focus-visible {
     outline: none;
     background: #f1f5f9;
-    box-shadow: inset 0 0 0 2px rgba(2, 148, 136, .35);
+    box-shadow: inset 0 0 0 2px rgba(8, 145, 178, .35);
 }
-.rowmenu-item.is-ok         { color: #02776f; }
+.rowmenu-item.is-ok         { color: #0e7490; }
 .rowmenu-item.is-ok > svg   { color: #059669; }
-.rowmenu-item.is-ok:hover   { background: #effbf9; }
+.rowmenu-item.is-ok:hover   { background: #ecfeff; }
 .rowmenu-item.is-bad        { color: #b91c1c; }
 .rowmenu-item.is-bad > svg  { color: #dc2626; }
 .rowmenu-item.is-bad:hover  { background: #fef2f2; }
@@ -5444,9 +5513,9 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
 .dark .rowmenu-item        { color: #cbd5e1; }
 .dark .rowmenu-item > svg  { color: #94a3b8; }
 .dark .rowmenu-item:hover  { background: #1e293b; color: #e2e8f0; }
-.dark .rowmenu-item.is-ok        { color: #71dbd2; }
+.dark .rowmenu-item.is-ok        { color: #67e8f9; }
 .dark .rowmenu-item.is-ok > svg  { color: #34d399; }
-.dark .rowmenu-item.is-ok:hover  { background: rgba(2, 148, 136, .16); }
+.dark .rowmenu-item.is-ok:hover  { background: rgba(8, 145, 178, .16); }
 .dark .rowmenu-item.is-bad        { color: #fca5a5; }
 .dark .rowmenu-item.is-bad > svg  { color: #f87171; }
 .dark .rowmenu-item.is-bad:hover  { background: rgba(220, 38, 38, .14); }
@@ -5541,12 +5610,12 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
     box-shadow: 0 1px 2px rgba(15, 23, 42, .25);
     transition: transform .18s ease;
 }
-.noti-switch.is-on               { background: #029488; }
+.noti-switch.is-on               { background: #0891b2; }
 .noti-switch.is-on .noti-switch-dot { transform: translateX(16px); }
 
 .noti-switch:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(2, 148, 136, .25);
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, .25);
 }
 .noti-switch[disabled] {
     opacity: .45;
@@ -5554,7 +5623,7 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
 }
 
 .dark .noti-switch          { background: #475569; }
-.dark .noti-switch.is-on    { background: #029488; }
+.dark .noti-switch.is-on    { background: #0891b2; }
 .dark .noti-switch-dot      { background: #e2e8f0; }
 
 /* แถบสวิตช์บนหน้าการแจ้งเตือนทั้งหมด (pages/notifications.php) */
@@ -5574,21 +5643,21 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
 .nt-desk-test {
     flex: none;
     padding: .3rem .6rem;
-    border: 1px solid #a9ebe4;
+    border: 1px solid #a5f3fc;
     border-radius: .5rem;
-    background: #effbf9;
+    background: #ecfeff;
     font-family: inherit;
     font-size: 0.75rem;
     font-weight: 600;
-    color: #02776f;
+    color: #0e7490;
     cursor: pointer;
 }
-.nt-desk-test:hover { background: #d5f5f1; }
+.nt-desk-test:hover { background: #cffafe; }
 
 .dark .nt-desk       { border-color: #334155; background: #0f172a; }
 .dark .nt-desk-title { color: #e2e8f0; }
 .dark .nt-desk-hint  { color: #64748b; }
-.dark .nt-desk-test  { border-color: rgba(51,193,184,.4); background: rgba(2,148,136,.14); color: #71dbd2; }
+.dark .nt-desk-test  { border-color: rgba(51,193,184,.4); background: rgba(8, 145, 178,.14); color: #67e8f9; }
 
 /* จอแคบ: เหลือแค่สวิตช์กับหัวข้อ คำอธิบายยาวเกินไปสำหรับที่ที่มี */
 @media (max-width: 640px) {
@@ -5652,14 +5721,14 @@ tr.rc-drill:focus          { outline: 2px solid #14b8a6; outline-offset: -2px; }
    (รอบก่อนบังคับเป็น 10px ทำให้ไทล์มุมมน 16px เปลี่ยนรูปตอนถูกไฮไลต์)
    ============================================================ */
 .driver-active-element {
-    box-shadow: inset 0 0 0 3px #029488 !important;
+    box-shadow: inset 0 0 0 3px #0891b2 !important;
 }
 
 /* โหมดมืดต้องแรงกว่า เพราะฉากหลังกับตัวที่ไฮไลต์เข้มพอ ๆ กัน
    เพิ่มแสงฟุ้งเข้าด้านในเพื่อยกความสว่างของตัวมันเองขึ้นมาด้วย
    ไม่ใช่แค่ตีเส้นขอบอย่างเดียว */
 .dark .driver-active-element {
-    box-shadow: inset 0  0 0 3px #33c1b8,
+    box-shadow: inset 0  0 0 3px #22d3ee,
                 inset 0  0 32px 4px rgba(51, 193, 184, .22) !important;
 }
 
@@ -5816,12 +5885,12 @@ button.bc-side-toggle { display: none; }
     transition: background .12s;
 }
 .bc-item:hover { background: #f8fafc; }
-.bc-item.is-on { background: #effbf9; }
+.bc-item.is-on { background: #ecfeff; }
 
 .bc-item-code {
     font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
     font-size: 0.78125rem;
-    color: #0f766e;
+    color: #0e7490;
 }
 .bc-item-name {
     font-size: 0.8125rem; color: #334155;
@@ -5831,14 +5900,14 @@ button.bc-side-toggle { display: none; }
 .bc-none { padding: 2rem; text-align: center; font-size: 0.8125rem; color: #94a3b8; }
 
 .bc-check {
-    width: 1rem; height: 1rem; accent-color: #029488; cursor: pointer;
+    width: 1rem; height: 1rem; accent-color: #0891b2; cursor: pointer;
 }
 
 .bc-toggle {
     display: flex; align-items: center; gap: .625rem;
     font-size: 0.8125rem; color: #475569; cursor: pointer;
 }
-.bc-toggle input { width: 1rem; height: 1rem; accent-color: #029488; cursor: pointer; }
+.bc-toggle input { width: 1rem; height: 1rem; accent-color: #0891b2; cursor: pointer; }
 
 /* ---------- แผ่นฉลาก ----------
    ขนาดดวงกำหนดเป็นมิลลิเมตรจาก JS ผ่านตัวแปร --bc-w / --bc-h
@@ -5919,14 +5988,14 @@ button.bc-side-toggle { display: none; }
     opacity: .5; transition: opacity .12s, background .12s, color .12s;
 }
 .bc-cell:hover .bc-dl { opacity: 1; }
-.bc-dl:hover { background: #effbf9; color: #0f766e; opacity: 1; }
+.bc-dl:hover { background: #ecfeff; color: #0e7490; opacity: 1; }
 
 /* ---------- โหมดมืด ----------
    ตัวฉลากเองไม่เปลี่ยนสี ยังเป็นดำบนขาวเสมอ เพราะมันคือสิ่งที่จะถูกพิมพ์จริง
    เปลี่ยนแค่พื้นรอบ ๆ กับตัวหนังสือในรายการ */
 .dark .bc-item:hover { background: rgba(148, 163, 184, .12); }
-.dark .bc-item.is-on { background: rgba(2, 148, 136, .18); }
-.dark .bc-item-code  { color: #5eead4; }
+.dark .bc-item.is-on { background: rgba(8, 145, 178, .18); }
+.dark .bc-item-code  { color: #67e8f9; }
 .dark .bc-item-name  { color: #cbd5e1; }
 .dark .bc-toggle     { color: #cbd5e1; }
 .dark .bc-sheet-scroll { background: #0f172a; }
@@ -6014,11 +6083,11 @@ button.bc-side-toggle { display: none; }
 /* ขอบเขียวหนาตอนเคอร์เซอร์อยู่ในช่อง — ต้องดูออกจากอีกฝั่งห้องว่าพร้อมยิงแล้ว
    เพราะคนยิงยืนอยู่ที่ชั้นวางของ ไม่ได้นั่งอยู่หน้าจอ */
 .doc-scan:focus-within {
-    border-color: #029488;
-    box-shadow: 0 0 0 4px rgba(2, 148, 136, .15);
+    border-color: #0891b2;
+    box-shadow: 0 0 0 4px rgba(8, 145, 178, .15);
 }
 .doc-scan-icon { display: flex; color: #94a3b8; }
-.doc-scan:focus-within .doc-scan-icon { color: #029488; }
+.doc-scan:focus-within .doc-scan-icon { color: #0891b2; }
 
 .doc-scan-input {
     flex: 1 1 auto; width: 100%; min-width: 0; height: 100%;
@@ -6120,7 +6189,7 @@ button.bc-side-toggle { display: none; }
     font-size: 0.8125rem; color: #475569;
     text-align: center;
 }
-.scan-cam-msg.is-ok  { background: #effbf9; color: #0f766e; font-weight: 600; }
+.scan-cam-msg.is-ok  { background: #ecfeff; color: #0e7490; font-weight: 600; }
 .scan-cam-msg.is-bad { background: #fef2f2; color: #b91c1c; font-weight: 600; }
 
 .dark .scan-cam-box   { background: #0f172a; }
@@ -6129,7 +6198,7 @@ button.bc-side-toggle { display: none; }
 .dark .scan-cam-icon  { color: #94a3b8; }
 .dark .scan-cam-icon:hover { background: #1e293b; color: #f1f5f9; }
 .dark .scan-cam-msg   { border-top-color: #1e293b; color: #cbd5e1; }
-.dark .scan-cam-msg.is-ok  { background: rgba(2, 148, 136, .18); color: #5eead4; }
+.dark .scan-cam-msg.is-ok  { background: rgba(8, 145, 178, .18); color: #67e8f9; }
 .dark .scan-cam-msg.is-bad { background: rgba(220, 38, 38, .15); color: #fca5a5; }
 
 @media print { .scan-cam { display: none !important; } }
@@ -6154,10 +6223,10 @@ button.bc-side-toggle { display: none; }
 
 /* ---------- โหมดมืด ---------- */
 .dark .doc-scan            { border-color: #334155; background: #1e293b; }
-.dark .doc-scan:focus-within { border-color: #2dd4bf; box-shadow: 0 0 0 4px rgba(45, 212, 191, .18); }
+.dark .doc-scan:focus-within { border-color: #22d3ee; box-shadow: 0 0 0 4px rgba(45, 212, 191, .18); }
 .dark .doc-scan-input      { color: #e2e8f0; }
 .dark .doc-scan-icon       { color: #64748b; }
-.dark .doc-scan:focus-within .doc-scan-icon { color: #5eead4; }
+.dark .doc-scan:focus-within .doc-scan-icon { color: #67e8f9; }
 .dark .doc-scan-msg.is-ok  { background: rgba(16, 185, 129, .16); color: #6ee7b7; }
 .dark .doc-scan-msg.is-bad { background: rgba(239, 68, 68, .16); color: #fca5a5; }
 .dark .tabulator .tabulator-row.row-scanned { animation: docScanFlashDark 1.2s ease-out; }
@@ -6192,7 +6261,7 @@ button.bc-side-toggle { display: none; }
     display: flex; align-items: center; justify-content: center;
     width: 2.5rem; height: 2.5rem; flex: none;
     border-radius: .875rem;
-    background: #effbf9; color: #0f766e;
+    background: #ecfeff; color: #0e7490;
 }
 .nt-head-title {
     margin: 0;
@@ -6203,7 +6272,7 @@ button.bc-side-toggle { display: none; }
     font-size: 0.78125rem; color: #64748b;
 }
 .nt-head-sub b  { color: #334155; font-weight: 600; }
-.nt-head-unread { color: #0f766e !important; }
+.nt-head-unread { color: #0e7490 !important; }
 
 .nt-head-acts { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-left: auto; }
 
@@ -6294,10 +6363,10 @@ button.bc-side-toggle { display: none; }
    ระบายทั้งใบแล้วพอมีหลายรายการติดกันจะกลายเป็นพื้นสีผืนใหญ่
    จนแยกไม่ออกว่ามีกี่รายการ ส่วนแถบชิดซ้ายนับจำนวนได้ด้วยตาทันที */
 .nt-card.is-new {
-    border-color: #a9ebe4;
-    box-shadow: inset 3px 0 0 #029488;
+    border-color: #a5f3fc;
+    box-shadow: inset 3px 0 0 #0891b2;
 }
-.nt-card.is-new:hover { box-shadow: inset 3px 0 0 #029488, 0 4px 14px -6px rgba(2, 148, 136, .3); }
+.nt-card.is-new:hover { box-shadow: inset 3px 0 0 #0891b2, 0 4px 14px -6px rgba(8, 145, 178, .3); }
 
 .nt-card-icon {
     display: flex; align-items: center; justify-content: center;
@@ -6313,7 +6382,7 @@ button.bc-side-toggle { display: none; }
 }
 .nt-dot {
     flex: none; width: .5rem; height: .5rem; margin-top: .3125rem;
-    border-radius: 999px; background: #029488;
+    border-radius: 999px; background: #0891b2;
 }
 .nt-card-msg {
     display: block; margin-top: .1875rem;
@@ -6332,7 +6401,7 @@ button.bc-side-toggle { display: none; }
     color: #cbd5e1;
     transition: color .15s, transform .15s;
 }
-.nt-card:hover .nt-card-go { color: #0f766e; transform: translateX(2px); }
+.nt-card:hover .nt-card-go { color: #0e7490; transform: translateX(2px); }
 
 /* ---------- ไม่มีรายการ / สถานะ / ท้ายรายการ ---------- */
 .nt-empty {
@@ -6364,11 +6433,11 @@ button.bc-side-toggle { display: none; }
 
 /* ---------- โหมดมืด ---------- */
 .dark .nt-head        { border-color: #1e293b; background: #0f172a; }
-.dark .nt-head-icon   { background: rgba(2, 148, 136, .18); color: #5eead4; }
+.dark .nt-head-icon   { background: rgba(8, 145, 178, .18); color: #67e8f9; }
 .dark .nt-head-title  { color: #f1f5f9; }
 .dark .nt-head-sub    { color: #94a3b8; }
 .dark .nt-head-sub b  { color: #e2e8f0; }
-.dark .nt-head-unread { color: #5eead4 !important; }
+.dark .nt-head-unread { color: #67e8f9 !important; }
 
 .dark .nt-btn         { border-color: #334155; background: #1e293b; color: #cbd5e1; }
 .dark .nt-btn:hover:not(:disabled) { background: #293548; border-color: #475569; }
@@ -6383,14 +6452,14 @@ button.bc-side-toggle { display: none; }
 
 .dark .nt-card        { border-color: #1e293b; background: #0f172a; }
 .dark .nt-card:hover  { border-color: #334155; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, .6); }
-.dark .nt-card.is-new { border-color: rgba(2, 148, 136, .45); box-shadow: inset 3px 0 0 #2dd4bf; }
-.dark .nt-card.is-new:hover { box-shadow: inset 3px 0 0 #2dd4bf, 0 4px 14px -6px rgba(0, 0, 0, .6); }
+.dark .nt-card.is-new { border-color: rgba(8, 145, 178, .45); box-shadow: inset 3px 0 0 #22d3ee; }
+.dark .nt-card.is-new:hover { box-shadow: inset 3px 0 0 #22d3ee, 0 4px 14px -6px rgba(0, 0, 0, .6); }
 .dark .nt-card-title  { color: #f1f5f9; }
 .dark .nt-card-msg    { color: #94a3b8; }
 .dark .nt-card-time   { color: #64748b; }
-.dark .nt-dot         { background: #2dd4bf; }
+.dark .nt-dot         { background: #22d3ee; }
 .dark .nt-card-go     { color: #475569; }
-.dark .nt-card:hover .nt-card-go { color: #5eead4; }
+.dark .nt-card:hover .nt-card-go { color: #67e8f9; }
 
 .dark .nt-empty       { border-color: #1e293b; background: #0f172a; }
 .dark .nt-empty-icon  { background: #1e293b; color: #64748b; }
@@ -6482,11 +6551,11 @@ button.bc-side-toggle { display: none; }
     border-radius: .5rem;
     background: #fff;
     border: 1px solid #e2e8f0;
-    font-size: 0.71875rem; font-weight: 600; color: #0f766e;
+    font-size: 0.71875rem; font-weight: 600; color: #0e7490;
     white-space: nowrap;
     transition: background .15s, border-color .15s;
 }
-.bn-health-go:hover { background: #effbf9; border-color: #a9ebe4; }
+.bn-health-go:hover { background: #ecfeff; border-color: #a5f3fc; }
 
 /* หมายเหตุใต้ไทล์เงิน — บอกว่าตัวเลขข้างบนคิดจากฐานที่ไม่ครบ */
 .bn-money-caveat {
@@ -6510,8 +6579,8 @@ button.bc-side-toggle { display: none; }
 .dark .bn-health-ico.is-money { background: rgba(245, 158, 11, .18); color: #fcd34d; }
 .dark .bn-health-ico.is-warn  { background: rgba(239, 68, 68, .18); color: #fca5a5; }
 .dark .bn-health-ico.is-info  { background: rgba(56, 189, 248, .18); color: #7dd3fc; }
-.dark .bn-health-go         { background: #1e293b; border-color: #334155; color: #5eead4; }
-.dark .bn-health-go:hover   { background: rgba(2, 148, 136, .2); border-color: rgba(45, 212, 191, .45); }
+.dark .bn-health-go         { background: #1e293b; border-color: #334155; color: #67e8f9; }
+.dark .bn-health-go:hover   { background: rgba(8, 145, 178, .2); border-color: rgba(45, 212, 191, .45); }
 .dark .bn-money-caveat      { border-color: #1e293b; color: #64748b; }
 .dark .bn-money-caveat b    { color: #94a3b8; }
 
@@ -6574,7 +6643,7 @@ button.bc-side-toggle { display: none; }
     display: flex; align-items: baseline; gap: .5rem;
     min-width: 0;
 }
-.bn-tasks .bn-q-no   { flex: none; color: #0f766e; }
+.bn-tasks .bn-q-no   { flex: none; color: #0e7490; }
 .bn-tasks .bn-q-text {
     flex: 1 1 auto; min-width: 0;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -6586,15 +6655,15 @@ button.bc-side-toggle { display: none; }
     font-size: 0.6875rem; color: #94a3b8;
 }
 .bn-tasks .bn-q-go { align-self: center; color: #cbd5e1; }
-.bn-tasks .bn-q:hover .bn-q-go { color: #0f766e; }
+.bn-tasks .bn-q:hover .bn-q-go { color: #0e7490; }
 
 .dark .bn-tasks .bn-q          { color: #cbd5e1; }
 .dark .bn-tasks .bn-q:hover    { background: rgba(148, 163, 184, .12); }
-.dark .bn-tasks .bn-q-no       { color: #5eead4; }
+.dark .bn-tasks .bn-q-no       { color: #67e8f9; }
 .dark .bn-tasks .bn-q-text     { color: #e2e8f0; }
 .dark .bn-tasks .bn-q-company  { color: #64748b; }
 .dark .bn-tasks .bn-q-go       { color: #475569; }
-.dark .bn-tasks .bn-q:hover .bn-q-go { color: #5eead4; }
+.dark .bn-tasks .bn-q:hover .bn-q-go { color: #67e8f9; }
 
 /* ---------- ปุ่มเลือกชนิดรหัส (บาร์โค้ด / QR) ----------
    ใช้ปุ่มสองอันติดกันแทน select เพราะมีแค่สองตัวเลือกและสลับบ่อย
@@ -6615,14 +6684,14 @@ button.bc-side-toggle { display: none; }
 }
 .bc-type-btn:hover { color: #334155; }
 .bc-type-btn.is-on {
-    background: #fff; color: #0f766e;
+    background: #fff; color: #0e7490;
     box-shadow: 0 1px 3px rgba(15, 23, 42, .12);
 }
 
 .dark .bc-type          { border-color: #334155; background: #0f172a; }
 .dark .bc-type-btn      { color: #64748b; }
 .dark .bc-type-btn:hover{ color: #cbd5e1; }
-.dark .bc-type-btn.is-on{ background: #1e293b; color: #5eead4; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
+.dark .bc-type-btn.is-on{ background: #1e293b; color: #67e8f9; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
 
 
 
@@ -6894,12 +6963,12 @@ button.bc-side-toggle { display: none; }
     transition: border-color .15s, background-color .15s, box-shadow .15s;
 }
 .fs-level:hover { border-color: #94a3b8; }
-.fs-level:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(2, 148, 136, .25); }
+.fs-level:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(8, 145, 178, .25); }
 
 .fs-level.is-on {
-    border-color: #029488;
-    background: #effbf9;
-    box-shadow: inset 0 0 0 1px #029488;
+    border-color: #0891b2;
+    background: #ecfeff;
+    box-shadow: inset 0 0 0 1px #0891b2;
 }
 
 /* ตัวอย่างในปุ่มตั้งขนาดด้วย % ของตัวเอง (ดู inline style ใน php)
@@ -6916,16 +6985,16 @@ button.bc-side-toggle { display: none; }
 .fs-level-title { display: block; margin-top: .375rem; font-size: 13px; font-weight: 600; color: #334155; }
 .fs-level-value { display: block; font-size: 11px; color: #94a3b8; }
 
-.fs-level.is-on .fs-level-title { color: #055f59; }
-.fs-level.is-on .fs-level-value { color: #029488; }
+.fs-level.is-on .fs-level-title { color: #155e75; }
+.fs-level.is-on .fs-level-value { color: #0891b2; }
 
 .dark .fs-level               { border-color: #334155; background: #0f172a; }
 .dark .fs-level:hover         { border-color: #64748b; }
-.dark .fs-level.is-on         { border-color: #33c1b8; background: rgba(2, 148, 136, .12); box-shadow: inset 0 0 0 1px #33c1b8; }
+.dark .fs-level.is-on         { border-color: #22d3ee; background: rgba(8, 145, 178, .12); box-shadow: inset 0 0 0 1px #22d3ee; }
 .dark .fs-level-sample        { color: #e2e8f0; }
 .dark .fs-level-title         { color: #cbd5e1; }
-.dark .fs-level.is-on .fs-level-title { color: #71dbd2; }
-.dark .fs-level.is-on .fs-level-value { color: #33c1b8; }
+.dark .fs-level.is-on .fs-level-title { color: #67e8f9; }
+.dark .fs-level.is-on .fs-level-value { color: #22d3ee; }
 
 
 /* ---------- ปรับละเอียด ---------- */
@@ -6941,7 +7010,7 @@ button.bc-side-toggle { display: none; }
     transition: background-color .15s, border-color .15s, color .15s;
 }
 .fs-step:hover { background: #f1f5f9; color: #0f172a; }
-.fs-step:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(2, 148, 136, .25); }
+.fs-step:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(8, 145, 178, .25); }
 .dark .fs-step       { border-color: #334155; background: #1e293b; color: #cbd5e1; }
 .dark .fs-step:hover { background: #334155; color: #f1f5f9; }
 
@@ -6959,7 +7028,7 @@ button.bc-side-toggle { display: none; }
     background: #e2e8f0;
     cursor: pointer;
 }
-.fs-slider:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(2, 148, 136, .25); }
+.fs-slider:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(8, 145, 178, .25); }
 .dark .fs-slider { background: #334155; }
 
 .fs-slider::-webkit-slider-thumb {
@@ -6967,14 +7036,14 @@ button.bc-side-toggle { display: none; }
     appearance: none;
     width: 18px; height: 18px;
     border: 0; border-radius: 999px;
-    background: #029488;
+    background: #0891b2;
     box-shadow: 0 1px 3px rgba(15, 23, 42, .3);
     cursor: pointer;
 }
 .fs-slider::-moz-range-thumb {
     width: 18px; height: 18px;
     border: 0; border-radius: 999px;
-    background: #029488;
+    background: #0891b2;
     box-shadow: 0 1px 3px rgba(15, 23, 42, .3);
     cursor: pointer;
 }
@@ -7041,7 +7110,7 @@ button.bc-side-toggle { display: none; }
     background: #fff;
     cursor: pointer;
 }
-.pimg-cell.has-img:hover { border-color: #029488; }
+.pimg-cell.has-img:hover { border-color: #0891b2; }
 .pimg-cell.has-img img {
     max-width: 100%;
     max-height: 100%;
@@ -7075,7 +7144,7 @@ button.bc-side-toggle { display: none; }
     color: #94a3b8;
     cursor: pointer;
 }
-.pimg-cell.is-empty:hover { border-color: #029488; color: #029488; background: #effbf9; }
+.pimg-cell.is-empty:hover { border-color: #0891b2; color: #0891b2; background: #ecfeff; }
 .pimg-cap { font-size: 0.625rem; line-height: 1; }
 
 /* แถวใหม่ที่ยังไม่ได้บันทึกยังไม่มี id ให้ผูกรูป จึงกดไม่ได้
@@ -7089,7 +7158,7 @@ button.bc-side-toggle { display: none; }
 
 .dark .pimg-cell.has-img  { border-color: #334155; background: #0f172a; }
 .dark .pimg-cell.is-empty { border-color: #475569; background: #1e293b; color: #64748b; }
-.dark .pimg-cell.is-empty:hover { border-color: #2dd4bf; color: #5eead4; background: rgba(45, 212, 191, .1); }
+.dark .pimg-cell.is-empty:hover { border-color: #22d3ee; color: #67e8f9; background: rgba(45, 212, 191, .1); }
 .dark .pimg-cell.is-locked { border-color: #1e293b; background: #1e293b; color: #475569; }
 
 
@@ -7127,7 +7196,7 @@ button.bc-side-toggle { display: none; }
     cursor: pointer;
     transition: border-color .15s ease, color .15s ease, background-color .15s ease;
 }
-.pimg-slot.is-add:hover { border-color: #029488; color: #029488; background: #effbf9; }
+.pimg-slot.is-add:hover { border-color: #0891b2; color: #0891b2; background: #ecfeff; }
 
 /* บอกว่ารูปไหนคือรูปที่จะไปโผล่ในหน้าเบิก ไม่งั้นผู้ใช้ไม่รู้ว่าลำดับมีความหมาย */
 .pimg-badge {
@@ -7136,7 +7205,7 @@ button.bc-side-toggle { display: none; }
     top: .375rem;
     padding: .0625rem .375rem;
     border-radius: 999px;
-    background: #029488;
+    background: #0891b2;
     color: #fff;
     font-size: 0.625rem;
     font-weight: 600;
@@ -7162,7 +7231,7 @@ button.bc-side-toggle { display: none; }
 
 .dark .pimg-slot.has-img { border-color: #334155; background: #0f172a; }
 .dark .pimg-slot.is-add  { border-color: #475569; background: #1e293b; color: #94a3b8; }
-.dark .pimg-slot.is-add:hover { border-color: #2dd4bf; color: #5eead4; background: rgba(45, 212, 191, .1); }
+.dark .pimg-slot.is-add:hover { border-color: #22d3ee; color: #67e8f9; background: rgba(45, 212, 191, .1); }
 
 
 /* ---------- รูปย่อหน้าแถวในหน้าทำรายการเบิก ----------
@@ -7351,8 +7420,8 @@ button.bc-side-toggle { display: none; }
 /* รูปย่อในหน้าทำรายการเบิก — เคอร์เซอร์บอกว่ากดตรงนี้ได้อีกอย่าง
    ไม่เหมือนที่เหลือของแถวซึ่งเป็นการเลือกสินค้า */
 .tf-thumb:not(.is-none) { cursor: zoom-in; }
-.tf-thumb:not(.is-none):hover { border-color: #029488; }
-.dark .tf-thumb:not(.is-none):hover { border-color: #2dd4bf; }
+.tf-thumb:not(.is-none):hover { border-color: #0891b2; }
+.dark .tf-thumb:not(.is-none):hover { border-color: #22d3ee; }
 
 /* สรุปผลของรอบอัปโหลดที่เพิ่งทำ อยู่ในกล่องจัดการรูปกล่องเดียวกัน
    ไม่แยกเป็นกล่องแจ้งผลอีกใบ เพราะ SweetAlert เปิดได้ทีละกล่อง */
@@ -7360,13 +7429,13 @@ button.bc-side-toggle { display: none; }
     margin: 0 0 .75rem;
     padding: .5rem .75rem;
     border-radius: .5rem;
-    background: #effbf9;
-    border: 1px solid #a9ebe4;
-    color: #055f59;
+    background: #ecfeff;
+    border: 1px solid #a5f3fc;
+    color: #155e75;
     font-size: 0.8125rem;
     text-align: left;
 }
-.dark .pimg-note { background: rgba(2, 148, 136, .12); border-color: #055f59; color: #71dbd2; }
+.dark .pimg-note { background: rgba(8, 145, 178, .12); border-color: #155e75; color: #67e8f9; }
 
 /* ---------- ไอคอนในช่องรูปของตาราง ----------
    วาดด้วย CSS ไม่ใช่ <i data-lucide> เพราะ Tabulator สร้าง HTML ของเซลล์ใหม่
@@ -7430,7 +7499,7 @@ button.bc-side-toggle { display: none; }
 
 /* หัวข้อของแต่ละฝั่ง — ต่อยอด .bn-money-top-cap ให้มีไอคอนและป้ายจำนวน */
 .bn-ns-cap { display: flex; align-items: center; gap: .375rem; font-weight: 600; color: #475569; }
-.bn-ns-cap svg { color: #0f766e; }
+.bn-ns-cap svg { color: #0e7490; }
 .bn-ns-count {
     margin-left: auto; padding: 0 .5rem; border-radius: 999px;
     background: #fef3c7; color: #b45309; font-weight: 600;
@@ -7462,7 +7531,7 @@ a.bn-ns-row:hover { background: #f8fafc; }
 /* ---------- โหมดมืด ---------- */
 @media (min-width: 1024px) { .dark .bn-ns-right { border-left-color: #1e293b; } }
 .dark .bn-ns-cap          { color: #cbd5e1; }
-.dark .bn-ns-cap svg      { color: #5eead4; }
+.dark .bn-ns-cap svg      { color: #67e8f9; }
 .dark .bn-ns-count        { background: rgba(245, 158, 11, .15); color: #fcd34d; }
 .dark .bn-ns-period       { color: #64748b; }
 .dark .bn-ns-group        { color: #94a3b8; }
@@ -7488,9 +7557,9 @@ a.bn-ns-row:hover { background: #f8fafc; }
     transition: background .12s, border-color .12s;
 }
 .ap-row:hover { background: #f8fafc; }
-.ap-row:focus-visible { outline: none; border-color: #029488; box-shadow: 0 0 0 3px rgba(2, 148, 136, .18); }
-.ap-row.is-on { background: #f0fdfa; border-color: #99f6e4; }
-.ap-row.is-on:hover { background: #ccfbf1; }
+.ap-row:focus-visible { outline: none; border-color: #0891b2; box-shadow: 0 0 0 3px rgba(8, 145, 178, .18); }
+.ap-row.is-on { background: #ecfeff; border-color: #a5f3fc; }
+.ap-row.is-on:hover { background: #cffafe; }
 
 /* ช่องติ๊ก — ใหญ่พอกดง่าย และอยู่ซ้ายสุดของแถว ตาเห็นคู่กับชื่อเสมอ */
 .ap-box {
@@ -7500,14 +7569,14 @@ a.bn-ns-row:hover { background: #f8fafc; }
     transition: background .12s, border-color .12s;
 }
 .ap-row:hover .ap-box { border-color: #94a3b8; }
-.ap-row.is-on .ap-box { background: #029488; border-color: #029488; color: #fff; }
+.ap-row.is-on .ap-box { background: #0891b2; border-color: #0891b2; color: #fff; }
 
 .ap-avatar {
     flex: none; display: flex; align-items: center; justify-content: center;
     width: 2.125rem; height: 2.125rem; border-radius: 999px;
     background: #f1f5f9; color: #64748b; font-size: 0.8125rem; font-weight: 600;
 }
-.ap-row.is-on .ap-avatar, .ap-pick .ap-avatar { background: #ccfbf1; color: #0f766e; }
+.ap-row.is-on .ap-avatar, .ap-pick .ap-avatar { background: #cffafe; color: #0e7490; }
 
 .ap-text { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; }
 .ap-name {
@@ -7522,7 +7591,7 @@ a.bn-ns-row:hover { background: #f8fafc; }
 
 .ap-tag {
     flex: none; padding: .0625rem .5rem; border-radius: 999px;
-    background: #ccfbf1; color: #0f766e; font-size: 0.6875rem; font-weight: 600;
+    background: #cffafe; color: #0e7490; font-size: 0.6875rem; font-weight: 600;
 }
 .ap-tag.is-new { background: #dcfce7; color: #15803d; }
 
@@ -7554,15 +7623,15 @@ a.bn-ns-row:hover { background: #f8fafc; }
 
 /* ---------- โหมดมืด ---------- */
 .dark .ap-row:hover       { background: rgba(148, 163, 184, .1); }
-.dark .ap-row.is-on       { background: rgba(20, 184, 166, .1); border-color: rgba(20, 184, 166, .35); }
-.dark .ap-row.is-on:hover { background: rgba(20, 184, 166, .16); }
+.dark .ap-row.is-on       { background: rgba(6, 182, 212, .1); border-color: rgba(6, 182, 212, .35); }
+.dark .ap-row.is-on:hover { background: rgba(6, 182, 212, .16); }
 .dark .ap-box             { background: #0f172a; border-color: #475569; }
-.dark .ap-row.is-on .ap-box { background: #14b8a6; border-color: #14b8a6; color: #042f2e; }
+.dark .ap-row.is-on .ap-box { background: #06b6d4; border-color: #06b6d4; color: #042f2e; }
 .dark .ap-avatar          { background: #1e293b; color: #94a3b8; }
-.dark .ap-row.is-on .ap-avatar, .dark .ap-pick .ap-avatar { background: rgba(20, 184, 166, .2); color: #5eead4; }
+.dark .ap-row.is-on .ap-avatar, .dark .ap-pick .ap-avatar { background: rgba(6, 182, 212, .2); color: #67e8f9; }
 .dark .ap-name            { color: #e2e8f0; }
 .dark .ap-meta            { color: #64748b; }
-.dark .ap-tag             { background: rgba(20, 184, 166, .2); color: #5eead4; }
+.dark .ap-tag             { background: rgba(6, 182, 212, .2); color: #67e8f9; }
 .dark .ap-tag.is-new      { background: rgba(34, 197, 94, .2); color: #86efac; }
 .dark .ap-pick            { background: #0f172a; border-color: #1e293b; }
 .dark .ap-pick.is-new     { background: rgba(34, 197, 94, .08); border-color: rgba(34, 197, 94, .35); }

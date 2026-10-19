@@ -23,10 +23,10 @@
 --  ตัวโค้ดทำงานได้ทันทีโดยไม่ต้องรันไฟล์นี้ (คอลัมน์ค่าเฉลี่ยแค่ไม่ถูกแตะอีก)
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/050_price_at_transaction_date.sql
+--      mysql -u root -p1234 stock_hr < sql/050_price_at_transaction_date.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/050_price_at_transaction_date_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/050_price_at_transaction_date_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

@@ -21,10 +21,10 @@
 --  ใช้ INSERT ... SELECT ที่กรองด้วย NOT EXISTS เพื่อให้รันซ้ำได้โดยไม่เกิดข้อมูลซ้ำ
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/020_guide_notifications.sql
+--      mysql -u root -p1234 stock_hr < sql/020_guide_notifications.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/020_guide_notifications_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/020_guide_notifications_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

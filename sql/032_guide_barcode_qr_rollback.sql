@@ -3,7 +3,7 @@
 --  เอาขั้น "เลือกบาร์โค้ดหรือ QR" ออก และคืนข้อความขั้นคุณภาพ
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/032_guide_barcode_qr_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/032_guide_barcode_qr_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

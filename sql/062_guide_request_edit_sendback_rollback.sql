@@ -7,7 +7,7 @@
 --  ของขั้นอื่นแล้วได้ลำดับซ้ำ — ทำจากขั้นท้าย (ส่งกลับ) ไปหาขั้นต้น (แก้ไข)
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/062_guide_request_edit_sendback_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/062_guide_request_edit_sendback_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

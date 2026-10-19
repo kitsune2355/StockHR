@@ -19,8 +19,8 @@
 --      ขยายขึ้นไม่ทำให้ข้อมูลเดิมเสีย และรับชื่อยาวได้ครบ
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/002_create_company_department.sql
---      mysql -u root -p1234 stock_hl < sql/003_import_company_department.sql
+--      mysql -u root -p1234 stock_hr < sql/002_create_company_department.sql
+--      mysql -u root -p1234 stock_hr < sql/003_import_company_department.sql
 --
 --  ใช้ได้ทั้ง MySQL 5.0 (เครื่อง local) และ 5.7 (เซิร์ฟเวอร์จริง)
 --  create_date ให้แอปส่ง NOW() มาเอง เพราะ MySQL 5.0 ยอมให้มีคอลัมน์ที่ใช้

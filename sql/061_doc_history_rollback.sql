@@ -7,7 +7,7 @@
 --  เพราะกระดิ่งจะ fallback ไปแสดงเป็นชนิด 'system'
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/061_doc_history_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/061_doc_history_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

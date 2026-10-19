@@ -15,7 +15,7 @@
 --  แทรกไว้หลังกราฟ ก่อนไอคอนบนแถบบน ตามลำดับที่ตาไล่อ่านหน้าจริง
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/025_guide_dashboard_tiles.sql
+--      mysql -u root -p1234 stock_hr < sql/025_guide_dashboard_tiles.sql
 --
 --  ย้อนกลับ:
 --      รัน sql/022 แล้วตามด้วย 023 และ 024 ตามลำดับ

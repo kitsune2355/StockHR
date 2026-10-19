@@ -10,7 +10,7 @@
 --  ของไฟล์นี้ที่จะไปลบ ถ้าต้องการล้างให้ทำที่หน้าตั้งค่าระบบ
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/013_mail_sender_defaults_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/013_mail_sender_defaults_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

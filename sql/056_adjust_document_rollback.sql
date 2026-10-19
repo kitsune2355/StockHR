@@ -8,7 +8,7 @@
 --  (movement ที่ผูกอยู่จะเหลือ doc_id = NULL เพราะ fk_move_doc เป็น SET NULL)
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/056_adjust_document_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/056_adjust_document_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

@@ -5,7 +5,7 @@
 --  ขั้นตอนถูกลบตามไปเองด้วย foreign key fk_step_guide ที่ตั้ง ON DELETE CASCADE
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/017_guide_product_dept_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/017_guide_product_dept_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

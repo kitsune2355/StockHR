@@ -20,10 +20,10 @@
 --  [data-row-act="..."] จาก 065) รันซ้ำได้ไม่พัง
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/067_guide_request_menu_selectors_v2.sql
+--      mysql -u root -p1234 stock_hr < sql/067_guide_request_menu_selectors_v2.sql
 --
 --  ย้อนกลับ (กลับไปเป็น [data-row-act="..."] แบบ 065):
---      mysql -u root -p1234 stock_hl < sql/067_guide_request_menu_selectors_v2_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/067_guide_request_menu_selectors_v2_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

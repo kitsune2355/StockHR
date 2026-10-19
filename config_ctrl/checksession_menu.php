@@ -1,6 +1,6 @@
 <?php
 	error_reporting(E_ALL ^ E_NOTICE);
-	@session_start();
+	@session_name('STOCKHR_SID'); @session_start();
 	$buttoncontorno = $_GET['buttoncontorno'];
 	$_SESSION['sess_buttoncontorno']= $buttoncontorno;
 	$chk_menu = $_GET['chk_menu'];

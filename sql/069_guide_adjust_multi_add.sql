@@ -11,10 +11,10 @@
 --  รันซ้ำได้ (DELETE ก่อน, UPDATE เป็น idempotent)
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/069_guide_adjust_multi_add.sql
+--      mysql -u root -p1234 stock_hr < sql/069_guide_adjust_multi_add.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/069_guide_adjust_multi_add_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/069_guide_adjust_multi_add_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

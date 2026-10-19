@@ -24,10 +24,10 @@
 --    - คอลัมน์ที่ฐานข้อมูลเติมเวลาเองมีได้ตารางละตัว ยกให้ updated_at
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/056_adjust_document.sql
+--      mysql -u root -p1234 stock_hr < sql/056_adjust_document.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/056_adjust_document_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/056_adjust_document_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

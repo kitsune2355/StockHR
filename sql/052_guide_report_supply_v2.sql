@@ -30,10 +30,10 @@
 --   11  พิมพ์ลงกระดาษ               (เดิม เลื่อนลำดับ)
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/052_guide_report_supply_v2.sql
+--      mysql -u root -p1234 stock_hr < sql/052_guide_report_supply_v2.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/052_guide_report_supply_v2_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/052_guide_report_supply_v2_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

@@ -4,7 +4,7 @@
 --  (ก่อนมีช่องกรอกจำนวนบรรทัด)
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/069_guide_adjust_multi_add_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/069_guide_adjust_multi_add_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

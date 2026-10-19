@@ -23,12 +23,12 @@
 --  และเป็นการตรวจไปในตัวว่าหยิบผิดตัวหรือเปล่า ซึ่งเป็นประโยชน์หลักของหน้านั้น
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/027_guide_barcode_scan.sql
+--      mysql -u root -p1234 stock_hr < sql/027_guide_barcode_scan.sql
 --
 --  ไฟล์นี้ลบขั้นของตัวเองก่อนใส่ใหม่ทุกครั้ง รันซ้ำได้ปลอดภัย
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/027_guide_barcode_scan_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/027_guide_barcode_scan_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

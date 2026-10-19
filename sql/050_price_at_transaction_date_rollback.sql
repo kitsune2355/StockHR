@@ -6,7 +6,7 @@
 --  คู่มือจะกลับไปบอกผู้ใช้ว่าระบบคิดถัวเฉลี่ย ทั้งที่โค้ดไม่ได้คิดแล้ว
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/050_price_at_transaction_date_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/050_price_at_transaction_date_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

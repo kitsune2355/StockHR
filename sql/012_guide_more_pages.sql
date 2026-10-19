@@ -17,10 +17,10 @@
 --  (page_key มี UNIQUE อยู่แล้ว แต่การรันซ้ำจะพังกลางคันแทนที่จะข้ามไปเงียบ ๆ)
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/012_guide_more_pages.sql
+--      mysql -u root -p1234 stock_hr < sql/012_guide_more_pages.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/012_guide_more_pages_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/012_guide_more_pages_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

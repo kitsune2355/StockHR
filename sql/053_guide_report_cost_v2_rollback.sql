@@ -11,7 +11,7 @@
 --    ใช้คู่กับการย้อนโค้ดฝั่งหน้าเว็บเท่านั้น
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/053_guide_report_cost_v2_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/053_guide_report_cost_v2_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

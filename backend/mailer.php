@@ -73,7 +73,7 @@ function mail_config()
         /* ไม่ได้ตั้งอีเมลผู้ส่งไว้ ก็ใช้บัญชีที่ล็อกอิน SMTP นั่นแหละ
            Zoho ปฏิเสธเมลที่ From ไม่ตรงกับบัญชีที่ยืนยันตัวตนอยู่แล้ว */
         'from'      => ($from !== '') ? $from : $user,
-        'from_name' => isset($c['mail_from_name']) ? $c['mail_from_name'] : 'ระบบสต็อกธุรการ',
+        'from_name' => isset($c['mail_from_name']) ? $c['mail_from_name'] : 'ระบบสต็อก HR',
         'max_try'   => isset($c['mail_max_try']) ? (int)$c['mail_max_try'] : 3
     );
 }
@@ -453,7 +453,7 @@ function mail_dispatch($limit = 20, $actor = 'system')
      * รอบถัดไป (cron รอบหน้า หรือ flush ครั้งต่อไป) มาเก็บต่อ ดีกว่าคาผู้ใช้
      * ที่กดปุ่ม/รอ instant-send ไว้เฉย ๆ ระหว่างรอ SMTP ของอีกฝั่ง
      */
-    $lock_res = @mysqli_query($connect, "SELECT GET_LOCK('stockhl_mail_worker', 0) AS `got`");
+    $lock_res = @mysqli_query($connect, "SELECT GET_LOCK('stockhr_mail_worker', 0) AS `got`");
     $lock_got = $lock_res ? mysqli_fetch_assoc($lock_res) : null;
     if (!$lock_got || (int)$lock_got['got'] !== 1) {
         $out['message'] = 'มีตัวส่งเมลอีกตัวกำลังทำงานอยู่ ข้ามรอบนี้ไปก่อน';
@@ -469,7 +469,7 @@ function mail_dispatch($limit = 20, $actor = 'system')
          WHERE `status` = 'pending' AND `try_count` < ?
          ORDER BY `mail_id` ASC LIMIT " . $limit);
     if (!$stmt) {
-        @mysqli_query($connect, "SELECT RELEASE_LOCK('stockhl_mail_worker')");
+        @mysqli_query($connect, "SELECT RELEASE_LOCK('stockhr_mail_worker')");
         $out['message'] = 'อ่านคิวเมลไม่สำเร็จ';
         return $out;
     }
@@ -486,7 +486,7 @@ function mail_dispatch($limit = 20, $actor = 'system')
     mysqli_stmt_close($stmt);
 
     if (count($jobs) === 0) {
-        @mysqli_query($connect, "SELECT RELEASE_LOCK('stockhl_mail_worker')");
+        @mysqli_query($connect, "SELECT RELEASE_LOCK('stockhr_mail_worker')");
         $out['message'] = 'ไม่มีเมลค้างในคิว';
         return $out;
     }
@@ -505,7 +505,7 @@ function mail_dispatch($limit = 20, $actor = 'system')
         }
     }
 
-    @mysqli_query($connect, "SELECT RELEASE_LOCK('stockhl_mail_worker')");
+    @mysqli_query($connect, "SELECT RELEASE_LOCK('stockhr_mail_worker')");
 
     $out['message'] = 'ส่งสำเร็จ ' . $out['sent'] . ' ฉบับ'
                     . ($out['failed'] > 0 ? ' / ไม่สำเร็จ ' . $out['failed'] . ' ฉบับ' : '');
@@ -571,10 +571,10 @@ function mail_send_test($to_email, $actor)
         return db_fail('รูปแบบอีเมลปลายทางไม่ถูกต้อง');
     }
 
-    $subject = '[ทดสอบ] ระบบสต็อกธุรการ Happyland ส่งอีเมลได้แล้ว';
+    $subject = '[ทดสอบ] ระบบสต็อก HR Happyland ส่งอีเมลได้แล้ว';
     $body    = mail_layout(
         'ทดสอบการส่งอีเมล',
-        '<p>ถ้าคุณอ่านข้อความนี้อยู่ แปลว่าการตั้งค่า SMTP ของระบบสต็อกธุรการถูกต้องแล้ว '
+        '<p>ถ้าคุณอ่านข้อความนี้อยู่ แปลว่าการตั้งค่า SMTP ของระบบสต็อก HRถูกต้องแล้ว '
       . 'ระบบจะเริ่มส่งอีเมลแจ้งเตือนใบเบิกให้ผู้อนุมัติและผู้ขอเบิกได้ทันทีที่เปิดสวิตช์</p>'
       . '<p style="color:#64748b;font-size:13px">ส่งโดย: ' . htmlspecialchars($actor, ENT_QUOTES, 'UTF-8')
       . ' &middot; เวลา: ' . thai_now() . '</p>',
@@ -631,7 +631,7 @@ function mail_log_test($to_email, $subject, $ok, $error, $actor)
  */
 function mail_layout($heading, $body_html, $button_text = '', $button_url = '')
 {
-    $brand = '#0f766e';
+    $brand = '#0e7490';
 
     $button = '';
     if ($button_text !== '' && $button_url !== '') {
@@ -661,7 +661,7 @@ function mail_layout($heading, $body_html, $button_text = '', $button_url = '')
 
     /* หัวจดหมาย */
     . '<tr><td style="background:' . $brand . ';padding:18px 28px">'
-    . '<div style="color:#ffffff;font-size:17px;font-weight:700">ระบบสต็อกธุรการ Happyland</div>'
+    . '<div style="color:#ffffff;font-size:17px;font-weight:700">ระบบสต็อก HR Happyland</div>'
     . '</td></tr>'
 
     . '<tr><td style="padding:24px 28px 4px">'
@@ -676,7 +676,7 @@ function mail_layout($heading, $body_html, $button_text = '', $button_url = '')
     . '<tr><td style="padding:22px 28px 26px">'
     . '<div style="border-top:1px solid #e2e8f0;padding-top:14px;'
     . 'color:#94a3b8;font-size:12px;line-height:1.6">'
-    . 'อีเมลฉบับนี้ส่งอัตโนมัติจากระบบสต็อกธุรการ กรุณาอย่าตอบกลับ<br>'
+    . 'อีเมลฉบับนี้ส่งอัตโนมัติจากระบบสต็อก HR กรุณาอย่าตอบกลับ<br>'
     . 'หากไม่ต้องการรับอีเมลแจ้งเตือน กรุณาแจ้งผู้ดูแลระบบ'
     . '</div></td></tr>'
 

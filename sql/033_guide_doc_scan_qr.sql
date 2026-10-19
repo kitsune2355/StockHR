@@ -11,12 +11,12 @@
 --  เครื่องเลเซอร์แบบเส้นตรงอ่าน QR ไม่ได้ ต้องเป็นรุ่นที่เป็นกล้อง (2D imager)
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/033_guide_doc_scan_qr.sql
+--      mysql -u root -p1234 stock_hr < sql/033_guide_doc_scan_qr.sql
 --
 --  ไฟล์นี้เขียนทับข้อความเดิมทั้งก้อน รันซ้ำได้ปลอดภัย
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/033_guide_doc_scan_qr_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/033_guide_doc_scan_qr_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

@@ -7,7 +7,7 @@
 --      tb_product -> tb_unit
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/005_create_product_catalog_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/005_create_product_catalog_rollback.sql
 -- ============================================================
 
 DROP TABLE IF EXISTS `tb_product`;

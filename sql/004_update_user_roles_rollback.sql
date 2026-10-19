@@ -3,7 +3,7 @@
 --  ย้อนชุดสิทธิ์กลับเป็นแบบเดิม
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/004_update_user_roles_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/004_update_user_roles_rollback.sql
 --
 --  คำเตือน: ผู้ใช้ที่ถือสิทธิ์ approver จะถูกย้ายไปเป็น general
 --  เพราะชุดเดิมไม่มีสิทธิ์นี้ ตรวจก่อนรันว่ามีใครถืออยู่บ้าง:

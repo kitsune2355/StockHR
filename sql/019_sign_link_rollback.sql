@@ -11,7 +11,7 @@
 --  ลายเซ็นที่เซ็นไปแล้วไม่หาย เพราะเก็บอยู่ที่ receiver_sign คนละคอลัมน์กัน
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/019_sign_link_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/019_sign_link_rollback.sql
 -- ============================================================
 
 ALTER TABLE `tb_doc_header` DROP INDEX `uq_doc_sign_token`;

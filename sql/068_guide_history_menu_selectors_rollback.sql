@@ -4,7 +4,7 @@
 --  กลับเป็น .rowact[data-row-act="..."]
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/068_guide_history_menu_selectors_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/068_guide_history_menu_selectors_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

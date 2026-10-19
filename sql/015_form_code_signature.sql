@@ -31,10 +31,10 @@
 --  MEDIUMTEXT รับได้ 16 MB ลายเซ็นที่วาดบนผืน 600x200 px หนักราว 10-30 KB
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/015_form_code_signature.sql
+--      mysql -u root -p1234 stock_hr < sql/015_form_code_signature.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/015_form_code_signature_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/015_form_code_signature_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

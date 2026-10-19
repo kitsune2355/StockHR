@@ -10,12 +10,12 @@
 --  กำลังตัดสินใจเรื่องชนิดรหัสอยู่พอดี
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/034_guide_barcode_layout.sql
+--      mysql -u root -p1234 stock_hr < sql/034_guide_barcode_layout.sql
 --
 --  ไฟล์นี้เขียนทับข้อความเดิมทั้งก้อน รันซ้ำได้ปลอดภัย
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/034_guide_barcode_layout_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/034_guide_barcode_layout_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

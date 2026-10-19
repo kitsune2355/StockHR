@@ -9,12 +9,12 @@
 --  และเกณฑ์ขนาดต่ำสุดของสองแบบไม่เท่ากัน (0.25 กับ 0.40 มม.)
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/032_guide_barcode_qr.sql
+--      mysql -u root -p1234 stock_hr < sql/032_guide_barcode_qr.sql
 --
 --  ไฟล์นี้ลบขั้นของตัวเองก่อนใส่ใหม่ รันซ้ำได้ปลอดภัย
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/032_guide_barcode_qr_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/032_guide_barcode_qr_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

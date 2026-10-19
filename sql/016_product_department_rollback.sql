@@ -7,10 +7,10 @@
 --
 --  คำเตือน: การตั้งค่าว่าหน่วยงานไหนเบิกอะไรได้ จะหายถาวร
 --  ถ้าตั้งไว้เยอะแล้ว ควรสำรองก่อน:
---      mysqldump -u root -p1234 stock_hl tb_product_department > backup_pd.sql
+--      mysqldump -u root -p1234 stock_hr tb_product_department > backup_pd.sql
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/016_product_department_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/016_product_department_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

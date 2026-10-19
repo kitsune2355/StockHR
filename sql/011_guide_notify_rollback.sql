@@ -14,7 +14,7 @@
 --  ค่าตั้ง SMTP ก็หายด้วย ต้องกรอกใหม่ทั้งหมด
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/011_guide_notify_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/011_guide_notify_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

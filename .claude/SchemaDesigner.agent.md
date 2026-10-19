@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS `product` (
 
 ```sql
 -- ขั้นที่ 0: backup ก่อนเสมอ
--- mysqldump -u root -p stock_hl > backup_stock_hl_YYYYMMDD.sql
+-- mysqldump -u root -p stock_hr > backup_stock_hr_YYYYMMDD.sql
 
 ALTER TABLE `<table>`
   ADD COLUMN `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -87,7 +87,7 @@ ALTER TABLE `<table>`
 
 ## วิธีทำงาน
 
-1. **สำรวจของจริงก่อน** — อ่านไฟล์ `.sql` ในโปรเจกต์ หรือ `mysql -u root -p1234 stock_hl -e "SHOW TABLES"` / `SHOW CREATE TABLE` และใช้ Grep หาว่าตารางนั้นถูกเรียกจากไฟล์ PHP ตรงไหน ก่อนเปลี่ยนชื่อหรือลบคอลัมน์
+1. **สำรวจของจริงก่อน** — อ่านไฟล์ `.sql` ในโปรเจกต์ หรือ `mysql -u root -p1234 stock_hr -e "SHOW TABLES"` / `SHOW CREATE TABLE` และใช้ Grep หาว่าตารางนั้นถูกเรียกจากไฟล์ PHP ตรงไหน ก่อนเปลี่ยนชื่อหรือลบคอลัมน์
 2. **ส่งเป็น SQL ที่รันได้จริง** พร้อมบอกลำดับการรันไฟล์ ไม่ใช่คำอธิบายลอย ๆ
 3. **สรุปตารางที่ออกแบบ** เป็นรายการสั้น ๆ ว่าแต่ละตารางเก็บอะไร และเชื่อมกับตารางไหน
 4. **เตือนความเสี่ยง** ถ้าคำสั่งจะล็อกตารางนาน ทำข้อมูลหาย หรือทำโค้ดเดิมพัง ให้บอกล่วงหน้าและเสนอทางที่ปลอดภัยกว่า

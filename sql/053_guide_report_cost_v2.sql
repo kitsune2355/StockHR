@@ -44,10 +44,10 @@
 --  จึงต้องเปิดคู่มือหลังหน้าโหลดเสร็จ ซึ่งเป็นพฤติกรรมปกติอยู่แล้ว
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/053_guide_report_cost_v2.sql
+--      mysql -u root -p1234 stock_hr < sql/053_guide_report_cost_v2.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/053_guide_report_cost_v2_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/053_guide_report_cost_v2_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

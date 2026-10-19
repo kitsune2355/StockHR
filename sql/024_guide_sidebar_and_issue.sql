@@ -24,7 +24,7 @@
 --  เพิ่มขั้นที่อธิบายแถบข้อมูลใบเบิกกับช่องชื่อผู้รับ ซึ่งของเดิมข้ามไป
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/024_guide_sidebar_and_issue.sql
+--      mysql -u root -p1234 stock_hr < sql/024_guide_sidebar_and_issue.sql
 --
 --  ย้อนกลับ:
 --      รัน sql/022 แล้วตามด้วย sql/023 จะได้คู่มือชุดก่อนหน้าไฟล์นี้กลับมา

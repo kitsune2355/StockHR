@@ -14,7 +14,7 @@
  * ============================================================ */
 
 error_reporting(E_ALL ^ E_NOTICE);
-@session_start();
+@session_name('STOCKHR_SID'); @session_start();
 
 $username     = isset($_POST['LogInName'])     ? trim($_POST['LogInName'])     : '';
 $password_raw = isset($_POST['LogInPassWord']) ? trim($_POST['LogInPassWord']) : '';

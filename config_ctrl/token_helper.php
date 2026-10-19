@@ -15,7 +15,7 @@
  *  ทุก query ในไฟล์นี้ใช้การ escape/ตรวจชนิดข้อมูล เพื่อกัน SQL Injection
  * ============================================================ */
 
-if (!defined('ES_REMEMBER_COOKIE')) define('ES_REMEMBER_COOKIE', 'es_remember');
+if (!defined('ES_REMEMBER_COOKIE')) define('ES_REMEMBER_COOKIE', 'stockhr_remember');
 if (!defined('ES_REMEMBER_TTL'))    define('ES_REMEMBER_TTL', 30 * 24 * 60 * 60); // 30 วัน (วินาที)
 
 /* ---------- ตั้งค่า cookie (รองรับทั้ง PHP >=7.3 และเก่ากว่า) ---------- */

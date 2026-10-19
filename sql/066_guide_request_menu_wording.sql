@@ -6,9 +6,9 @@
 --  เดิม (064) เขียนว่า "แถวตัวอย่างกางปุ่มออกให้เห็นครบทุกอัน" ซึ่งไม่จริงแล้ว
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/066_guide_request_menu_wording.sql
+--      mysql -u root -p1234 stock_hr < sql/066_guide_request_menu_wording.sql
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/066_guide_request_menu_wording_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/066_guide_request_menu_wording_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

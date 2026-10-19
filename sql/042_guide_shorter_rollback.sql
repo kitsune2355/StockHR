@@ -9,7 +9,7 @@
 --  จะได้ข้อความฉบับ 041 กลับมา (ซึ่งบอกว่ากล้องอ่านบาร์โค้ดได้)
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/042_guide_shorter_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/042_guide_shorter_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

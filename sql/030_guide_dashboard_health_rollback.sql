@@ -3,7 +3,7 @@
 --  เอาขั้น "ความพร้อมของข้อมูล" ออก และคืนข้อความสองขั้นที่แก้ไป
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/030_guide_dashboard_health_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/030_guide_dashboard_health_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

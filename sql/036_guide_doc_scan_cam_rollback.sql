@@ -3,7 +3,7 @@
 --  ลบขั้นคู่มือของปุ่มเปิดกล้อง แล้วเลื่อนเลขลำดับกลับ
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e):
---      mysql -u root -p1234 stock_hl < sql/036_guide_doc_scan_cam_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/036_guide_doc_scan_cam_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

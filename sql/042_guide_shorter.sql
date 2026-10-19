@@ -29,10 +29,10 @@
 --  ก่อนรันไฟล์นี้ ไม่งั้นข้อความจะไปลงผิดขั้น
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/042_guide_shorter.sql
+--      mysql -u root -p1234 stock_hr < sql/042_guide_shorter.sql
 --
 --  ย้อนกลับ (คืนข้อความเดิมทุกขั้น สร้างจากค่าจริงในฐานข้อมูลก่อนแก้):
---      mysql -u root -p1234 stock_hl < sql/042_guide_shorter_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/042_guide_shorter_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

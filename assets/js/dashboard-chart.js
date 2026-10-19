@@ -310,7 +310,7 @@
                     smooth: line,
                     symbol: 'none',
                     barMaxWidth: 18,
-                    itemStyle: { color: '#029488', borderRadius: line ? 0 : [3, 3, 0, 0] },
+                    itemStyle: { color: '#0891b2', borderRadius: line ? 0 : [3, 3, 0, 0] },
                     lineStyle:  { width: 2 },
                     areaStyle:  line ? { opacity: 0.12 } : null
                 },

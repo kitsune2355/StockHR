@@ -6,14 +6,14 @@
  *  ผู้ใช้จะได้ไม่ต้องรอ SMTP ตอนกดบันทึก ไฟล์นี้คือคนที่มาหยิบไปส่ง
  *
  *  ตั้งให้วิ่งเอง (Command Prompt แบบผู้ดูแลระบบ รันครั้งเดียว):
- *      schtasks /create /tn "StockHL Mail Worker" /sc minute /mo 1 ^
- *        /tr "C:\AppServ\php5\php.exe C:\AppServ\www\stock_hl\cron\mail_worker.php" /ru SYSTEM
- *      ลบ:    schtasks /delete /tn "StockHL Mail Worker" /f
- *      สถานะ: schtasks /query  /tn "StockHL Mail Worker"
+ *      schtasks /create /tn "StockHR Mail Worker" /sc minute /mo 1 ^
+ *        /tr "C:\AppServ\php5\php.exe C:\AppServ\www\stock_hr\cron\mail_worker.php" /ru SYSTEM
+ *      ลบ:    schtasks /delete /tn "StockHR Mail Worker" /f
+ *      สถานะ: schtasks /query  /tn "StockHR Mail Worker"
  *  ทุก 1 นาที ไม่ใช่ 5 เพราะตัวนี้วนเช็คคิวเองทุก 10 วินาทีตลอดหนึ่งนาที
  *
  *  เครื่องที่ตั้ง Task Scheduler ไม่ได้ เรียกผ่านเว็บแทน:
- *      http://เครื่อง/stock_hl/cron/mail_worker.php?key=<cron_key>
+ *      http://เครื่อง/stock_hr/cron/mail_worker.php?key=<cron_key>
  *  ต้องตั้ง cron_key ใน tb_app_setting ก่อน ไม่งั้นการเรียกผ่านเว็บถูกปฏิเสธหมด
  *  เรียกจากบรรทัดคำสั่งไม่ต้องใช้กุญแจ เพราะเข้าถึงฐานข้อมูลได้อยู่แล้ว
  *

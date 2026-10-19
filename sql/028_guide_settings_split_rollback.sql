@@ -6,7 +6,7 @@
 --  ลำพัง SQL อย่างเดียวจะได้คู่มือที่ชี้ไปยังปุ่มแท็บที่ยังไม่มีในหน้า
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/028_guide_settings_split_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/028_guide_settings_split_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

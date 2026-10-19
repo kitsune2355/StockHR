@@ -16,10 +16,10 @@
 --    ตั้งค่าอนุมัติ : #userSearch #btnSave
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/057_guide_adjust_approval.sql
+--      mysql -u root -p1234 stock_hr < sql/057_guide_adjust_approval.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/057_guide_adjust_approval_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/057_guide_adjust_approval_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

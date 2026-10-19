@@ -13,7 +13,7 @@
 --  เผื่อมีการแทรกขั้นอื่นเข้ามาระหว่างนี้ จะได้ไม่ลบผิดขั้น
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/029_guide_settings_drop_moved_step.sql
+--      mysql -u root -p1234 stock_hr < sql/029_guide_settings_drop_moved_step.sql
 --
 --  ย้อนกลับ: รัน sql/028_guide_settings_split.sql ใหม่
 -- ============================================================

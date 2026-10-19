@@ -8,7 +8,7 @@
 --  ส่วนหน้าอื่นไม่กระทบ
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/020_guide_notifications_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/020_guide_notifications_rollback.sql
 -- ============================================================
 
 DELETE FROM `tb_guide_step`

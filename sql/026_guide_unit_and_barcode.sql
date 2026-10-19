@@ -31,10 +31,10 @@
 --  ส่วนที่ 2 (หน้าบาร์โค้ด) ลบก่อนใส่อยู่แล้ว รันซ้ำได้ปลอดภัย
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/026_guide_unit_and_barcode.sql
+--      mysql -u root -p1234 stock_hr < sql/026_guide_unit_and_barcode.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/026_guide_unit_and_barcode_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/026_guide_unit_and_barcode_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

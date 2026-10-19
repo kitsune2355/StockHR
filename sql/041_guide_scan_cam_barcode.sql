@@ -18,10 +18,10 @@
 --  ข้อจำกัดเรื่อง http ยังคงอยู่ ไม่ได้แก้ตรงนั้น
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/041_guide_scan_cam_barcode.sql
+--      mysql -u root -p1234 stock_hr < sql/041_guide_scan_cam_barcode.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/041_guide_scan_cam_barcode_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/041_guide_scan_cam_barcode_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

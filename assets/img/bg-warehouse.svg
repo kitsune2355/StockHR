@@ -2,7 +2,7 @@
      role="img" aria-label="ภาพประกอบคลังสินค้า ชั้นวาง กล่องสินค้า และพาเลท">
 
   <!-- ============================================================
-       bg-warehouse.svg — ภาพพื้นหลังของระบบสต็อกธุรการ
+       bg-warehouse.svg — ภาพพื้นหลังของระบบสต็อก HR
        ใช้เป็นพื้นหลังเบลอในพื้นที่เนื้อหา (ตั้งค่าที่ตัวแปร app-bg-image ใน app.css)
        หมายเหตุ: ห้ามพิมพ์ขีดกลางติดกันสองตัวในคอมเมนต์ XML ไฟล์จะพังทั้งไฟล์
 
@@ -13,51 +13,51 @@
        ใน app.css มองทะลุขึ้นมาผสมได้ และให้ปรับความเข้มด้วย opacity
        จากฝั่ง CSS ได้อิสระ
 
-       สีทั้งหมดมาจาก palette brand ของระบบ (#029488 เป็นตัวหลัก)
+       สีทั้งหมดมาจาก palette brand ของระบบ (#0891b2 เป็นตัวหลัก)
        ============================================================ -->
 
   <defs>
     <linearGradient id="boxFront" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="#33c1b8"/>
-      <stop offset="100%" stop-color="#029488"/>
+      <stop offset="0%"   stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#0891b2"/>
     </linearGradient>
 
     <linearGradient id="boxFrontDeep" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="#029488"/>
-      <stop offset="100%" stop-color="#055f59"/>
+      <stop offset="0%"   stop-color="#0891b2"/>
+      <stop offset="100%" stop-color="#155e75"/>
     </linearGradient>
 
     <linearGradient id="boxLid" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%"   stop-color="#a9ebe4"/>
-      <stop offset="100%" stop-color="#71dbd2"/>
+      <stop offset="0%"   stop-color="#a5f3fc"/>
+      <stop offset="100%" stop-color="#67e8f9"/>
     </linearGradient>
 
     <linearGradient id="rackSteel" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="#055f59"/>
-      <stop offset="100%" stop-color="#0a3f3c"/>
+      <stop offset="0%"   stop-color="#155e75"/>
+      <stop offset="100%" stop-color="#083344"/>
     </linearGradient>
 
     <!-- กล่องสินค้า 1 ใบ : ตัวกล่อง + ฝาบน + เทปกลาง -->
     <symbol id="carton" viewBox="0 0 120 100">
       <rect x="0"  y="14" width="120" height="86" rx="6"  fill="url(#boxFront)"/>
       <rect x="0"  y="0"  width="120" height="20" rx="5"  fill="url(#boxLid)"/>
-      <rect x="52" y="14" width="16"  height="86"         fill="#effbf9" opacity=".55"/>
-      <rect x="0"  y="14" width="120" height="6"          fill="#0a3f3c" opacity=".12"/>
+      <rect x="52" y="14" width="16"  height="86"         fill="#ecfeff" opacity=".55"/>
+      <rect x="0"  y="14" width="120" height="6"          fill="#083344" opacity=".12"/>
     </symbol>
 
     <!-- กล่องทรงสูง -->
     <symbol id="cartonTall" viewBox="0 0 100 140">
       <rect x="0"  y="16" width="100" height="124" rx="6" fill="url(#boxFrontDeep)"/>
       <rect x="0"  y="0"  width="100" height="22"  rx="5" fill="url(#boxLid)"/>
-      <rect x="42" y="16" width="16"  height="124"        fill="#effbf9" opacity=".45"/>
+      <rect x="42" y="16" width="16"  height="124"        fill="#ecfeff" opacity=".45"/>
     </symbol>
 
     <!-- พาเลทไม้ -->
     <symbol id="pallet" viewBox="0 0 260 34">
-      <rect x="0"   y="0"  width="260" height="12" rx="3" fill="#055f59"/>
-      <rect x="10"  y="16" width="34"  height="18" rx="3" fill="#0a3f3c"/>
-      <rect x="113" y="16" width="34"  height="18" rx="3" fill="#0a3f3c"/>
-      <rect x="216" y="16" width="34"  height="18" rx="3" fill="#0a3f3c"/>
+      <rect x="0"   y="0"  width="260" height="12" rx="3" fill="#155e75"/>
+      <rect x="10"  y="16" width="34"  height="18" rx="3" fill="#083344"/>
+      <rect x="113" y="16" width="34"  height="18" rx="3" fill="#083344"/>
+      <rect x="216" y="16" width="34"  height="18" rx="3" fill="#083344"/>
     </symbol>
   </defs>
 
@@ -68,9 +68,9 @@
   <g opacity=".85">
     <rect x="120" y="150" width="26"  height="600" rx="6" fill="url(#rackSteel)"/>
     <rect x="600" y="150" width="26"  height="600" rx="6" fill="url(#rackSteel)"/>
-    <rect x="120" y="330" width="506" height="18" rx="5" fill="#055f59"/>
-    <rect x="120" y="520" width="506" height="18" rx="5" fill="#055f59"/>
-    <rect x="120" y="732" width="506" height="18" rx="5" fill="#055f59"/>
+    <rect x="120" y="330" width="506" height="18" rx="5" fill="#155e75"/>
+    <rect x="120" y="520" width="506" height="18" rx="5" fill="#155e75"/>
+    <rect x="120" y="732" width="506" height="18" rx="5" fill="#155e75"/>
 
     <!-- ชั้นบน -->
     <use href="#carton" x="170" y="230" width="120" height="100"/>
@@ -128,7 +128,7 @@
   <!-- ============================================================
        เส้นบอกทางเดินบนพื้นคลัง
        ============================================================ -->
-  <g opacity=".35" fill="none" stroke="#029488" stroke-width="10" stroke-linecap="round">
+  <g opacity=".35" fill="none" stroke="#0891b2" stroke-width="10" stroke-linecap="round">
     <path d="M60 820 H1540"/>
     <path d="M60 862 H1200" stroke-dasharray="60 44"/>
   </g>

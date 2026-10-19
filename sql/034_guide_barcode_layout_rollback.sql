@@ -3,7 +3,7 @@
 --  คืนข้อความคู่มือสองขั้นของหน้าบาร์โค้ดและคิวอาร์โค้ด กลับเป็นก่อนมีตัวเลือกการจัดวาง
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e):
---      mysql -u root -p1234 stock_hl < sql/034_guide_barcode_layout_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/034_guide_barcode_layout_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

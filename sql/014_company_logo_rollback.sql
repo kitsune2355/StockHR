@@ -7,7 +7,7 @@
 --  ส่วนไฟล์ที่ค้างอยู่ไม่กระทบอะไร ลบทิ้งเองทีหลังได้ถ้าไม่ใช้แล้ว
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/014_company_logo_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/014_company_logo_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

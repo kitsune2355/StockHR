@@ -7,10 +7,10 @@
 --  และมีช่องติ๊กปิดไว้สำหรับคนที่พิมพ์ลงแผ่นสติกเกอร์ที่ปรุรอยตัดมาแล้ว
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/037_guide_barcode_cutline.sql
+--      mysql -u root -p1234 stock_hr < sql/037_guide_barcode_cutline.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/037_guide_barcode_cutline_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/037_guide_barcode_cutline_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

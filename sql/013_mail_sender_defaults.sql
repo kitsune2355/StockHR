@@ -20,10 +20,10 @@
 --  รันซ้ำได้ไม่มีผลข้างเคียง
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/013_mail_sender_defaults.sql
+--      mysql -u root -p1234 stock_hr < sql/013_mail_sender_defaults.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/013_mail_sender_defaults_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/013_mail_sender_defaults_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;
@@ -45,7 +45,7 @@ WHERE `setting_key` = 'smtp_user';
 UPDATE `tb_app_setting` SET `setting_value` = 'no-reply@happyland.co.th'
 WHERE `setting_key` = 'mail_from';
 
-UPDATE `tb_app_setting` SET `setting_value` = 'ระบบสต็อกธุรการ Happyland'
+UPDATE `tb_app_setting` SET `setting_value` = 'ระบบสต็อก HR Happyland'
 WHERE `setting_key` = 'mail_from_name';
 
 

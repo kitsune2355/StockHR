@@ -3,7 +3,7 @@
 --  คืนคู่มือขั้นที่ 4 ของหน้า "บันทึกปรับยอด" กลับเป็นแบบไฟล์ 057
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/058_guide_adjust_addrow_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/058_guide_adjust_addrow_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

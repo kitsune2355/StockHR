@@ -21,10 +21,10 @@
 --  ส่วน selector ผูกกับปุ่มจริงบนหน้าจอ จึงไม่ขึ้นกับว่าขั้นนั้นอยู่ที่เท่าไร
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/046_guide_link_dialog.sql
+--      mysql -u root -p1234 stock_hr < sql/046_guide_link_dialog.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/046_guide_link_dialog_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/046_guide_link_dialog_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

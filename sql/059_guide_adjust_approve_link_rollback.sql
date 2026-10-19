@@ -3,7 +3,7 @@
 --  คืนคู่มือหน้า "ประวัติการปรับยอด" ขั้นที่ 4 กลับเป็นแบบไฟล์ 057
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/059_guide_adjust_approve_link_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/059_guide_adjust_approve_link_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

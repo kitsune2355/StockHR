@@ -39,10 +39,10 @@
 --    - ไม่มี generated column / CHECK constraint
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/011_guide_notify.sql
+--      mysql -u root -p1234 stock_hr < sql/011_guide_notify.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/011_guide_notify_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/011_guide_notify_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;
@@ -288,9 +288,9 @@ VALUES
   ('smtp_user',      '',                  'mail',  'บัญชีอีเมลที่ใช้ส่ง',                            NOW(), NULL),
   ('smtp_pass',      '',                  'mail',  'รหัสผ่านแอป (App Password) ของ Zoho',           NOW(), NULL),
   ('mail_from',      '',                  'mail',  'อีเมลผู้ส่งที่แสดงในหัวเมล',                     NOW(), NULL),
-  ('mail_from_name', 'ระบบสต็อกธุรการ Happyland', 'mail', 'ชื่อผู้ส่งที่แสดงในหัวเมล',                NOW(), NULL),
+  ('mail_from_name', 'ระบบสต็อก HR Happyland', 'mail', 'ชื่อผู้ส่งที่แสดงในหัวเมล',                NOW(), NULL),
   ('mail_max_try',   '3',                 'mail',  'ลองส่งซ้ำได้กี่ครั้งก่อนยอมแพ้',                 NOW(), NULL),
-  ('site_url',       'http://localhost/stock_hl/', 'general', 'ที่อยู่ระบบ ใช้ทำลิงก์ในอีเมล',       NOW(), NULL),
+  ('site_url',       'http://localhost/stock_hr/', 'general', 'ที่อยู่ระบบ ใช้ทำลิงก์ในอีเมล',       NOW(), NULL),
   ('guide_enabled',  '1',                 'guide', 'เปิดใช้งานคู่มือการใช้งาน (1=เปิด 0=ปิด)',      NOW(), NULL);
 
 
@@ -303,7 +303,7 @@ VALUES
 
 -- ---------- ภาพรวมระบบ ----------
 INSERT INTO `tb_guide` (`page_key`, `title`, `description`, `auto_start`, `is_active`, `created_at`)
-VALUES ('dashboard', 'เริ่มต้นใช้งานระบบสต็อกธุรการ',
+VALUES ('dashboard', 'เริ่มต้นใช้งานระบบสต็อก HR',
         'พาดูส่วนประกอบหลักของหน้าจอ และงานที่ต้องทำของคุณ', 1, 1, NOW());
 
 INSERT INTO `tb_guide_step`

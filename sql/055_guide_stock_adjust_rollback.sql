@@ -8,7 +8,7 @@
 --  ตัวหน้าปรับยอดและประวัติยังทำงานเหมือนเดิมทุกอย่าง
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/055_guide_stock_adjust_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/055_guide_stock_adjust_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

@@ -39,10 +39,10 @@
 --  กุญแจจะถูกออกให้ตอนส่งเมลหรือตอนกดคัดลอกลิงก์ครั้งแรกเท่านั้น
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/019_sign_link.sql
+--      mysql -u root -p1234 stock_hr < sql/019_sign_link.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/019_sign_link_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/019_sign_link_rollback.sql
 --
 --  รองรับ MySQL 5.0.51b
 -- ============================================================

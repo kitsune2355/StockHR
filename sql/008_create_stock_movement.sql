@@ -30,7 +30,7 @@
 --      ส่วน created_at กับเวลาอื่น ๆ ให้แอปส่ง NOW() มา
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/008_create_stock_movement.sql
+--      mysql -u root -p1234 stock_hr < sql/008_create_stock_movement.sql
 -- ============================================================
 
 

@@ -9,7 +9,7 @@
 --  ไม่ได้อยู่ในฐานข้อมูล การรันไฟล์นี้จึงไม่ได้ปิดการสาธิต
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/021_guide_product_dept_demo_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/021_guide_product_dept_demo_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

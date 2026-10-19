@@ -18,12 +18,12 @@
 --    2) หน้า settings_guide ยังไม่มีคู่มือของตัวเอง ต้องสร้างใหม่
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/028_guide_settings_split.sql
+--      mysql -u root -p1234 stock_hr < sql/028_guide_settings_split.sql
 --
 --  ไฟล์นี้ลบของตัวเองก่อนใส่ใหม่ทุกครั้ง รันซ้ำได้ปลอดภัย
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/028_guide_settings_split_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/028_guide_settings_split_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

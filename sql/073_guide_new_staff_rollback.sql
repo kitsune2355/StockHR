@@ -3,7 +3,7 @@
 --  ย้อน 073_guide_new_staff.sql
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/073_guide_new_staff_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/073_guide_new_staff_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

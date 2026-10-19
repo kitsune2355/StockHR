@@ -3,7 +3,7 @@
 --  คืนข้อความคู่มือขั้น "ช่องยิง" ของสามหน้าเอกสาร กลับไปเป็นแบบบาร์โค้ดอย่างเดียว
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e):
---      mysql -u root -p1234 stock_hl < sql/033_guide_doc_scan_qr_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/033_guide_doc_scan_qr_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

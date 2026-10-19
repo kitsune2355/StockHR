@@ -19,7 +19,7 @@
 error_reporting(E_ALL ^ E_NOTICE);
 
 if (session_id() === '') {
-    @session_start();
+    @session_name('STOCKHR_SID'); @session_start();
 }
 
 /* path กลับไปหน้า login — คิดจากตำแหน่งของไฟล์นี้ ใช้ได้ทั้งหน้า root และหน้าในโฟลเดอร์ย่อย */
@@ -35,7 +35,7 @@ function session_expired($login_url, $message)
     session_unset();
     session_destroy();
 
-    @session_start();
+    @session_name('STOCKHR_SID'); @session_start();
     $_SESSION['login_error'] = $message;
 
     header('Location: ' . $login_url);

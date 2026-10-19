@@ -9,7 +9,7 @@
 --  ถ้าเลื่อนก่อนลบ ขั้นใหม่จะไปทับเลขของขั้นอื่น
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/044_guide_approve_link_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/044_guide_approve_link_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

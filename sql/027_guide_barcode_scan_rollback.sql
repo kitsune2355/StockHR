@@ -6,7 +6,7 @@
 --  ถ้าลบตามเลขลำดับจะไปโดนขั้นที่ไม่เกี่ยวข้อง
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/027_guide_barcode_scan_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/027_guide_barcode_scan_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

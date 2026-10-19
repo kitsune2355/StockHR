@@ -31,10 +31,10 @@
 --  ซ้ำอีกครั้งหลังรันไฟล์นี้ ต้องเลื่อนเลขในไฟล์นั้นตามด้วย
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/044_guide_approve_link.sql
+--      mysql -u root -p1234 stock_hr < sql/044_guide_approve_link.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/044_guide_approve_link_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/044_guide_approve_link_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

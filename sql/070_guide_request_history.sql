@@ -14,10 +14,10 @@
 --  รันซ้ำจะเลื่อนซ้ำและได้ขั้นซ้ำ จึงลบขั้นเดิมของ selector นี้ทิ้งก่อนเสมอ
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/070_guide_request_history.sql
+--      mysql -u root -p1234 stock_hr < sql/070_guide_request_history.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/070_guide_request_history_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/070_guide_request_history_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

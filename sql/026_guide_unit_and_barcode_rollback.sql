@@ -11,7 +11,7 @@
 --  เพิ่มระหว่างนี้ การลบตามเลขลำดับจะไปโดนขั้นที่ไม่เกี่ยวข้อง
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/026_guide_unit_and_barcode_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/026_guide_unit_and_barcode_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

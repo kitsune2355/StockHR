@@ -26,10 +26,10 @@
 --  ถ้าจะรันไฟล์เหล่านั้นซ้ำหลังรันไฟล์นี้ ต้องเลื่อนเลขตามด้วย
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/063_guide_request_openapprovelink.sql
+--      mysql -u root -p1234 stock_hr < sql/063_guide_request_openapprovelink.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/063_guide_request_openapprovelink_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/063_guide_request_openapprovelink_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

@@ -18,10 +18,10 @@
 --  จะได้ไม่ต้องไล่แก้ข้อมูลทุกแถว
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/014_company_logo.sql
+--      mysql -u root -p1234 stock_hr < sql/014_company_logo.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/014_company_logo_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/014_company_logo_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

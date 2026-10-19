@@ -29,10 +29,10 @@
 --  ไม่ชี้ด้วยคลาสหรือลำดับ ซึ่งพังทันทีที่มีคนจัดหน้าใหม่
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/049_guide_report_supply.sql
+--      mysql -u root -p1234 stock_hr < sql/049_guide_report_supply.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/049_guide_report_supply_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/049_guide_report_supply_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

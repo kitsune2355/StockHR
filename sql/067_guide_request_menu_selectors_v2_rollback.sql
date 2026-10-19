@@ -4,7 +4,7 @@
 --  (สถานะแบบ sql/065)
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/067_guide_request_menu_selectors_v2_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/067_guide_request_menu_selectors_v2_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

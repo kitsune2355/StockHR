@@ -12,11 +12,11 @@
 --  ตารางที่ "ไม่" แตะ: ผู้ใช้ บริษัท แผนก ตั้งค่าระบบ สิทธิ์เมนู คู่มือ
 --
 --  ลำดับการรัน:
---    1) mysql -u root -p1234 stock_hl < sql/039_reset_transactions.sql
---    2) mysql -u root -p1234 stock_hl < sql/006_import_product_catalog.sql
---    3) mysql -u root -p1234 stock_hl < sql/040_seed_stock_balance.sql
+--    1) mysql -u root -p1234 stock_hr < sql/039_reset_transactions.sql
+--    2) mysql -u root -p1234 stock_hr < sql/006_import_product_catalog.sql
+--    3) mysql -u root -p1234 stock_hr < sql/040_seed_stock_balance.sql
 --
---  ย้อนกลับ: ไม่มี — ใช้ไฟล์สำรองใน C:\AppServ\backup_stock_hl\ แทน
+--  ย้อนกลับ: ไม่มี — ใช้ไฟล์สำรองใน C:\AppServ\backup_stock_hr\ แทน
 -- ============================================================
 
 SET NAMES utf8;

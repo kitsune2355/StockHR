@@ -14,7 +14,7 @@
  * ============================================================ */
 
 error_reporting(E_ALL ^ E_NOTICE);
-@session_start();
+@session_name('STOCKHR_SID'); @session_start();
 
 $username = isset($_GET['u']) ? trim($_GET['u']) : '';
 

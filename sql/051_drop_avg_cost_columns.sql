@@ -24,10 +24,10 @@
 --  ลบทิ้งจึงไม่มีตัวเลขไหนขยับ
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/051_drop_avg_cost_columns.sql
+--      mysql -u root -p1234 stock_hr < sql/051_drop_avg_cost_columns.sql
 --
 --  ย้อนกลับ (ได้คืนแค่โครงสร้าง ค่าเดิมหายถาวร):
---      mysql -u root -p1234 stock_hl < sql/051_drop_avg_cost_columns_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/051_drop_avg_cost_columns_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

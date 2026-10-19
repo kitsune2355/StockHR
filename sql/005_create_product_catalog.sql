@@ -31,8 +31,8 @@
 --  stock_balance, supplier) จะสร้างตอนทำหน้ารับเข้า/เบิกออกจริง
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/005_create_product_catalog.sql
---      mysql -u root -p1234 stock_hl < sql/006_import_product_catalog.sql
+--      mysql -u root -p1234 stock_hr < sql/005_create_product_catalog.sql
+--      mysql -u root -p1234 stock_hr < sql/006_import_product_catalog.sql
 -- ============================================================
 
 

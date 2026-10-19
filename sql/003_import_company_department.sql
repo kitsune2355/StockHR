@@ -3,7 +3,7 @@
 --  นำเข้าข้อมูลบริษัทและแผนกจากระบบเดิม (developh_stockN)
 --
 --  วิธีรัน (ต้องรัน 002 มาก่อน):
---      mysql -u root -p1234 --default-character-set=utf8 stock_hl < sql/003_import_company_department.sql
+--      mysql -u root -p1234 --default-character-set=utf8 stock_hr < sql/003_import_company_department.sql
 --
 --  ค่าที่กำหนดให้ตอนนำเข้า:
 --    is_active  = 1     ทุกแถว (ระบบเดิมไม่มีคอลัมน์นี้)

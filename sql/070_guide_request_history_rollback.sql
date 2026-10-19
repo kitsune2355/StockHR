@@ -4,7 +4,7 @@
 --  และคืนข้อความขั้น "คอลัมน์จัดการ — เมนู ⋮" กลับเป็นของ sql/066
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/070_guide_request_history_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/070_guide_request_history_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

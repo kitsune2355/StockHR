@@ -6,7 +6,7 @@
 --  ถ้าต้องการคู่มือชุดเดิม (แบบไม่มีขั้นอนุมัติ) ให้รัน sql/055_guide_stock_adjust.sql อีกครั้ง
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/057_guide_adjust_approval_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/057_guide_adjust_approval_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

@@ -8,7 +8,7 @@
 --  ตัวรายงานยังทำงานเหมือนเดิมทุกอย่าง
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/049_guide_report_supply_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/049_guide_report_supply_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

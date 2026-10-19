@@ -14,7 +14,7 @@
 --  จะยิง query ไปที่ตารางที่ไม่มีอยู่แล้ว
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/043_approve_link_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/043_approve_link_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

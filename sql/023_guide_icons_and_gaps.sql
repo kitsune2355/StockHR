@@ -32,7 +32,7 @@
 --  ส่วนที่เหลือคือส่วนที่บัญชีใช้จริง กลับไม่มีใครอธิบายว่าต่างกันอย่างไร
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/023_guide_icons_and_gaps.sql
+--      mysql -u root -p1234 stock_hr < sql/023_guide_icons_and_gaps.sql
 --
 --  ย้อนกลับ:
 --      รัน sql/022_guide_rebuild.sql ใหม่ จะได้คู่มือชุดก่อนหน้าไฟล์นี้กลับมา

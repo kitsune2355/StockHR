@@ -38,9 +38,9 @@
 --  ข้อจำกัด MySQL 5.0.51b: utf8 เท่านั้น, ไม่มี window function/CTE
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/071_doc_name_snapshot.sql
+--      mysql -u root -p1234 stock_hr < sql/071_doc_name_snapshot.sql
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/071_doc_name_snapshot_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/071_doc_name_snapshot_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

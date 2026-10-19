@@ -55,10 +55,10 @@
 --  ที่นี่จึงเก็บเป็นข้อความเปล่า ๆ ไว้ดูย้อนหลังอย่างเดียว
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/043_approve_link.sql
+--      mysql -u root -p1234 stock_hr < sql/043_approve_link.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/043_approve_link_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/043_approve_link_rollback.sql
 --
 --  รองรับ MySQL 5.0.51b
 -- ============================================================

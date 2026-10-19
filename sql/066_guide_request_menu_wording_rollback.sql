@@ -3,7 +3,7 @@
 --  คืนข้อความขั้น "คอลัมน์จัดการ — ปุ่มหลักกับเมนู ⋮" กลับเป็นของ sql/064
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/066_guide_request_menu_wording_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/066_guide_request_menu_wording_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

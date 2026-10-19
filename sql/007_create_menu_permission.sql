@@ -16,7 +16,7 @@
 --    เพื่อกันกรณีเผลอปิดสิทธิ์ตัวเองแล้วไม่มีใครเข้าไปแก้คืนได้อีกเลย
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/007_create_menu_permission.sql
+--      mysql -u root -p1234 stock_hr < sql/007_create_menu_permission.sql
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS `tb_menu_permission` (

@@ -13,7 +13,7 @@
 --  อันตรายกว่าปล่อยให้เป็น 0 ที่เห็นชัดว่ายังไม่ได้คำนวณ
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/051_drop_avg_cost_columns_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/051_drop_avg_cost_columns_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

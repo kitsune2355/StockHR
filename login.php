@@ -9,7 +9,7 @@
  * ============================================================ */
 
 error_reporting(E_ALL ^ E_NOTICE);
-@session_start();
+@session_name('STOCKHR_SID'); @session_start();
 
 // ล็อกอินอยู่แล้ว ไม่ต้องเข้าหน้านี้ซ้ำ
 if (!empty($_SESSION['sess_username']) && !empty($_SESSION['sess_role'])) {
@@ -27,16 +27,16 @@ unset($_SESSION['login_error']);
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>เข้าสู่ระบบ | ระบบสต็อกธุรการ Happyland</title>
+<title>เข้าสู่ระบบ | ระบบสต็อก HR Happyland</title>
 
 <?php include 'includes/head_assets.php'; ?>
 </head>
 
-<body class="min-h-screen bg-brand-50 font-sans text-slate-800 antialiased">
+<body class="min-h-screen bg-[#f7f8fc] font-sans text-slate-800 antialiased">
 
 <!-- แถบตกแต่งพื้นหลัง (ลอยช้า ๆ ไม่รบกวนสายตา) -->
 <div class="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
-  <div class="animate-float-slow absolute -left-24 -top-24 h-96 w-96 rounded-full bg-brand-200/50 blur-3xl"></div>
+  <div class="animate-float-slow absolute -left-24 -top-24 h-96 w-96 rounded-full bg-blue-200/50 blur-3xl"></div>
   <div class="animate-float absolute -bottom-32 -right-16 h-[28rem] w-[28rem] rounded-full bg-emerald-200/50 blur-3xl"></div>
 </div>
 
@@ -44,7 +44,7 @@ unset($_SESSION['login_error']);
   <div class="animate-fade-in grid w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-card ring-1 ring-brand-100 lg:grid-cols-2">
 
     <!-- ===== ฝั่งแบรนด์ ===== -->
-    <section class="animate-pan-gradient relative flex flex-col overflow-hidden bg-gradient-to-br from-brand-700 via-brand-500 to-emerald-400 bg-[length:200%_200%] p-8 text-white lg:p-12">
+    <section class="animate-pan-gradient relative flex flex-col overflow-hidden bg-gradient-to-br from-grad-start via-brand-600 to-grad-end bg-[length:200%_200%] p-8 text-white lg:p-12">
 
       <!-- ลวดลายพื้นหลังจาง ๆ -->
       <div class="pointer-events-none absolute inset-0 opacity-20" aria-hidden="true">
@@ -65,10 +65,10 @@ unset($_SESSION['login_error']);
         </div>
 
         <h2 class="animate-fade-up mt-6 text-2xl font-bold leading-relaxed [animation-delay:120ms] lg:text-3xl">
-          ระบบสต็อกธุรการ
+          ระบบสต็อก HR
         </h2>
         <p class="animate-fade-up mt-2 max-w-sm text-sm leading-relaxed text-white/85 [animation-delay:200ms]">
-          จัดการรับเข้า จ่ายออก และยอดคงเหลือของสินค้าในคลัง พร้อมรายงานสรุปแบบเรียลไทม์
+          จัดการรับเข้า เบิก–จ่าย และยอดคงเหลือของอุปกรณ์ฝ่ายทรัพยากรบุคคล รวมถึงชุดอุปกรณ์พนักงานใหม่ พร้อมรายงานสรุปแบบเรียลไทม์
         </p>
       </div>
 
@@ -94,7 +94,7 @@ unset($_SESSION['login_error']);
       </ul>
 
       <p class="animate-fade-in relative mt-auto hidden pt-10 text-xs tracking-wider text-white/70 [animation-delay:600ms] lg:block">
-        HAPPYLAND GROUP &middot; WAREHOUSE SYSTEM
+        HAPPYLAND GROUP &middot; HR STOCK SYSTEM
       </p>
     </section>
 

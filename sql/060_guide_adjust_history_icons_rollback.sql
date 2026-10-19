@@ -4,7 +4,7 @@
 --  (4 ขั้น: intro / #quickStatusFilters / #fpToggle / "ปุ่มบนแต่ละแถว")
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/060_guide_adjust_history_icons_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/060_guide_adjust_history_icons_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

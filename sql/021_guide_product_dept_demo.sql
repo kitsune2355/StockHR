@@ -17,10 +17,10 @@
 --  ซึ่งของเดิมพูดถึงแค่ในประโยคเดียวปนกับเรื่องอื่น
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/021_guide_product_dept_demo.sql
+--      mysql -u root -p1234 stock_hr < sql/021_guide_product_dept_demo.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/021_guide_product_dept_demo_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/021_guide_product_dept_demo_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

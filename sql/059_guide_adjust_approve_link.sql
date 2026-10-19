@@ -7,10 +7,10 @@
 --  ทางไลน์/แชต หรือเปิดหน้าอนุมัติเองได้เลยโดยไม่ต้องรออีเมล
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/059_guide_adjust_approve_link.sql
+--      mysql -u root -p1234 stock_hr < sql/059_guide_adjust_approve_link.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/059_guide_adjust_approve_link_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/059_guide_adjust_approve_link_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

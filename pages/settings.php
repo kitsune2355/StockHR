@@ -117,14 +117,14 @@ if (!function_exists('st_esc')) {
             </div>
             <div class="min-w-0">
               <label for="mailFromName" class="st-label">ชื่อผู้ส่ง</label>
-              <input type="text" id="mailFromName" class="st-input" placeholder="ระบบสต็อกธุรการ Happyland">
+              <input type="text" id="mailFromName" class="st-input" placeholder="ระบบสต็อก HR Happyland">
             </div>
           </div>
 
           <div class="grid gap-4 sm:grid-cols-2">
             <div class="min-w-0">
               <label for="siteUrl" class="st-label">ที่อยู่ระบบ (ใช้ทำปุ่มในอีเมล)</label>
-              <input type="text" id="siteUrl" class="st-input" placeholder="http://localhost/stock_hl/">
+              <input type="text" id="siteUrl" class="st-input" placeholder="http://localhost/stock_hr/">
             </div>
             <div class="min-w-0">
               <label for="mailMaxTry" class="st-label">ลองส่งซ้ำได้กี่ครั้ง</label>
@@ -195,8 +195,8 @@ if (!function_exists('st_esc')) {
         เปิด Command Prompt แบบผู้ดูแลระบบแล้ววางคำสั่งนี้หนึ่งครั้ง
         (ตั้งให้วิ่งทุก 5 นาที ตลอด 24 ชั่วโมง)
       </p>
-      <pre class="mt-3 overflow-x-auto rounded-xl bg-slate-900 px-4 py-3 text-[13px] leading-relaxed text-slate-100"><code>schtasks /create /tn "StockHL Mail Worker" /sc minute /mo 5 ^
-  /tr "C:\AppServ\php5\php.exe C:\AppServ\www\stock_hl\cron\mail_worker.php" /ru SYSTEM</code></pre>
+      <pre class="mt-3 overflow-x-auto rounded-xl bg-slate-900 px-4 py-3 text-[13px] leading-relaxed text-slate-100"><code>schtasks /create /tn "StockHR Mail Worker" /sc minute /mo 5 ^
+  /tr "C:\AppServ\php5\php.exe C:\AppServ\www\stock_hr\cron\mail_worker.php" /ru SYSTEM</code></pre>
       <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
         ถ้าติดตั้ง AppServ ไว้ที่อื่น ให้แก้เส้นทางทั้งสองจุดให้ตรงกับเครื่อง
       </p>

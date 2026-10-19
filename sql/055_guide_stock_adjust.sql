@@ -36,10 +36,10 @@
 --  ขั้นที่ target ไม่เจอหรือถูกซ่อน app-guide.js ข้ามให้เงียบ ๆ อยู่แล้ว
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/055_guide_stock_adjust.sql
+--      mysql -u root -p1234 stock_hr < sql/055_guide_stock_adjust.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/055_guide_stock_adjust_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/055_guide_stock_adjust_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

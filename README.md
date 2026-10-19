@@ -1,6 +1,6 @@
-# StockHL
+# StockHR
 
-ระบบสต็อกธุรการ Happyland — รับสินค้าเข้า เบิก จ่ายออก รายงาน
+ระบบสต็อก HR Happyland — รับสินค้าเข้า เบิก จ่ายออก รายงาน
 ฉลากบาร์โค้ด/QR และแจ้งเตือนทางอีเมล
 
 เขียนด้วย PHP 5.2.6 / MySQL 5.0 บน AppServ (Apache 2.2)
@@ -13,21 +13,21 @@
 
 ```bash
 cd C:/AppServ/www
-git clone https://github.com/kitsune2355/StockHL.git stock_hl
+git clone https://github.com/kitsune2355/StockHR.git stock_hr
 ```
 
-ชื่อโฟลเดอร์ต้องเป็น `stock_hl` เพราะลิงก์ในอีเมลกับใบพิมพ์อ้างอิงชื่อนี้
+ชื่อโฟลเดอร์ต้องเป็น `stock_hr` เพราะลิงก์ในอีเมลกับใบพิมพ์อ้างอิงชื่อนี้
 
 ### 2. สร้างฐานข้อมูล
 
 ```bash
-C:/AppServ/MySQL/bin/mysql.exe -u root -p -e "CREATE DATABASE stock_hl DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;"
+C:/AppServ/MySQL/bin/mysql.exe -u root -p -e "CREATE DATABASE stock_hr DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;"
 ```
 
 ### 3. ตั้งค่าการเชื่อมต่อ
 
 ```bash
-cd C:/AppServ/www/stock_hl
+cd C:/AppServ/www/stock_hr
 cp config_ctrl/connect.example.php config_ctrl/connect.php
 ```
 
@@ -41,20 +41,20 @@ cp config_ctrl/connect.example.php config_ctrl/connect.php
 รันไฟล์ใน `sql/` **ตามลำดับเลข** ข้ามไฟล์ที่ลงท้ายด้วย `_rollback`
 
 ```bash
-cd C:/AppServ/www/stock_hl
+cd C:/AppServ/www/stock_hr
 for f in $(ls sql/*.sql | grep -v rollback | sort); do
   echo "-- $f"
-  C:/AppServ/MySQL/bin/mysql.exe -u root -p1234 stock_hl < "$f" || break
+  C:/AppServ/MySQL/bin/mysql.exe -u root -p1234 stock_hr < "$f" || break
 done
 ```
 
 PowerShell:
 
 ```powershell
-cd C:\AppServ\www\stock_hl
+cd C:\AppServ\www\stock_hr
 Get-ChildItem sql\*.sql | Where-Object { $_.Name -notlike "*rollback*" } | Sort-Object Name | ForEach-Object {
     Write-Host "-- $($_.Name)"
-    & C:\AppServ\MySQL\bin\mysql.exe -u root -p1234 stock_hl -e "source $($_.FullName)"
+    & C:\AppServ\MySQL\bin\mysql.exe -u root -p1234 stock_hr -e "source $($_.FullName)"
 }
 ```
 
@@ -65,7 +65,7 @@ Get-ChildItem sql\*.sql | Where-Object { $_.Name -notlike "*rollback*" } | Sort-
 เปิด AppServ (Apache + MySQL) แล้วเข้า
 
 ```
-http://localhost/stock_hl/
+http://localhost/stock_hr/
 ```
 
 เข้าระบบครั้งแรกด้วย `admin` / `admin1234` แล้ว **เปลี่ยนรหัสผ่านทันที**
@@ -91,7 +91,7 @@ http://localhost/stock_hl/
 2. **ตั้งที่อยู่เว็บ** ที่เมนู *อีเมลและคู่มือ › อีเมลแจ้งเตือน* ช่อง "ที่อยู่ระบบ"
 
    ```
-   https://develophpg.net/stock_hl/
+   https://develophpg.net/stock_hr/
    ```
 
    ค่านี้เก็บอยู่ในฐานข้อมูล แต่ละที่จึงมีของตัวเอง ใช้สร้างปุ่มในอีเมล
@@ -106,7 +106,7 @@ http://localhost/stock_hl/
 4. **ตั้งตัวส่งอีเมล** — Linux ใช้ crontab แทน Task Scheduler
 
    ```
-   * * * * * /usr/bin/php /home/บัญชี/domains/develophpg.net/public_html/stock_hl/cron/mail_worker.php
+   * * * * * /usr/bin/php /home/บัญชี/domains/develophpg.net/public_html/stock_hr/cron/mail_worker.php
    ```
 
    โฮสต์ที่ตั้ง cron ไม่ได้ ให้ตั้ง `cron_key` ใน `tb_app_setting` แล้วเรียกผ่าน URL แทน
@@ -126,8 +126,8 @@ http://localhost/stock_hl/
 อีเมลทุกฉบับเข้าคิวก่อน แล้วให้ตัวส่งมาหยิบไป ตั้งให้วิ่งเองด้วย
 
 ```
-schtasks /create /tn "StockHL Mail Worker" /sc minute /mo 1 ^
-  /tr "C:\AppServ\php5\php.exe C:\AppServ\www\stock_hl\cron\mail_worker.php" /ru SYSTEM
+schtasks /create /tn "StockHR Mail Worker" /sc minute /mo 1 ^
+  /tr "C:\AppServ\php5\php.exe C:\AppServ\www\stock_hr\cron\mail_worker.php" /ru SYSTEM
 ```
 
 ### กล้องส่อง QR

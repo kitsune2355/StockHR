@@ -9,7 +9,7 @@
 --  ใช้ไฟล์นี้แทน 026 ส่วนที่ 1 ได้เลยถ้าต้องติดตั้งใหม่ทั้งระบบ
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/026b_guide_category_rebuild.sql
+--      mysql -u root -p1234 stock_hr < sql/026b_guide_category_rebuild.sql
 -- ============================================================
 
 SET NAMES utf8;

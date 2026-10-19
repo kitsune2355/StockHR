@@ -163,7 +163,7 @@ body {
 
 .head {
     padding: 20px 20px 18px;
-    background: linear-gradient(135deg, #029488 0%, #02776f 100%);
+    background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
     color: #fff;
 }
 .head h1 { margin: 0; font-size: 19px; font-weight: 700; }
@@ -181,7 +181,7 @@ body {
     line-height: 1.55;
 }
 .note b { font-weight: 700; }
-.note-ok   { background: #effbf9; border: 1px solid #a9ebe4; color: #055f59; }
+.note-ok   { background: #ecfeff; border: 1px solid #a5f3fc; color: #155e75; }
 .note-bad  { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
 .note-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
 .note-info { background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569; }
@@ -241,8 +241,8 @@ input[type=text] {
 }
 input[type=text]:focus {
     outline: none;
-    border-color: #029488;
-    box-shadow: 0 0 0 4px rgba(2, 148, 136, .14);
+    border-color: #0891b2;
+    box-shadow: 0 0 0 4px rgba(8, 145, 178, .14);
 }
 
 .padbox {
@@ -299,11 +299,11 @@ input[type=text]:focus {
     width: 100%;
     height: 54px;
     margin-top: 20px;
-    background: #029488;
+    background: #0891b2;
     color: #fff;
     font-size: 16px;
 }
-.btn-main:active { background: #02776f; }
+.btn-main:active { background: #0e7490; }
 .btn-soft {
     background: #fff;
     border-color: #cbd5e1;
@@ -312,7 +312,7 @@ input[type=text]:focus {
 .btn-link {
     display: inline-block;
     margin-top: 14px;
-    color: #02776f;
+    color: #0e7490;
     font-weight: 600;
     text-decoration: none;
 }

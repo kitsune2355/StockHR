@@ -1,9 +1,9 @@
 -- ============================================================
 --  001_create_tb_user.sql
---  ตารางผู้ใช้งานระบบสต็อกธุรการ stock_hl
+--  ตารางผู้ใช้งานระบบสต็อก HR stock_hr
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/001_create_tb_user.sql
+--      mysql -u root -p1234 stock_hr < sql/001_create_tb_user.sql
 --
 --  เซิร์ฟเวอร์เป้าหมาย: MySQL 5.0.51b (AppServ) — มีข้อจำกัดหลายอย่าง
 --  อ่าน "ขั้นที่ 0" ให้จบก่อนรัน
@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS `tb_user` (
       REFERENCES `tb_user` (`username`) ON DELETE SET NULL ON UPDATE CASCADE
 
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
-  COMMENT='ผู้ใช้งานระบบสต็อกธุรการ';
+  COMMENT='ผู้ใช้งานระบบสต็อก HR';
 
 
 -- ------------------------------------------------------------

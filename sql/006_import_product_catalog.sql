@@ -28,7 +28,7 @@
 --           เก่าจะชี้ไปสินค้าผิดตัวโดยไม่มีอะไรเตือน
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e ไม่งั้นภาษาไทยจะเพี้ยน):
---      mysql -u root -p1234 stock_hl < sql/006_import_product_catalog.sql
+--      mysql -u root -p1234 stock_hr < sql/006_import_product_catalog.sql
 -- ============================================================
 
 SET NAMES utf8;

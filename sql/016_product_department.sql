@@ -27,10 +27,10 @@
 --  ของที่ต้องการจำกัดจริง ๆ ทีละหน่วยงาน
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/016_product_department.sql
+--      mysql -u root -p1234 stock_hr < sql/016_product_department.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/016_product_department_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/016_product_department_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

@@ -317,7 +317,7 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
     font-family: inherit; font-size: 14px; font-weight: 600;
     text-decoration: none; cursor: pointer;
 }
-.bar .primary { background: #0d9488; color: #fff; }
+.bar .primary { background: #0891b2; color: #fff; }
 .bar .ghost   { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
 .bar .hint    { margin-left: auto; font-size: 12px; color: #475569; }
 
@@ -539,7 +539,7 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
   <?php endif; ?>
 
   <!-- ============ หมายเหตุประจำแบบฟอร์ม ============
-       ข้อความชุดนี้เป็นเงื่อนไขการเบิกที่ฝ่ายธุรการกำหนด — ไม่เกี่ยวกับใบปรับยอด -->
+       ข้อความชุดนี้เป็นเงื่อนไขการเบิกที่ฝ่ายทรัพยากรบุคคลกำหนด — ไม่เกี่ยวกับใบปรับยอด -->
   <?php if ($new_staff !== null): ?>
   <?php
   /* ใบพนักงานใหม่ใช้หมายเหตุของตัวเอง (ตั้งได้ที่หน้า "อุปกรณ์พนักงานใหม่")
@@ -564,9 +564,8 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
   <div class="notes">
     <div class="notes-h">หมายเหตุ:</div>
     <ol>
-      <li>กรณีขอเบิกวัสดุที่นอกเหนือในแบบฟอร์มนี้ให้ส่งรายละเอียดทางอีเมลล์หาเจ้าหน้าที่ฝ่ายธุรการ</li>
-      <li>หน่วยงานส่งใบเบิกวันที่ 10 ได้รับของวันที่ 25 และส่งใบเบิกวันที่ 25 ได้รับของวันที่ 10 เดือนถัดไป</li>
-      <li>สำนักงานใหญ่, สำนักงานสุขสวัสดิ์ เบิกของทุกวันอังคาร, วันพฤหัสบดี เวลา 12.00 - 16.00 น.</li>
+      <li>กรณีขอเบิกวัสดุที่นอกเหนือในแบบฟอร์มนี้ให้ส่งรายละเอียดทางอีเมลล์หาเจ้าหน้าที่ฝ่ายทรัพยากรบุคคล</li>
+      <li>รอบการส่งใบเบิกและเวลารับของ ให้เป็นไปตามประกาศของฝ่ายทรัพยากรบุคคล</li>
     </ol>
   </div>
   <?php endif; ?>

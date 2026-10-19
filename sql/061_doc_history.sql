@@ -20,9 +20,9 @@
 --  คอลัมน์ที่ฐานข้อมูลเติมเวลาให้เองมีได้ตารางละตัว (ยกให้ updated_at ที่ตารางอื่น)
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/061_doc_history.sql
+--      mysql -u root -p1234 stock_hr < sql/061_doc_history.sql
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/061_doc_history_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/061_doc_history_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

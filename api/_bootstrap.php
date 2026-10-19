@@ -16,7 +16,7 @@
 error_reporting(E_ALL ^ E_NOTICE);
 
 if (session_id() === '') {
-    @session_start();
+    @session_name('STOCKHR_SID'); @session_start();
 }
 
 header('Content-Type: application/json; charset=utf-8');

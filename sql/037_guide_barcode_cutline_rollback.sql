@@ -3,7 +3,7 @@
 --  คืนข้อความคู่มือขั้นแผ่นตัวอย่าง กลับเป็นตอนที่เส้นประยังไม่ถูกพิมพ์
 --
 --  วิธีรัน (ต้องส่งเป็นไฟล์ ไม่ใช่ mysql -e):
---      mysql -u root -p1234 stock_hl < sql/037_guide_barcode_cutline_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/037_guide_barcode_cutline_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

@@ -1,4 +1,4 @@
-var XLSX = require('C:/AppServ/www/stock_hl/assets/js/xlsx.mini.min.js');
+var XLSX = require('C:/AppServ/www/stock_hr/assets/js/xlsx.mini.min.js');
 var ws = XLSX.utils.aoa_to_sheet([["ชื่อ","หน่วยงาน"],["สมชาย","ฝ่าย A\nฝ่าย B\nฝ่าย C"]]);
 ws['B2'].s = { alignment: { wrapText:true, vertical:'top' } };
 ws['!rows'] = [ {}, { hpt: 45 } ];

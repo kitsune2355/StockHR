@@ -4,10 +4,10 @@
 --
 --  คำเตือน: ลายเซ็นที่ผู้รับของเซ็นไว้ทั้งหมดจะหายถาวร
 --  ถ้าเคยใช้เป็นหลักฐานไปแล้ว ควรสำรองตารางไว้ก่อนรันไฟล์นี้:
---      mysqldump -u root -p1234 stock_hl tb_doc_header > backup_doc_header.sql
+--      mysqldump -u root -p1234 stock_hr tb_doc_header > backup_doc_header.sql
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/015_form_code_signature_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/015_form_code_signature_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

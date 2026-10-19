@@ -9,7 +9,7 @@
 --  แค่แทรกขั้นใหม่กับเลื่อนเลข
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/045_guide_request_print_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/045_guide_request_print_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

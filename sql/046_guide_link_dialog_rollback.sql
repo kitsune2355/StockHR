@@ -9,7 +9,7 @@
 --  ชี้ด้วย target_selector เหมือนไฟล์ 046 จะได้ไม่ขึ้นกับลำดับขั้น
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/046_guide_link_dialog_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/046_guide_link_dialog_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

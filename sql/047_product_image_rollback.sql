@@ -9,7 +9,7 @@
 --  ถ้าจะเก็บกวาดจริง ๆ ให้ลบโฟลเดอร์ assets/img/product/ ด้วยมือทีหลัง
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/047_product_image_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/047_product_image_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

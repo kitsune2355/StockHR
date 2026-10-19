@@ -14,7 +14,7 @@
 --                ซึ่งเป็นจังหวะที่ยังไม่มีใครเลือกหน่วยงาน
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/018_guide_product_dept_fix.sql
+--      mysql -u root -p1234 stock_hr < sql/018_guide_product_dept_fix.sql
 -- ============================================================
 
 SET NAMES utf8;

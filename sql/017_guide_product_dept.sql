@@ -11,10 +11,10 @@
 --  เห็นหน่วยงานที่ไม่ได้ติ๊กอะไรเลย แล้วคิดว่าหน่วยงานนั้นเบิกอะไรไม่ได้
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/017_guide_product_dept.sql
+--      mysql -u root -p1234 stock_hr < sql/017_guide_product_dept.sql
 --
 --  ย้อนกลับ:
---      mysql -u root -p1234 stock_hl < sql/017_guide_product_dept_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/017_guide_product_dept_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

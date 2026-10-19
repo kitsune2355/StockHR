@@ -7,7 +7,7 @@
 --  ถ้าโค้ดยังเป็นฉบับที่อ่านบาร์โค้ดได้
 --
 --  วิธีรัน:
---      mysql -u root -p1234 stock_hl < sql/041_guide_scan_cam_barcode_rollback.sql
+--      mysql -u root -p1234 stock_hr < sql/041_guide_scan_cam_barcode_rollback.sql
 -- ============================================================
 
 SET NAMES utf8;

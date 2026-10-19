@@ -1,6 +1,6 @@
 <?php
 	error_reporting(E_ALL ^ E_NOTICE);
-	@session_start();
+	@session_name('STOCKHR_SID'); @session_start();
 	
 	$user_login		= $_POST['LogInName'];
 	$pass_login		= $_POST['LogInPassWord'];
