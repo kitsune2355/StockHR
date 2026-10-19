@@ -9,6 +9,10 @@ config_ctrl/connect.php
 config_ctrl/config.inc.php
 config_ctrl/config2.inc.php
 
+# ---------- กุญแจเชื่อมต่อระบบสวัสดิการ ----------
+# คัดลอกจาก welfare_key.example.php แล้วใส่กุญแจเอง
+config_ctrl/welfare_key.php
+
 # เผื่อวันหลังมีใครเพิ่ม .env เข้ามา จะได้ไม่หลุดขึ้น repo
 .env
 

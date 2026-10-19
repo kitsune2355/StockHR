@@ -332,10 +332,12 @@
       /* แก้ไขใบเบิกที่ยังรออนุมัติ: ผู้ทำเบิกเอง หรือผู้ดูแลระบบ
          แก้เสร็จส่งให้ผู้อนุมัติพิจารณาใหม่ (เปิดหน้า "ทำรายการเบิก" โหมดแก้ไข) */
       /* ใบพนักงานใหม่ไม่มีโหมดแก้ไข (ฟอร์มใบเบิกธรรมดาไม่รู้จักข้อมูลพนักงาน)
-         ต้องยกเลิกแล้วทำใหม่ — backend ปฏิเสธซ้ำใน request_update */
+         ต้องยกเลิกแล้วทำใหม่ — backend ปฏิเสธซ้ำใน request_update
+         ใบจากระบบสวัสดิการก็เช่นกัน — ผู้ทำเบิกคือบัญชีระบบ ไม่มีคนในสต็อกมาแก้ */
       if (
         (doc.status === "waiting" &&
           !doc.is_new_staff &&
+          !doc.is_welfare &&
           (doc.requester === ME || isManager())) ||
         (demo && !doc.is_new_staff)
       ) {
@@ -366,7 +368,7 @@
          ถ้าคลังจ่ายของไปบางส่วนแล้ว backend จะบล็อก บอกให้ยกเลิกใบจ่ายก่อน */
       /* ใบพนักงานใหม่ส่งกลับไม่ได้ — ผู้ทำเบิกแก้ใบประเภทนี้ไม่ได้ ใบจะค้างที่ "รออนุมัติ"
          ต้องยกเลิกแล้วทำใหม่แทน (backend บล็อกซ้ำใน request_return) */
-      if ((doc.status === "approved" || demo) && !doc.is_new_staff
+      if ((doc.status === "approved" || demo) && !doc.is_new_staff && !doc.is_welfare
           && isApprover() && doc.requester !== ME) {
         out.push({
           key: "sendback",
@@ -851,6 +853,12 @@
               escapeHtml(d.new_staff_name || "") +
               '">พนักงานใหม่</span>'
             : "";
+          /* ใบจากระบบสวัสดิการ — อนุมัติมาแล้ว คลังรู้ทันทีว่าจัดของได้เลย */
+          if (d.is_welfare) {
+            tag += ' <span class="grid-tag grid-tag-new" title="ชุดฟอร์มสวัสดิการ: ' +
+              escapeHtml(d.welfare_name || "") +
+              '">สวัสดิการ</span>';
+          }
           return (
             '<span class="grid-user doc-no">' +
             escapeHtml(cell.getValue()) +
