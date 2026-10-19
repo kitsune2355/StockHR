@@ -31,6 +31,7 @@ function notify_types()
         'request_returned'   => array('label' => 'ส่งใบเบิกกลับให้แก้ไข', 'icon' => 'corner-up-left', 'tone' => 'amber'),
         'request_edited'     => array('label' => 'ใบเบิกถูกแก้ไข',     'icon' => 'pencil',         'tone' => 'brand'),
         'request_cancelled'  => array('label' => 'ยกเลิกใบเบิก',      'icon' => 'ban',            'tone' => 'slate'),
+        'welfare_request'    => array('label' => 'ใบเบิกจากระบบสวัสดิการ', 'icon' => 'shirt',    'tone' => 'brand'),
         'issue_created'      => array('label' => 'จ่ายของแล้ว',       'icon' => 'package-minus',  'tone' => 'brand'),
         'issue_acknowledged' => array('label' => 'เซ็นรับของแล้ว',    'icon' => 'signature',      'tone' => 'green'),
         'issue_cancelled'    => array('label' => 'ยกเลิกใบจ่าย',      'icon' => 'ban',            'tone' => 'slate'),
