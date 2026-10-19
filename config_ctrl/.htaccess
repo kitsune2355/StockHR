@@ -1,12 +1,12 @@
 # ============================================================
 #  config_ctrl/ — เปิดผ่านเว็บได้เฉพาะไฟล์ที่หน้าเว็บเรียกจริง (checkmember.php, logout.php)
 #
-#  ไฟล์เก่าที่ไม่มีใครเรียกแล้วและอันตราย ถูกปิดไว้ตรงนี้จนกว่าจะลบออกจาก repo
-#  (ดู docs/review-2026-10-19.md)
+#  ปิดไฟล์ตั้งค่า/ตัวช่วยที่ไม่ใช่หน้าเว็บ (connect, welfare_key, config*.inc)
+#
+#  ไฟล์เก่าที่อันตรายถูกลบออกจาก repo แล้ว (ดู docs/review-2026-10-19.md ข้อ 1)
 #    qr_autologin.php     เข้าสู่ระบบเป็นใครก็ได้ด้วยชื่อผู้ใช้อย่างเดียว ไม่ถามรหัสผ่าน
-#    checkmember_1.php    SQL injection
-#    checkmember_new.php  SQL injection
-#  รวมถึงไฟล์ตั้งค่า/ตัวช่วยที่ไม่ใช่หน้าเว็บ
+#    checkmember_1.php / checkmember_new.php   SQL injection
+#  ชื่อยังอยู่ในรายการด้านล่าง กันกรณีเครื่องจริงยังมีไฟล์เก่าค้างจากการอัปโหลดทับ
 # ============================================================
 
 <FilesMatch "^(qr_autologin|checkmember_1|checkmember_new|checksession_menu|token_helper|alert|config|config2|connect|connect\.example|welfare_key|welfare_key\.example|Detech[A-Za-z_]*)(\.inc)?\.php$">
