@@ -1,0 +1,14 @@
+# ============================================================
+#  ห้ามเปิดไฟล์ในโฟลเดอร์นี้ผ่านเว็บ — ใช้ผ่าน include/require หรืองานหลังบ้านเท่านั้น
+#  (ดู docs/review-2026-10-19.md) เขียนสองชุดสำหรับ Apache 2.2 และ 2.4
+#  ถ้าโฮสต์ปิด AllowOverride ไฟล์นี้จะไม่มีผล ต้องกันด้วยค่าของโฮสต์แทน
+# ============================================================
+
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>
