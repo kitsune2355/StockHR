@@ -105,32 +105,21 @@ function ns_step_head($no, $title, $hint, $icon, $right = '')
       <section id="nsUniform" class="<?php echo $card; ?>" aria-live="polite"></section>
 
       <!-- ============================================================
-           ขั้นที่ 2 อุปกรณ์พื้นฐาน (ไม่รวมชุดฟอร์ม)
+           ชุดพื้นฐาน (tb_new_staff_kit) — ซ่อนไว้ ไม่ใช้แล้ว
+           ชุดฟอร์มและอุปกรณ์พนักงานใหม่ตั้งที่ระบบสวัสดิการ (เมนูตั้งค่าในสต็อกถูกเอาออก)
+           คงโครงไว้ให้ new-staff.js ที่ยังอ้าง id เหล่านี้ แต่ JS ไม่ใส่รายการชุดให้แล้ว (USE_KIT = false)
            ============================================================ -->
-      <section id="nsSecKit" class="<?php echo $card; ?>">
-        <?php
-        $kit_link = $is_manager
-            ? '<a href="main.php?page=new_staff_kit" id="nsKitLink" class="inline-flex flex-none items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-500/10">'
-              . '<i data-lucide="settings-2" class="h-4 w-4" aria-hidden="true"></i>ตั้งค่าชุดของ</a>'
-            : '';
-        echo ns_step_head(2, 'อุปกรณ์พื้นฐาน', 'ใส่ให้ครบแล้วตามมาตรฐาน (ไม่รวมชุดฟอร์ม) ปรับจำนวนได้ หรือเอาเครื่องหมายถูกออกถ้าไม่ต้องการ', 'package', $kit_link);
-        ?>
-
-        <div id="kitList" class="divide-y divide-slate-100 dark:divide-slate-800"></div>
-
-        <div id="kitEmpty" hidden class="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-          ยังไม่ได้ตั้งชุดของพื้นฐาน<?php echo $is_manager ? ' — ตั้งได้ที่ปุ่ม "ตั้งค่าชุดของ" ด้านบน' : ' — แจ้งผู้ดูแลระบบให้ตั้งค่า'; ?>
-          ระหว่างนี้เลือกของในขั้นที่ 3 ได้ตามปกติ
-        </div>
+      <section id="nsSecKit" hidden>
+        <div id="kitList"></div>
+        <div id="kitEmpty" hidden></div>
       </section>
 
       <!-- ============================================================
-           ขั้นที่ 3 วัสดุถาวรและมีมูลค่า — ตัวเลือกสองฝั่งแบบหน้าทำรายการเบิก
+           ขั้นที่ 2 รายการที่เบิก — ตัวเลือกสองฝั่งแบบหน้าทำรายการเบิก
            ใช้ doc-transfer.js ตัวเดียวกัน (id ของแต่ละช่องต้องตรงกับที่มันหา)
-           ของในชุดพื้นฐานถูกตัดออกจากฝั่งซ้าย จะได้ไม่เลือกซ้ำกับขั้นที่ 2
            ============================================================ -->
       <section id="nsSecExtra" class="<?php echo $card; ?> ns-transfer">
-        <?php echo ns_step_head(3, 'รายการเพิ่มเติม', 'ของที่ตำแหน่งนี้ต้องใช้เพิ่ม เช่น เสื้อช่าง รองเท้า Safety — ทุกรายการในขั้นนี้ต้องคืนเมื่อพ้นสภาพ ไม่มีก็ข้ามได้', 'package-plus'); ?>
+        <?php echo ns_step_head(2, 'รายการที่เบิก', 'เลือกของที่พนักงานใหม่ต้องใช้ — ทุกรายการในขั้นนี้ต้องคืนเมื่อพ้นสภาพ', 'package-plus'); ?>
 
         <div class="tf-wrap">
 
@@ -142,7 +131,7 @@ function ns_step_head($no, $title, $hint, $icon, $right = '')
             </button>
             <button type="button" class="tf-tab" data-pane="dst"
                     role="tab" aria-selected="false" aria-controls="tfPaneDst" tabindex="-1">
-              <span class="tf-tab-text">รายการที่จะเบิกเพิ่ม</span>
+              <span class="tf-tab-text">รายการที่จะเบิก</span>
               <span class="tf-tab-num is-on" id="tfTabDst">0</span>
             </button>
           </div>
@@ -189,7 +178,7 @@ function ns_step_head($no, $title, $hint, $icon, $right = '')
           <section id="tfPaneDst" class="tf-pane tf-pane-dst" aria-labelledby="tfRightHead">
             <div class="tf-pane-head">
               <h3 id="tfRightHead" class="tf-pane-title">
-                รายการที่จะเบิกเพิ่ม
+                รายการที่จะเบิก
                 <span class="tf-badge is-on"><span id="tfCount">0</span> รายการ</span>
               </h3>
               <button type="button" id="tfClear" class="tf-clear">ล้างทั้งหมด</button>
@@ -205,7 +194,7 @@ function ns_step_head($no, $title, $hint, $icon, $right = '')
            ============================================================ -->
       <section id="nsSecNote" class="<?php echo $card; ?> p-5">
         <label for="docNote" class="<?php echo $label; ?>">หมายเหตุถึงผู้อนุมัติ <span class="font-normal text-slate-400">(ไม่บังคับ)</span></label>
-        <input type="text" id="docNote" maxlength="500" placeholder="ระบุเพิ่มเติมได้ เช่น เหตุผลที่ต้องใช้ของในขั้นที่ 3"
+        <input type="text" id="docNote" maxlength="500" placeholder="ระบุเพิ่มเติมได้ เช่น เหตุผลที่ต้องใช้ของในขั้นที่ 2"
                class="<?php echo $input; ?>">
         <input type="hidden" id="docDate">
       </section>
