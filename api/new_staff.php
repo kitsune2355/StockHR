@@ -53,7 +53,9 @@ if ($action === 'bootstrap') {
 
     api_ok(array(
         'products'    => new_staff_products($dept),
-        'kit'         => new_staff_kit_list(),
+        /* ชุดของตามแผนกที่เลือก — แผนกไม่ได้ตั้งชุดเอง = ชุดกลาง (ดู sql/080) */
+        'kit'         => new_staff_kit_list($dept),
+        'kitOwnDept'  => (new_staff_kit_owner($dept) > 0),
         'departments' => department_list(array('is_active' => 1)),
         'myDept'      => $my_dept,
         'myDeptName'  => ($me === null) ? '' : $me['department_name'],
@@ -97,18 +99,26 @@ if ($action === 'save') {
 /* ============================================================
  *  ตั้งค่าอุปกรณ์พนักงานใหม่ — เฉพาะผู้ดูแลระบบ (ตรงกับเมนูใน includes/menu.php)
  *
- *    { "action": "kit_get" }
- *    { "action": "kit_save", "csrf_token": "...", "terms": "บรรทัดละข้อ",
+ *    { "action": "kit_get", "department_id": 0 }        0 = ชุดกลาง, >0 = ชุดของแผนกนั้น
+ *    { "action": "kit_save", "csrf_token": "...", "department_id": 0, "terms": "บรรทัดละข้อ",
  *      "rows": [ {"product_id":81, "default_qty":1, "must_return":0} ] }
+ *        แผนกส่ง rows ว่าง = ลบชุดของแผนก กลับไปใช้ชุดกลาง
  * ============================================================ */
 if ($action === 'kit_get') {
 
     api_require_role(array('super_admin', 'admin'));
 
+    $kit_dept = isset($input['department_id']) ? max(0, (int)$input['department_id']) : 0;
+
     api_ok(array(
-        'kit'      => new_staff_kit_admin_list(),
-        'products' => stock_list(array('only_active' => true)),
-        'terms'    => setting_get('new_staff_terms', '')
+        'departmentId' => $kit_dept,
+        'kit'          => new_staff_kit_admin_list($kit_dept),
+        /* ชุดกลางไว้ให้ปุ่ม "คัดลอกจากชุดกลาง" ของแผนกที่ยังไม่ได้ตั้งชุดเอง */
+        'centralKit'   => ($kit_dept > 0) ? new_staff_kit_admin_list(0) : array(),
+        'deptKits'     => new_staff_kit_department_counts(),
+        'departments'  => department_list(array('is_active' => 1)),
+        'products'     => stock_list(array('only_active' => true)),
+        'terms'        => setting_get('new_staff_terms', '')
     ));
 }
 
@@ -120,7 +130,8 @@ if ($action === 'kit_save') {
     $res = new_staff_kit_save(
         isset($input['rows']) && is_array($input['rows']) ? $input['rows'] : array(),
         isset($input['terms']) ? $input['terms'] : '',
-        $actor);
+        $actor,
+        isset($input['department_id']) ? (int)$input['department_id'] : 0);
 
     if (!$res['ok']) {
         api_fail($res['message']);

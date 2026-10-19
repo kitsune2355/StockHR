@@ -375,17 +375,25 @@
     }
   }
 
-  /* เปลี่ยนหน่วยงาน = ของในขั้นที่ 3 ที่เลือกได้เปลี่ยน (ชุดพื้นฐานไม่เปลี่ยน)
-     ของที่หน่วยงานใหม่เบิกไม่ได้ต้องเอาออก ไม่งั้นจะโดนปฏิเสธตอนส่ง */
+  /* เปลี่ยนหน่วยงาน = ของในขั้นที่ 3 ที่เลือกได้เปลี่ยน
+     และชุดพื้นฐานเปลี่ยนตามชุดของแผนก (ดู sql/080) — ขั้นที่ 2 ตั้งใหม่ตามชุดของแผนกนั้น
+     ของที่หน่วยงานใหม่เบิกไม่ได้ หรือกลายเป็นของในชุดแล้ว ต้องเอาออกจากขั้นที่ 3
+     ไม่งั้นจะโดนปฏิเสธตอนส่ง หรือได้สองบรรทัดของสินค้าเดียวกัน */
   function reloadProducts(deptId) {
     post(
       { action: "bootstrap", department_id: deptId },
       function (res) {
         setProducts(res.products);
+        KIT_DEFAULT = res.kit || [];
+        resetKit();
+        var inKit = {};
+        for (var k = 0; k < KIT_DEFAULT.length; k++) {
+          inKit[KIT_DEFAULT[k].product_id] = true;
+        }
         var kept = [];
         var rows = transfer.getRows();
         for (var i = 0; i < rows.length; i++) {
-          if (byId[rows[i].product_id]) {
+          if (byId[rows[i].product_id] && !inKit[rows[i].product_id]) {
             kept.push(rows[i]);
           }
         }
@@ -395,7 +403,7 @@
         var dropped = rows.length - kept.length;
         if (dropped > 0 && typeof window.appSuccess === "function") {
           window.appSuccess(
-            "เอาออก " + dropped + " รายการ เพราะหน่วยงานที่เลือกเบิกไม่ได้",
+            "เอาออก " + dropped + " รายการ เพราะหน่วยงานที่เลือกเบิกไม่ได้ หรืออยู่ในชุดพื้นฐานของแผนกแล้ว",
           );
         }
       },

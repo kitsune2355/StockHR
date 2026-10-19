@@ -28,12 +28,21 @@
  *    { "action": "cancel", "ref": "12:ANNUAL-2026", "reason": "...", "requested_by_name": "..." }
  *        ยกเลิกใบที่คลังยังไม่ได้จ่าย
  *
+ *    { "action": "sync_master", "requested_by_name": "...",
+ *      "companies": [ {"code":"HL", "name":"บริษัท แฮปปี้แลนด์ จำกัด", "active":true} ],
+ *      "sites":     [ {"id":1, "company_code":"HL", "name":"สำนักงานใหญ่ HL", "active":true} ] }
+ *        รับบริษัท/หน่วยงานจากระบบสวัสดิการ (ต้นทาง) — upsert ทั้งชุดใน transaction เดียว
+ *        ส่งแค่ companies หรือแค่ sites ก็ได้ / active=false = ปิดใช้งาน ไม่ลบ
+ *        ตอบ companies [{code, company_id, created}], sites [{id, department_id, created}]
+ *        (ดู backend/welfare_master.php)
+ *
  *  ตอบ { "ok": true, ... } หรือ { "ok": false, "message": "..." }
- *  ไม่มี SQL ในไฟล์นี้ — เรียกฟังก์ชันจาก backend/welfare_bridge.php
+ *  ไม่มี SQL ในไฟล์นี้ — เรียกฟังก์ชันจาก backend/welfare_bridge.php และ backend/welfare_master.php
  * ============================================================ */
 
 require_once dirname(__FILE__) . '/_bootstrap.php';
 require_once dirname(dirname(__FILE__)) . '/backend/welfare_bridge.php';
+require_once dirname(dirname(__FILE__)) . '/backend/welfare_master.php';
 
 api_require_post();
 
@@ -105,6 +114,23 @@ if ($action === 'cancel') {
     }
 
     api_ok(array('message' => $res['message'], 'doc_id' => $res['id']));
+}
+
+
+if ($action === 'sync_master') {
+
+    $res = welfare_master_sync($input);
+    if (!$res['ok']) {
+        api_fail($res['message']);
+    }
+
+    api_ok(array(
+        'message'   => $res['message'],
+        'companies' => $res['companies'],
+        'sites'     => $res['sites'],
+        'created'   => $res['created'],
+        'changed'   => $res['changed']
+    ));
 }
 
 

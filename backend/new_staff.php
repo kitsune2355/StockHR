@@ -8,6 +8,8 @@
  *
  *    - ชุดของพื้นฐาน (tb_new_staff_kit) ใส่ให้ในฟอร์มอัตโนมัติ
  *      เบิกได้ทุกหน่วยงาน ไม่ติด tb_product_department เพราะเป็นนโยบายบริษัท
+ *      แยกตามแผนกได้ (ดู sql/080): แผนกที่ตั้งชุดของตัวเองใช้ชุดนั้น "แทน" ชุดกลาง
+ *      แผนกที่ไม่ได้ตั้งใช้ชุดกลาง (department_id = 0)
  *    - รายการเพิ่มเติม (วัสดุถาวร/มีมูลค่า) เลือกจากทะเบียนสินค้า
  *      ติดสิทธิ์หน่วยงานเหมือนใบเบิกธรรมดา และ "ต้องคืน" ทุกบรรทัด
  *    - ธง "ต้องคืน" มาจากฝั่งเซิร์ฟเวอร์เสมอ ไม่เชื่อค่าจากฟอร์ม
@@ -40,36 +42,65 @@ function new_staff_ready()
 }
 
 
-/* ---------- ชุดของพื้นฐานที่เปิดใช้งาน เรียงตามลำดับในฟอร์ม ---------- */
-function new_staff_kit_list()
+/* ---------- ชุดของแผนกไหนที่ใช้กับแผนกนี้ ----------
+ * คืน department_id ของชุดที่ใช้จริง: แผนกนั้นเอง ถ้าตั้งชุดไว้ (มีแถวที่เปิดใช้งาน)
+ * ไม่งั้น 0 = ชุดกลาง
+ */
+function new_staff_kit_owner($department_id)
 {
+    $department_id = (int)$department_id;
+    if ($department_id <= 0) { return 0; }
+
+    $connect = db_connect();
+    $stmt = mysqli_prepare($connect,
+        "SELECT COUNT(*) FROM `tb_new_staff_kit`
+         WHERE `department_id` = ? AND `is_active` = 1");
+    if (!$stmt) { return 0; }
+    mysqli_stmt_bind_param($stmt, 'i', $department_id);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $n);
+    mysqli_stmt_fetch($stmt);
+    mysqli_stmt_close($stmt);
+
+    return ((int)$n > 0) ? $department_id : 0;
+}
+
+/* ---------- ชุดของพื้นฐานที่เปิดใช้งานของแผนกนี้ เรียงตามลำดับในฟอร์ม ----------
+ * ไม่ส่งแผนก (0) = ชุดกลาง */
+function new_staff_kit_list($department_id = 0)
+{
+    $owner   = new_staff_kit_owner($department_id);
     $connect = db_connect();
 
-    $res = mysqli_query($connect,
+    $stmt = mysqli_prepare($connect,
         "SELECT k.`product_id`, k.`default_qty`, k.`must_return`
          FROM `tb_new_staff_kit` k
          INNER JOIN `tb_product` p ON p.`product_id` = k.`product_id`
-         WHERE k.`is_active` = 1 AND p.`is_active` = 1
+         WHERE k.`department_id` = ? AND k.`is_active` = 1 AND p.`is_active` = 1
          ORDER BY k.`sort_order` ASC, k.`kit_id` ASC");
-    if (!$res) { return array(); }
+    if (!$stmt) { return array(); }
+
+    mysqli_stmt_bind_param($stmt, 'i', $owner);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $pid, $qty, $ret);
 
     $rows = array();
-    while ($r = mysqli_fetch_assoc($res)) {
+    while (mysqli_stmt_fetch($stmt)) {
         $rows[] = array(
-            'product_id'  => (int)$r['product_id'],
-            'default_qty' => (float)$r['default_qty'],
-            'must_return' => ((int)$r['must_return'] === 1)
+            'product_id'  => (int)$pid,
+            'default_qty' => (float)$qty,
+            'must_return' => ((int)$ret === 1)
         );
     }
-    mysqli_free_result($res);
+    mysqli_stmt_close($stmt);
     return $rows;
 }
 
 /* product_id => must_return (bool) ใช้ตรวจตอนบันทึก */
-function new_staff_kit_map()
+function new_staff_kit_map($department_id = 0)
 {
     $map  = array();
-    $kit  = new_staff_kit_list();
+    $kit  = new_staff_kit_list($department_id);
     for ($i = 0; $i < count($kit); $i++) {
         $map[$kit[$i]['product_id']] = $kit[$i]['must_return'];
     }
@@ -91,7 +122,7 @@ function new_staff_products($department_id)
     for ($i = 0; $i < count($dept_rows); $i++) {
         $allowed[$dept_rows[$i]['product_id']] = true;
     }
-    $kit = new_staff_kit_map();
+    $kit = new_staff_kit_map($department_id);
 
     $out = array();
     for ($i = 0; $i < count($all); $i++) {
@@ -162,7 +193,7 @@ function new_staff_save($data, $actor, $actor_role = '')
      * ของในชุด: ธงมาจาก tb_new_staff_kit และไม่ตรวจสิทธิ์หน่วยงาน
      * ของเพิ่มเติม: ผู้ทำใบเลือกธงได้ (ฟอร์มติ๊กไว้ให้ก่อน) และต้องเป็นของที่หน่วยงานเบิกได้
      */
-    $kit = new_staff_kit_map();
+    $kit = new_staff_kit_map($dept);
 
     for ($i = 0; $i < count($data['items']); $i++) {
         $pid = (int)$data['items'][$i]['product_id'];
@@ -240,52 +271,81 @@ function new_staff_save($data, $actor, $actor_role = '')
  *  หน้าตั้งค่าอุปกรณ์พนักงานใหม่ (ผู้ดูแลระบบ)
  * ============================================================ */
 
-/* ทุกแถวในชุด เรียงตามลำดับ พร้อมชื่อสินค้าไว้แสดง
+/* แถวในชุดของแผนกนี้เอง (0 = ชุดกลาง) เรียงตามลำดับ พร้อมชื่อสินค้าไว้แสดง
+   ไม่ถอยไปชุดกลาง — หน้าตั้งค่าต้องเห็นว่าแผนกนี้ตั้งอะไรไว้จริง (ว่าง = ใช้ชุดกลาง)
    รวมสินค้าที่ถูกปิดใช้งานในทะเบียนด้วย จะได้เห็นและเอาออกได้ ไม่หายไปเงียบ ๆ */
-function new_staff_kit_admin_list()
+function new_staff_kit_admin_list($department_id = 0)
 {
-    $connect = db_connect();
+    $connect       = db_connect();
+    $department_id = max(0, (int)$department_id);
 
-    $res = mysqli_query($connect,
+    $stmt = mysqli_prepare($connect,
         "SELECT k.`product_id`, k.`default_qty`, k.`must_return`,
                 p.`product_code`, p.`product_name`, p.`is_active`, u.`unit_name`,
-                COALESCE(b.`qty`, 0) AS `balance`
+                COALESCE(b.`qty`, 0)
          FROM `tb_new_staff_kit` k
          INNER JOIN `tb_product` p ON p.`product_id` = k.`product_id`
          LEFT  JOIN `tb_unit`    u ON u.`unit_id`    = p.`unit_id`
          LEFT  JOIN `tb_stock_balance` b ON b.`product_id` = k.`product_id`
-         WHERE k.`is_active` = 1
+         WHERE k.`department_id` = ? AND k.`is_active` = 1
          ORDER BY k.`sort_order` ASC, k.`kit_id` ASC");
-    if (!$res) { return array(); }
+    if (!$stmt) { return array(); }
+
+    mysqli_stmt_bind_param($stmt, 'i', $department_id);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $pid, $qty, $ret, $code, $name, $active, $unit, $balance);
 
     $rows = array();
-    while ($r = mysqli_fetch_assoc($res)) {
+    while (mysqli_stmt_fetch($stmt)) {
         $rows[] = array(
-            'product_id'     => (int)$r['product_id'],
-            'product_code'   => $r['product_code'],
-            'product_name'   => $r['product_name'],
-            'unit_name'      => ($r['unit_name'] === null) ? '' : $r['unit_name'],
-            'balance'        => (float)$r['balance'],
-            'product_active' => ((int)$r['is_active'] === 1),
-            'default_qty'    => (float)$r['default_qty'],
-            'must_return'    => ((int)$r['must_return'] === 1)
+            'product_id'     => (int)$pid,
+            'product_code'   => $code,
+            'product_name'   => $name,
+            'unit_name'      => ($unit === null) ? '' : $unit,
+            'balance'        => (float)$balance,
+            'product_active' => ((int)$active === 1),
+            'default_qty'    => (float)$qty,
+            'must_return'    => ((int)$ret === 1)
         );
     }
-    mysqli_free_result($res);
+    mysqli_stmt_close($stmt);
     return $rows;
+}
+
+/* แผนกที่ตั้งชุดของตัวเองไว้ — array(department_id => จำนวนรายการ) ใช้ทำป้ายในช่องเลือกแผนก */
+function new_staff_kit_department_counts()
+{
+    $connect = db_connect();
+    $res = mysqli_query($connect,
+        "SELECT `department_id`, COUNT(*) FROM `tb_new_staff_kit`
+         WHERE `department_id` > 0 AND `is_active` = 1
+         GROUP BY `department_id`");
+    $out = array();
+    if (!$res) { return $out; }
+    while ($r = mysqli_fetch_row($res)) { $out[(int)$r[0]] = (int)$r[1]; }
+    mysqli_free_result($res);
+    return $out;
 }
 
 
 /* ---------- บันทึกชุดของทั้งชุด + หมายเหตุท้ายฟอร์ม ----------
  * $rows  = array( array('product_id', 'default_qty', 'must_return') ) เรียงตามลำดับที่ต้องการ
- * $terms = ข้อความหมายเหตุ บรรทัดละข้อ
+ * $terms = ข้อความหมายเหตุ บรรทัดละข้อ (ใช้ร่วมกันทุกแผนก)
+ * $department_id = ชุดของแผนกไหน (0 = ชุดกลาง) — ส่งชุดว่างของแผนก = กลับไปใช้ชุดกลาง
  *
- * เขียนทับทั้งชุด (ลบแล้วใส่ใหม่) แบบเดียวกับ adjust_approver_save
+ * เขียนทับทั้งชุดของแผนกนั้น (ลบแล้วใส่ใหม่) แบบเดียวกับ adjust_approver_save
  * ไม่มีตารางอื่นอ้างถึงแถวในชุด ใบเบิกเก่าแช่แข็งธง "ต้องคืน" ไว้ในบรรทัดของตัวเองแล้ว
  */
-function new_staff_kit_save($rows, $terms, $actor)
+function new_staff_kit_save($rows, $terms, $actor, $department_id = 0)
 {
     if (!is_array($rows)) { $rows = array(); }
+
+    $department_id = (int)$department_id;
+    if ($department_id < 0) { return db_fail('แผนกไม่ถูกต้อง'); }
+    if ($department_id > 0) {
+        require_once dirname(__FILE__) . '/department.php';
+        if (department_find($department_id) === null) { return db_fail('ไม่พบแผนกที่เลือก'); }
+    }
 
     $seen = array();
     for ($i = 0; $i < count($rows); $i++) {
@@ -317,15 +377,16 @@ function new_staff_kit_save($rows, $terms, $actor)
     $connect = db_connect();
     db_begin();
 
-    if (!mysqli_query($connect, "DELETE FROM `tb_new_staff_kit`")) {
+    if (!mysqli_query($connect,
+            "DELETE FROM `tb_new_staff_kit` WHERE `department_id` = " . $department_id)) {
         db_rollback();
         return db_fail('บันทึกชุดของไม่สำเร็จ');
     }
 
     $stmt = mysqli_prepare($connect,
         "INSERT INTO `tb_new_staff_kit`
-         SET `product_id` = ?, `default_qty` = ?, `must_return` = ?, `sort_order` = ?,
-             `is_active` = 1, `created_at` = NOW(), `created_by` = ?");
+         SET `department_id` = ?, `product_id` = ?, `default_qty` = ?, `must_return` = ?,
+             `sort_order` = ?, `is_active` = 1, `created_at` = NOW(), `created_by` = ?");
     if (!$stmt) { db_rollback(); return db_fail('เตรียมคำสั่งบันทึกชุดของไม่สำเร็จ'); }
 
     for ($i = 0; $i < count($rows); $i++) {
@@ -333,7 +394,7 @@ function new_staff_kit_save($rows, $terms, $actor)
         $qty  = (float)$rows[$i]['default_qty'];
         $ret  = !empty($rows[$i]['must_return']) ? 1 : 0;
         $sort = $i + 1;
-        mysqli_stmt_bind_param($stmt, 'idiis', $pid, $qty, $ret, $sort, $actor);
+        mysqli_stmt_bind_param($stmt, 'iidiis', $department_id, $pid, $qty, $ret, $sort, $actor);
         if (!mysqli_stmt_execute($stmt)) {
             $errno = mysqli_stmt_errno($stmt);
             mysqli_stmt_close($stmt);
@@ -353,5 +414,9 @@ function new_staff_kit_save($rows, $terms, $actor)
     }
 
     db_commit();
-    return db_ok('บันทึกอุปกรณ์พนักงานใหม่ ' . count($rows) . ' รายการเรียบร้อย', count($rows));
+    if ($department_id > 0 && count($rows) === 0) {
+        return db_ok('แผนกนี้กลับไปใช้ชุดกลางแล้ว', 0);
+    }
+    return db_ok('บันทึกอุปกรณ์พนักงานใหม่' . ($department_id > 0 ? 'ของแผนก ' : ' ')
+                 . count($rows) . ' รายการเรียบร้อย', count($rows));
 }
