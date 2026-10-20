@@ -19,7 +19,7 @@
  *      "site_id": 4, "site_name": "...", "event": "ANNUAL", "entitlement_key": "ANNUAL-2026",
  *      "requested_by_name": "...", "note": "",
  *      "lines": [ {"item_code":"POLO_BLACK", "product_id":31, "qty":2} ] }
- *        ออกใบเบิก WRQ ที่อนุมัติแล้ว — ส่งซ้ำสิทธิ์เดิมได้ใบเดิมคืน (duplicate = true)
+ *        ออกใบเบิก WRQ ที่รออนุมัติ (ผู้อนุมัติของหน่วยงานกดอนุมัติเอง) — ส่งซ้ำสิทธิ์เดิมได้ใบเดิมคืน (duplicate = true)
  *        event = START ต้องมี "start_date" และได้ใบเบิกพนักงานใหม่ NRQ (ใส่ชุดของพนักงานใหม่ให้)
  *
  *    { "action": "status", "refs": ["12:START", "12:ANNUAL-2026"] }
