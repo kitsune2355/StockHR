@@ -519,7 +519,7 @@ function welfare_doc_note($event, $ent_key, $name, $extra)
 {
     $label = welfare_event_label($event);
     if ($event === 'ANNUAL') { $label .= ' ' . (substr($ent_key, 7) + 543); }
-    $note = 'ชุดฟอร์มสวัสดิการ (' . $label . ') — ' . $name;
+    $note = $name;
     if ($extra !== '') { $note .= ' — ' . $extra; }
     return $note;
 }
