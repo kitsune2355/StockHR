@@ -180,8 +180,8 @@ function dashboard_my_tasks($username, $role, $limit = 6)
                 'sub'     => 'ผู้ขอ ' . ($r['requester_name'] !== '' ? $r['requester_name'] : $r['requester'])
                            . ' · ' . (int)$r['line_count'] . ' รายการ',
                 'date'    => $r['doc_date'],
-                /* ใบพนักงานใหม่ไม่อยู่ในหน้ารายการใบเบิกแล้ว ต้องพาไปหน้าของตัวเอง */
-                'page'    => $ns ? 'new_staff_list' : 'request_list'
+                /* ทุกใบอยู่ใน "รายการใบเบิก" (เมนูใบเบิกพนักงานใหม่ถูกซ่อน) */
+                'page'    => 'request_list'
             );
             if (count($tasks) >= $limit) { return $tasks; }
         }

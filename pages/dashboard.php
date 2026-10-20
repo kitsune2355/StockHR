@@ -75,7 +75,7 @@ $health = db_can('product_list') ? dashboard_data_health() : null;
    ผู้ใช้ทั่วไปส่วนใหญ่ไม่เคยรับคนเข้า ไทล์ว่างบนหน้าแรกทุกวันจึงเป็นเสียงรบกวน
    ให้โผล่เฉพาะคนคลัง/ผู้อนุมัติ หรือคนที่มีใบพนักงานใหม่ค้างอยู่จริง
    (เขียนใต้ db_can() ด้วยเหตุผลเดียวกับ $health ข้างบน) */
-$ns = db_can('new_staff_list') ? dashboard_new_staff($sess_username, $sess_role, 6) : null;
+$ns = db_can('request_list') ? dashboard_new_staff($sess_username, $sess_role, 6) : null;
 if ($ns !== null && !$is_staff
     && $ns['prepare_total'] + count($ns['review']) === 0) {
     $ns = null;
@@ -505,7 +505,7 @@ if (!$is_staff) {
     <div class="bn-link-grid">
       <?php
       /* เรียงตามลำดับที่คนใช้จริงในหนึ่งวัน: ขอเบิก -> อนุมัติ -> จ่าย -> รับเข้า -> ปรับยอด -> ดูยอด */
-      $shortcuts = array('request_new', 'request_list', 'new_staff_request', 'issue_new', 'receive_new', 'adjust_new', 'report_stock', 'product_list');
+      $shortcuts = array('request_new', 'request_list', 'issue_new', 'receive_new', 'adjust_new', 'report_stock', 'product_list');
       foreach ($shortcuts as $key) {
           if (!db_can($key)) { continue; }
           $item = $routes_all[$key];

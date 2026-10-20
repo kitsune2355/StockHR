@@ -99,9 +99,8 @@ require_once dirname(__FILE__) . '/backend/issue.php';
 require_once dirname(__FILE__) . '/backend/adjust.php';
 
 if (in_array($sess_role, array('super_admin', 'admin', 'approver'))) {
-    /* สองหน้าแยกกันแล้ว ตัวเลขจึงต้องแยกตาม ไม่งั้นเปิดหน้าแล้วหาใบที่นับไว้ไม่เจอ */
-    app_set_badge('request_list',   request_waiting_count($sess_username, $sess_role, 'general'),   'amber');
-    app_set_badge('new_staff_list', request_waiting_count($sess_username, $sess_role, 'new_staff'), 'amber');
+    /* "รายการใบเบิก" แสดงทุกใบ (รวมใบพนักงานใหม่) ตัวเลขจึงนับทุกใบด้วย */
+    app_set_badge('request_list', request_waiting_count($sess_username, $sess_role, ''), 'amber');
     app_set_badge('report_low',   stock_low_count(),       'red');
 }
 
