@@ -119,6 +119,12 @@ $cancelled = ($fatal === '' && $doc['status'] === 'cancelled');
 $can_sign  = ($fatal === '' && $doc['status'] === 'issued');
 
 $page_title = ($fatal === '') ? ('เซ็นรับของ ' . $doc['doc_no']) : 'เซ็นรับของ';
+
+/* ใบจ่ายของใบเบิกพนักงานใหม่ = เอกสารรับชุดเครื่องแบบ (แบบฟอร์ม 019-HRM)
+   พนักงานต้องอ่านเงื่อนไขการหักค่าชุด/คืนชุดก่อนเซ็น — ข้อความชุดเดียวกับที่พิมพ์บน print_doc.php */
+require_once dirname(__FILE__) . '/backend/uniform_receipt.php';
+$sg_uniform = ($fatal === '') ? uniform_receipt_for_doc($doc) : null;
+$sg_terms   = ($sg_uniform !== null) ? uniform_receipt_terms() : array();
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -221,6 +227,19 @@ h2 {
     vertical-align: top;
 }
 .items .num { text-align: right; white-space: nowrap; }
+
+/* ---------- เงื่อนไขการรับชุดเครื่องแบบ (เฉพาะใบพนักงานใหม่) ---------- */
+.terms {
+    margin: 0;
+    padding: 12px 14px 12px 34px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: #78350f;
+}
+.terms li + li { margin-top: 8px; }
 .code { font-size: 12px; color: #94a3b8; }
 
 /* ---------- ผืนเซ็น ---------- */
@@ -407,7 +426,7 @@ input[type=text]:focus {
       </table>
 
       <!-- ---------- รายการของที่จ่าย ---------- -->
-      <h2>รายการที่จ่าย</h2>
+      <h2><?php echo ($sg_uniform !== null) ? '1. รายละเอียดชุดเครื่องแบบพนักงาน' : 'รายการที่จ่าย'; ?></h2>
       <table class="items">
         <thead>
           <tr><th>สินค้า</th><th>รหัส</th><th class="num">จำนวน</th></tr>
@@ -427,6 +446,16 @@ input[type=text]:focus {
 <?php   } ?>
         </tbody>
       </table>
+
+<?php if ($sg_uniform !== null) { ?>
+      <!-- ---------- เงื่อนไขที่พนักงานรับทราบ (ข้อ 2-4 ของแบบฟอร์ม 019-HRM) ---------- -->
+      <h2>เงื่อนไขการรับชุดเครื่องแบบ</h2>
+      <ol class="terms" start="2">
+<?php   foreach ($sg_terms as $ln) { ?>
+        <li><?php echo sg_esc($ln); ?></li>
+<?php   } ?>
+      </ol>
+<?php } ?>
 
 <?php if ($can_sign) { ?>
       <!-- ---------- ฟอร์มเซ็นรับ ---------- -->
@@ -460,7 +489,10 @@ input[type=text]:focus {
           <p class="hint">ลายเซ็นจะถูกพิมพ์ลงบนใบจ่ายเพื่อใช้เป็นหลักฐานการส่งมอบ</p>
         </div>
 
-        <button type="submit" class="btn btn-main" id="signSubmit">ยืนยันว่าได้รับของครบแล้ว</button>
+        <button type="submit" class="btn btn-main" id="signSubmit"><?php
+            echo ($sg_uniform !== null)
+                ? 'รับทราบเงื่อนไข และได้รับเครื่องแบบพนักงานครบถ้วนแล้ว'
+                : 'ยืนยันว่าได้รับของครบแล้ว'; ?></button>
       </form>
 <?php } ?>
 

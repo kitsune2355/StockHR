@@ -176,6 +176,21 @@ if ($deny === '') {
     if ($new_staff !== null) {
         $paper_title = 'ใบเบิกวัสดุ (พนักงานใหม่)';
     }
+
+    /* ใบจ่ายของใบเบิกพนักงานใหม่ = "เอกสารรับชุดเครื่องแบบพนักงาน" (แบบฟอร์ม 019-HRM)
+       พนักงานเซ็นรับทราบเงื่อนไขการหักค่าชุด/คืนชุดบนใบนี้ ไม่ใช่ใบจ่ายวัสดุทั่วไป
+       ข้อมูลพนักงานอยู่ที่ใบเบิกต้นทาง (tb_doc_new_staff ผูกกับใบเบิก ไม่ใช่ใบจ่าย) */
+    /* ใบเบิกพนักงานใหม่ (NRQ) เองก็พิมพ์เป็นเอกสารนี้ — HR พิมพ์ใบเบิกให้พนักงานเซ็นรับทราบ
+       ตอนรับชุด ไม่ได้รอใบจ่าย */
+    /* ข้อความเงื่อนไขและรหัสแบบฟอร์มอยู่ที่ backend/uniform_receipt.php
+       ใช้ชุดเดียวกับหน้าเซ็นรับ (sign.php) */
+    require_once dirname(__FILE__) . '/backend/uniform_receipt.php';
+    $uniform_receipt = uniform_receipt_for_doc($doc, isset($ref_request) ? $ref_request : null);
+    if ($uniform_receipt !== null) {
+        $paper_title  = 'เอกสารรับชุดเครื่องแบบพนักงาน';
+        $ur_terms     = uniform_receipt_terms();       // ข้อ 2-4 (ข้อ 1 คือตารางรายการ)
+        $ur_form_code = uniform_receipt_form_code();
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -252,6 +267,9 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
 .notes-h { font-weight: 700; margin-bottom: 2px; }
 .notes ol { margin: 0; padding-left: 18px; }
 .notes li { margin-bottom: 1px; }
+/* เอกสารรับชุดเครื่องแบบ: ข้อความรับทราบเหนือช่องลงนาม (ตามแบบฟอร์ม 019-HRM) */
+.ur-ack { margin: 12px 0 0 28px; font-size: 13px; font-weight: 600; }
+.ur-sec { margin: 14px 0 6px; font-size: 13px; font-weight: 600; }
 
 .estimate { margin-top: 7px; font-size: 11.5px; color: #6b7280; }
 
@@ -398,10 +416,16 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
 
     <?php else: ?>
 
-    <?php if ($new_staff !== null): ?>
+    <?php if ($new_staff !== null && $uniform_receipt === null): ?>
     <div><b>พนักงานใหม่:</b> <span><?php echo pd_esc($new_staff['employee_name']); ?><?php echo ($new_staff['employee_code'] !== '') ? ' (' . pd_esc($new_staff['employee_code']) . ')' : ''; ?></span></div>
     <div><b>ตำแหน่ง:</b> <span><?php echo pd_esc($new_staff['position_name'] !== '' ? $new_staff['position_name'] : '-'); ?></span></div>
     <div><b>วันที่เริ่มงาน:</b> <span><?php echo pd_esc(thai_date_long($new_staff['start_date'])); ?></span></div>
+    <?php endif; ?>
+
+    <?php if ($uniform_receipt !== null): ?>
+    <div><b>ชื่อพนักงาน:</b> <span><?php echo pd_esc($uniform_receipt['employee_name']); ?><?php echo ($uniform_receipt['employee_code'] !== '') ? ' (' . pd_esc($uniform_receipt['employee_code']) . ')' : ''; ?></span></div>
+    <div><b>ตำแหน่ง:</b> <span><?php echo pd_esc($uniform_receipt['position_name'] !== '' ? $uniform_receipt['position_name'] : '-'); ?></span></div>
+    <div><b>วันเริ่มงาน:</b> <span><?php echo pd_esc(thai_date_long($uniform_receipt['start_date'])); ?></span></div>
     <?php endif; ?>
 
     <div><b>ผู้ขอเบิก:</b> <span><?php echo pd_esc($doc['requester_name'] !== '' ? $doc['requester_name'] : $doc['requester']); ?></span></div>
@@ -474,6 +498,11 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
 
   <?php else: ?>
 
+  <?php if ($uniform_receipt !== null): ?>
+  <!-- ข้อ 1 ของแบบฟอร์ม 019-HRM — หมายเหตุด้านล่างจึงเริ่มที่ข้อ 2 -->
+  <div class="ur-sec">1. รายละเอียดชุดเครื่องแบบพนักงาน</div>
+  <?php endif; ?>
+
   <table class="items">
     <thead>
       <tr>
@@ -540,7 +569,19 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
 
   <!-- ============ หมายเหตุประจำแบบฟอร์ม ============
        ข้อความชุดนี้เป็นเงื่อนไขการเบิกที่ฝ่ายทรัพยากรบุคคลกำหนด — ไม่เกี่ยวกับใบปรับยอด -->
-  <?php if ($new_staff !== null): ?>
+  <?php if ($uniform_receipt !== null): ?>
+  <!-- เอกสารรับชุดเครื่องแบบ: เงื่อนไขที่พนักงานรับทราบตอนเซ็นรับ (ข้อ 2-4 ของแบบฟอร์ม 019-HRM)
+       เลขข้อเริ่มที่ 2 ให้ตรงกับแบบฟอร์มกระดาษ ข้อ 1 คือตารางรายการด้านบน -->
+  <div class="notes">
+    <div class="notes-h">หมายเหตุ:</div>
+    <ol start="2">
+      <?php foreach ($ur_terms as $ln): ?>
+      <li><?php echo pd_esc($ln); ?></li>
+      <?php endforeach; ?>
+    </ol>
+  </div>
+  <p class="ur-ack">ได้รับเครื่องแบบพนักงานครบถ้วนแล้ว</p>
+  <?php elseif ($new_staff !== null): ?>
   <?php
   /* ใบพนักงานใหม่ใช้หมายเหตุของตัวเอง (ตั้งได้ที่หน้า "อุปกรณ์พนักงานใหม่")
      เป็นเงื่อนไขการดูแล/คืนของที่พนักงานรับทราบตอนเซ็นรับ — ไม่ใช่รอบเวลาเบิกของหน่วยงาน */
@@ -623,9 +664,19 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
 
         /* ผู้รับของเป็นช่องเดียวที่มีลายเซ็นจริง — วาดไว้ตอนกดเซ็นรับ
            ใบที่เซ็นก่อนระบบมีฟีเจอร์นี้ หรือยังไม่ได้เซ็น จะตกไปใช้ชื่อสีน้ำเงินเหมือนช่องอื่น */
-        pd_sign_box('ผู้รับของ', $doc['receiver_name'],
-                    $doc['received_at'] !== '' ? pd_esc(thai_date_long($doc['received_at'])) : '............',
-                    $receiver_sign);
+        /* เอกสารรับชุดเครื่องแบบ: ผู้รับคือตัวพนักงานที่เซ็นรับทราบเงื่อนไข
+           ยังไม่ได้เซ็นในระบบ = พิมพ์ชื่อพนักงานไว้ให้เซ็นด้วยปากกา */
+        if ($uniform_receipt !== null) {
+            pd_sign_box('พนักงาน (ผู้รับชุดเครื่องแบบ)',
+                        $doc['receiver_name'] !== '' ? $doc['receiver_name'] : $uniform_receipt['employee_name'],
+                        $doc['received_at'] !== '' ? pd_esc(thai_date_long($doc['received_at'])) : '............',
+                        $receiver_sign);
+        } else {
+            /* ใบจ่ายของใบเบิกสวัสดิการ ที่ยังไม่มีชื่อผู้รับ (ใบเก่า) = ชื่อพนักงานในใบเบิกต้นทาง */
+            pd_sign_box('ผู้รับของ', (string)$doc['receiver_name'] !== '' ? $doc['receiver_name'] : $doc['employee_receiver'],
+                        $doc['received_at'] !== '' ? pd_esc(thai_date_long($doc['received_at'])) : '............',
+                        $receiver_sign);
+        }
     }
     ?>
   </div>
@@ -634,7 +685,9 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
   <!-- ============ รหัสแบบฟอร์ม ============
        ระบบเอกสารควบคุมขององค์กร รหัสและรอบแก้ไขต่างกันในแต่ละบริษัท
        ตั้งได้ที่หน้า "หน่วยงาน" แท็บบริษัท บริษัทที่ยังไม่ได้ตั้งจะไม่มีบรรทัดนี้ -->
-  <?php if (trim($company['form_code']) !== ''): ?>
+  <?php if ($uniform_receipt !== null): ?>
+  <div class="form-code"><?php echo pd_esc($ur_form_code); ?></div>
+  <?php elseif (trim($company['form_code']) !== ''): ?>
   <div class="form-code"><?php echo pd_esc($company['form_code']); ?></div>
   <?php endif; ?>
 
