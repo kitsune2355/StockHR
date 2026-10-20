@@ -5,10 +5,11 @@
  *  ใบจากระบบสวัสดิการ = ใบเบิกธรรมดา (doc_type='request', ชุดเลข WRQ)
  *  + แถวใน tb_doc_welfare (ดู sql/075)
  *
- *    - ออกใบเป็น "อนุมัติแล้ว" ทันที เพราะระบบสวัสดิการตรวจสิทธิ์มาแล้ว
- *      ผู้ขอและผู้อนุมัติคือบัญชีระบบ hl-welfare ชื่อ HR ที่กดส่งเก็บใน tb_doc_welfare
- *      (ไม่ผ่าน request_decide เพราะตัวนั้นห้ามอนุมัติใบของตัวเอง)
- *    - หลังออกใบ คลังจ่าย/เซ็นรับตามเส้นทางเดิมทุกอย่าง
+ *    - ออกใบเป็น "รออนุมัติ" เหมือนใบเบิกทั่วไป — ผู้อนุมัติของหน่วยงานต้องกดอนุมัติเอง
+ *      (หน้ารายการใบเบิก หรือลิงก์อนุมัติในอีเมล ผ่าน request_decide ตามปกติ)
+ *      ผู้ขอคือบัญชีระบบ hl-welfare ชื่อ HR ที่กดส่งเก็บใน tb_doc_welfare
+ *    - ไม่อนุมัติ = สิทธิ์กลับเป็นค้างแจกที่ระบบสวัสดิการ (พร้อมเหตุผล) · อนุมัติแล้ว = แจ้งคลังให้จัดของ
+ *    - หลังอนุมัติ คลังจ่าย/เซ็นรับตามเส้นทางเดิมทุกอย่าง
  *    - หนึ่งสิทธิ์ (พนักงาน + รอบ) มีใบที่มีผลได้ใบเดียว — active_ref UNIQUE
  *    - ไม่ติดสิทธิ์หน่วยงานใน tb_product_department เพราะเป็นสวัสดิการของบริษัท
  *      (เหตุผลเดียวกับชุดของพนักงานใหม่)
@@ -279,7 +280,7 @@ function welfare_new_staff_kit($department_id)
 
 
 /* ============================================================
- *  submit — ออกใบเบิกที่อนุมัติแล้ว
+ *  submit — ออกใบเบิกที่รออนุมัติ
  *
  *  $p = array(
  *    'employee_id', 'employee_code', 'employee_name', 'position_name',
@@ -417,24 +418,13 @@ function welfare_submit($p)
         welfare_release_ref($existing['doc_id']);
     }
 
-    $res = doc_insert('request', $data, 'approved', WELFARE_ACTOR);
+    /* รออนุมัติ — ผู้อนุมัติของหน่วยงานกดอนุมัติเอง (request_decide) ไม่อนุมัติแทนในนามระบบ */
+    $res = doc_insert('request', $data, 'waiting', WELFARE_ACTOR);
     if (!$res['ok']) { db_rollback(); return $res; }
     $doc_id = (int)$res['id'];
 
-    /* อนุมัติอัตโนมัติ — doc_insert ไม่ตั้งผู้อนุมัติให้ */
     $connect = db_connect();
     $actor   = WELFARE_ACTOR;
-    $actor_name = doc_user_name($actor);
-    $approve_note = 'อนุมัติอัตโนมัติ — ผ่านการตรวจสิทธิ์จากระบบสวัสดิการ';
-    $stmt = mysqli_prepare($connect,
-        "UPDATE `tb_doc_header`
-         SET `approved_by` = ?, `approved_by_name` = ?, `approved_at` = NOW(), `approve_note` = ?
-         WHERE `doc_id` = ?");
-    if (!$stmt) { db_rollback(); return db_fail('บันทึกการอนุมัติไม่สำเร็จ'); }
-    mysqli_stmt_bind_param($stmt, 'sssi', $actor, $actor_name, $approve_note, $doc_id);
-    $ok = mysqli_stmt_execute($stmt);
-    mysqli_stmt_close($stmt);
-    if (!$ok) { db_rollback(); return db_fail('บันทึกการอนุมัติไม่สำเร็จ'); }
 
     $stmt = mysqli_prepare($connect,
         "INSERT INTO `tb_doc_welfare`
@@ -493,15 +483,16 @@ function welfare_submit($p)
     $by = ($by_name !== '') ? $by_name : 'ไม่ระบุชื่อ';
     doc_history_add($doc_id, 'submitted', $actor, 'ส่งจากระบบสวัสดิการโดย ' . $by . ' — '
                     . ($new_staff ? 'พนักงานใหม่: ' : '') . $name);
-    doc_history_add($doc_id, 'approved', $actor, $approve_note);
 
     db_commit();
 
-    /* หลัง commit เสมอ — แจ้งเตือนพังต้องไม่ทำให้ใบหาย (ดูหัวไฟล์ notify_events.php) */
-    notify_event_welfare_request($doc_id, $actor, $by_name);
+    /* หลัง commit เสมอ — แจ้งเตือนพังต้องไม่ทำให้ใบหาย (ดูหัวไฟล์ notify_events.php)
+       แจ้งผู้อนุมัติของหน่วยงานเหมือนใบเบิกทั่วไป (มีลิงก์อนุมัติในอีเมล)
+       คลังได้แจ้งเตือนตอนผู้อนุมัติกดอนุมัติแล้ว (request_decide → notify_event_welfare_request) */
+    notify_event_request_submitted($doc_id, $actor);
 
     $out = db_ok('ส่งเบิก' . ($new_staff ? 'พนักงานใหม่' : 'ชุดฟอร์ม') . 'แล้ว ใบเลขที่ ' . $res['doc_no']
-                 . ' (' . $name . ') — รอคลังจ่าย', $doc_id);
+                 . ' (' . $name . ') — รอผู้อนุมัติ', $doc_id);
     $out['doc_no']    = $res['doc_no'];
     $out['duplicate'] = false;
     return $out;
@@ -581,10 +572,11 @@ function welfare_release_ref($doc_id)
  *      'items' => array( array('product_id', 'product_name', 'size', 'qty') ) ) )
  *
  *  stage ที่ระบบสวัสดิการใช้ตัดสิน:
- *    REQUESTED  ออกใบแล้ว รอคลังจ่าย (รวมจ่ายไปบางส่วน)
+ *    WAITING    ออกใบแล้ว รอผู้อนุมัติกดอนุมัติ
+ *    REQUESTED  อนุมัติแล้ว รอคลังจ่าย (รวมจ่ายไปบางส่วน)
  *    ISSUED     คลังจ่ายครบแล้ว รอพนักงานเซ็นรับ
  *    RECEIVED   ทุกใบจ่ายเซ็นรับแล้ว
- *    CANCELLED  ใบถูกยกเลิก — สิทธิ์กลับเป็นค้างแจก
+ *    CANCELLED  ใบถูกยกเลิก / ไม่อนุมัติ — สิทธิ์กลับเป็นค้างแจก (เหตุผลอยู่ใน cancel_note)
  *  ref ที่ไม่เคยส่งเบิก ไม่อยู่ในผลลัพธ์
  * ============================================================ */
 function welfare_status($refs)
@@ -597,7 +589,7 @@ function welfare_status($refs)
     $marks = implode(',', array_fill(0, count($refs), '?'));
 
     /* ใบล่าสุดของแต่ละสิทธิ์ (ส่งซ้ำได้หลังยกเลิก ใบใหม่มี doc_id มากกว่า) */
-    $sql = "SELECT w.`source_ref`, h.`doc_id`, h.`doc_no`, h.`status`, h.`cancel_note`,
+    $sql = "SELECT w.`source_ref`, h.`doc_id`, h.`doc_no`, h.`status`, h.`cancel_note`, h.`approve_note`,
                    (SELECT MAX(i.`created_at`) FROM `tb_doc_header` i
                      WHERE i.`doc_type` = 'issue' AND i.`ref_doc_id` = h.`doc_id`
                        AND i.`status` <> 'cancelled') AS `issued_at`,
@@ -622,12 +614,18 @@ function welfare_status($refs)
     call_user_func_array('mysqli_stmt_bind_param', $args);
 
     mysqli_stmt_execute($stmt);
-    mysqli_stmt_bind_result($stmt, $ref, $doc_id, $doc_no, $status, $cancel_note,
+    mysqli_stmt_bind_result($stmt, $ref, $doc_id, $doc_no, $status, $cancel_note, $approve_note,
                             $issued_at, $unsigned, $received_at);
 
     while (mysqli_stmt_fetch($stmt)) {
-        if ($status === 'cancelled' || $status === 'rejected') {
+        if ($status === 'rejected') {
+            /* ไม่อนุมัติ — ส่งเหตุผลของผู้อนุมัติไปแสดงที่ระบบสวัสดิการ */
             $stage = 'CANCELLED';
+            $cancel_note = 'ไม่อนุมัติ: ' . ($approve_note !== '' && $approve_note !== null ? $approve_note : 'ไม่ได้ระบุเหตุผล');
+        } elseif ($status === 'cancelled') {
+            $stage = 'CANCELLED';
+        } elseif ($status === 'waiting') {
+            $stage = 'WAITING';
         } elseif ($status === 'issued' && (int)$unsigned === 0 && $received_at !== null) {
             $stage = 'RECEIVED';
         } elseif ($status === 'issued') {
@@ -697,7 +695,7 @@ function welfare_cancel($ref, $reason, $by_name)
         db_commit();
         return db_ok('ใบเบิก ' . $doc['doc_no'] . ' ถูกยกเลิกไปแล้ว', $doc['doc_id']);
     }
-    if ($doc['status'] !== 'approved' || welfare_issue_count($doc['doc_id']) > 0) {
+    if (($doc['status'] !== 'approved' && $doc['status'] !== 'waiting') || welfare_issue_count($doc['doc_id']) > 0) {
         db_rollback();
         return db_fail('คลังจ่ายของตามใบ ' . $doc['doc_no'] . ' ไปแล้ว ยกเลิกจากระบบสวัสดิการไม่ได้ '
                      . '— ติดต่อคลังให้ยกเลิกใบจ่ายก่อน');
@@ -710,7 +708,7 @@ function welfare_cancel($ref, $reason, $by_name)
         "UPDATE `tb_doc_header`
          SET `status` = 'cancelled', `cancelled_by` = ?, `cancelled_at` = NOW(),
              `cancel_note` = ?, `updated_by` = ?
-         WHERE `doc_id` = ? AND `status` = 'approved'");
+         WHERE `doc_id` = ? AND `status` IN ('waiting', 'approved')");
     if (!$stmt) { db_rollback(); return db_fail('ยกเลิกใบเบิกไม่สำเร็จ'); }
     mysqli_stmt_bind_param($stmt, 'sssi', $actor, $reason, $actor, $id);
     $ok = mysqli_stmt_execute($stmt);
@@ -722,6 +720,12 @@ function welfare_cancel($ref, $reason, $by_name)
     doc_history_add($id, 'cancelled', $actor, $reason);
 
     db_commit();
+
+    /* ยกเลิกตอนยังรออนุมัติ — ลิงก์อนุมัติในอีเมลของผู้อนุมัติต้องใช้ไม่ได้แล้ว */
+    if ($doc['status'] === 'waiting') {
+        require_once dirname(__FILE__) . '/approve_link.php';
+        approve_link_close_doc($id, $actor);
+    }
     return db_ok('ยกเลิกใบเบิก ' . $doc['doc_no'] . ' แล้ว', $id);
 }
 

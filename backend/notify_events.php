@@ -332,12 +332,13 @@ function notify_event_request_submitted($doc_id, $actor)
 
 
 /* ============================================================
- *  เหตุการณ์ที่ 1ข — ระบบสวัสดิการส่งใบเบิกชุดฟอร์มเข้ามา (backend/welfare_bridge.php)
+ *  เหตุการณ์ที่ 1ข — ผู้อนุมัติกดอนุมัติใบเบิกชุดฟอร์มจากระบบสวัสดิการ (request_decide)
  *  ปลายทาง: ผู้ดูแลระบบ (คนคลัง)
  *
- *  ใบนี้ออกมา "อนุมัติแล้ว" และผู้ขอคือบัญชีระบบ hl-welfare
- *  เหตุการณ์ที่ 1 (รออนุมัติ) กับ 2 (ตัดสินแล้ว) จึงไม่ถึงใครเลย
+ *  ใบนี้ส่งเข้ามาแบบ "รออนุมัติ" (เหตุการณ์ที่ 1 แจ้งผู้อนุมัติของหน่วยงานแล้ว)
+ *  แต่ผู้ขอคือบัญชีระบบ hl-welfare เหตุการณ์ที่ 2 (ตัดสินแล้ว) จึงไม่ถึงใคร
  *  ถ้าไม่เตือนตรงนี้ คลังจะรู้ว่ามีใบรอจ่ายก็ต่อเมื่อเปิดแดชบอร์ดเอง
+ *  $by_name = ชื่อผู้อนุมัติ
  * ============================================================ */
 function notify_event_welfare_request($doc_id, $actor, $by_name)
 {
@@ -349,15 +350,17 @@ function notify_event_welfare_request($doc_id, $actor, $by_name)
 
     $kind     = !empty($doc['is_new_staff']) ? 'ใบเบิกพนักงานใหม่' : 'ใบเบิกชุดฟอร์ม';
     $employee = !empty($doc['welfare']) ? $doc['welfare']['employee_name'] : '';
-    $by       = (trim($by_name) !== '') ? trim($by_name) : 'ระบบสวัสดิการ';
+    $by       = (trim($by_name) !== '') ? trim($by_name) : 'ผู้อนุมัติ';
+    $sender   = (!empty($doc['welfare']) && $doc['welfare']['requested_by_name'] !== '')
+                ? $doc['welfare']['requested_by_name'] : 'ระบบสวัสดิการ';
 
-    $extra = array(array('ส่งโดย', $by . ' (ระบบสวัสดิการ)'));
+    $extra = array(array('ส่งโดย', $sender . ' (ระบบสวัสดิการ)'), array('อนุมัติโดย', $by));
     if ($employee !== '') { $extra[] = array('พนักงานที่รับ', $employee); }
 
     return notify_deliver($people, array(
         'type'      => 'welfare_request',
         'title'     => $kind . ' ' . $doc['doc_no'] . ' รอคลังจ่าย',
-        'message'   => 'ระบบสวัสดิการส่งเบิกให้ ' . ($employee !== '' ? $employee : '-') . ' (อนุมัติแล้ว) — '
+        'message'   => 'ระบบสวัสดิการส่งเบิกให้ ' . ($employee !== '' ? $employee : '-') . ' (' . $by . ' อนุมัติแล้ว) — '
                      . notify_items_summary($doc['items']),
         'link_page' => notify_request_page($doc),
         'doc_id'    => $doc['doc_id'],
@@ -368,7 +371,7 @@ function notify_event_welfare_request($doc_id, $actor, $by_name)
         'ref_type'  => 'welfare_request',
         'body_html' =>
               '<p>ระบบสวัสดิการส่ง' . htmlspecialchars($kind, ENT_QUOTES, 'UTF-8')
-            . 'เข้ามา ใบนี้<b>อนุมัติอัตโนมัติแล้ว</b> เพราะผ่านการตรวจสิทธิ์จากระบบสวัสดิการ '
+            . 'เข้ามา และ<b>' . htmlspecialchars($by, ENT_QUOTES, 'UTF-8') . ' อนุมัติแล้ว</b> '
             . 'จัดของและบันทึกจ่ายได้เลย</p>'
             . mail_detail_table(notify_doc_pairs($doc, $extra))
             . notify_items_html($doc['items'])

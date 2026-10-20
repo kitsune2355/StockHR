@@ -210,6 +210,12 @@ function request_decide($doc_id, $decision, $reason, $actor, $actor_role)
        ถ้าไม่แจ้ง เขาจะเปิดระบบมาเช็คเองวันละหลายรอบ หรือเดินมาถามที่คลัง */
     notify_event_request_decided($id, $decision, $reason, $actor);
 
+    /* ใบจากระบบสวัสดิการ: ผู้ขอคือบัญชีระบบ ไม่มีใครรับแจ้งเตือนข้างบน
+       อนุมัติแล้วต้องบอกคลังให้จัดของ (ไม่อนุมัติ = ระบบสวัสดิการดึงสถานะไปเอง สิทธิ์กลับเป็นค้างแจก) */
+    if ($decision === 'approved' && !empty($doc['is_welfare'])) {
+        notify_event_welfare_request($id, $actor, $actor_name);
+    }
+
     $word = ($decision === 'approved') ? 'อนุมัติ' : 'ไม่อนุมัติ';
     return db_ok($word . 'ใบเบิก ' . $doc['doc_no'] . ' เรียบร้อย', $id);
 }
