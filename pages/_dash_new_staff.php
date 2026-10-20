@@ -18,9 +18,10 @@
 
 if (!isset($ns) || $ns === null) { return; }
 
-$ns_list_ok = db_can('new_staff_list');
+/* ใบพนักงานใหม่อยู่ใน "รายการใบเบิก" (เมนูใบเบิกพนักงานใหม่ถูกซ่อน) */
+$ns_list_ok = db_can('request_list');
 $ns_tag     = $ns_list_ok ? 'a' : 'div';
-$ns_href    = $ns_list_ok ? ' href="main.php?page=new_staff_list"' : '';
+$ns_href    = $ns_list_ok ? ' href="main.php?page=request_list"' : '';
 
 /* กลุ่มของรายการเตรียมของ เรียงตามความเร่งด่วน */
 $ns_groups = array(
@@ -64,7 +65,7 @@ function ns_result_text($v)
   <div class="bn-tile-head">
     <h3>พนักงานใหม่</h3>
     <?php if ($ns_list_ok) { ?>
-    <a href="main.php?page=new_staff_list" class="bn-more">ดูใบเบิกทั้งหมด</a>
+    <a href="main.php?page=request_list" class="bn-more">ดูใบเบิกทั้งหมด</a>
     <?php } ?>
   </div>
 
