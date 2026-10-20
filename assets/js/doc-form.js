@@ -439,9 +439,20 @@
       " · วันที่ขอ " +
       (dateLong(picked.doc_date) || "ไม่ระบุ");
 
-    if (has("receiverName") && el("receiverName").value === "") {
-      el("receiverName").value =
-        picked.requester_name || picked.requester || "";
+    /* ผู้รับของ: ใบเบิกจากระบบสวัสดิการ / พนักงานใหม่ = ตัวพนักงาน (ผู้ขอเบิกคือ HR ที่กดส่ง)
+       ใบอื่น = ผู้ขอเบิก · เปลี่ยนใบเบิกแล้วชื่อที่ระบบเติมไว้เปลี่ยนตาม ส่วนที่พิมพ์เองคงไว้ */
+    if (has("receiverName")) {
+      var suggest =
+        picked.welfare_name ||
+        picked.new_staff_name ||
+        picked.requester_name ||
+        picked.requester ||
+        "";
+      var box = el("receiverName");
+      if (box.value === "" || box.value === box.dataset.auto) {
+        box.value = suggest;
+        box.dataset.auto = suggest;
+      }
     }
 
     /* ---------- เติมจำนวนตั้งต้นให้เท่าที่จ่ายได้จริง ----------

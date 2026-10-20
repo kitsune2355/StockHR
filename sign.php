@@ -438,8 +438,12 @@ input[type=text]:focus {
           <label class="label" for="receiverName">ชื่อผู้รับของ</label>
           <input type="text" id="receiverName" name="receiver_name" maxlength="150"
                  autocomplete="name" required
-                 value="<?php echo sg_esc($doc['requester_name'] !== ''
-                              ? $doc['requester_name'] : $doc['requester']); ?>">
+                 value="<?php
+                     /* ชื่อที่กรอกไว้ตอนจ่าย > พนักงานในใบเบิกสวัสดิการ/พนักงานใหม่ > ผู้ขอเบิก */
+                     $sg_suggest = (string)$doc['receiver_name'] !== '' ? $doc['receiver_name']
+                                 : ($doc['employee_receiver'] !== '' ? $doc['employee_receiver']
+                                 : ($doc['requester_name'] !== '' ? $doc['requester_name'] : $doc['requester']));
+                     echo sg_esc($sg_suggest); ?>">
           <p class="hint">ถ้ามารับแทน ให้แก้เป็นชื่อคนที่มารับจริง</p>
         </div>
 

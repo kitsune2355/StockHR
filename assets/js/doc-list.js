@@ -2238,6 +2238,7 @@
   function acknowledge() {
     var suggest =
       openDoc.receiver_name ||
+      openDoc.employee_receiver ||
       openDoc.requester_name ||
       openDoc.requester ||
       "";

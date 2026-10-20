@@ -370,13 +370,18 @@ function doc_find($doc_id)
                 r.`doc_no` AS `ref_doc_no`,
                 ns.`employee_name`, ns.`employee_code`, ns.`position_name`, ns.`start_date`,
                 wf.`employee_name`, wf.`employee_code`, wf.`position_name`, wf.`site_name`,
-                wf.`event`, wf.`entitlement_key`, wf.`requested_by_name`
+                wf.`event`, wf.`entitlement_key`, wf.`requested_by_name`,
+                /* ใบจ่ายของใบเบิกจากระบบสวัสดิการ / ใบพนักงานใหม่: ผู้รับของจริงคือพนักงานในใบเบิกต้นทาง
+                   (แถวข้อมูลพนักงานผูกกับใบเบิก ไม่ใช่ใบจ่าย) */
+                COALESCE(rwf.`employee_name`, rns.`employee_name`)
          FROM `tb_doc_header` h
          LEFT JOIN `tb_department` dp ON dp.`department_id` = h.`department_id`
          LEFT JOIN `tb_company`    cp ON cp.`company_id`    = dp.`company_id`
          LEFT JOIN `tb_doc_header` r  ON r.`doc_id`         = h.`ref_doc_id`
          LEFT JOIN `tb_doc_new_staff` ns ON ns.`doc_id`    = h.`doc_id`
          LEFT JOIN `tb_doc_welfare`   wf ON wf.`doc_id`    = h.`doc_id`
+         LEFT JOIN `tb_doc_welfare`   rwf ON rwf.`doc_id`  = h.`ref_doc_id`
+         LEFT JOIN `tb_doc_new_staff` rns ON rns.`doc_id`  = h.`ref_doc_id`
          WHERE h.`doc_id` = ? LIMIT 1");
     if (!$stmt) { return null; }
 
@@ -392,7 +397,8 @@ function doc_find($doc_id)
         $requester_name, $approved_by_name, $created_by_name,
         $ref_doc_no,
         $ns_name, $ns_code, $ns_position, $ns_start,
-        $wf_name, $wf_code, $wf_position, $wf_site, $wf_event, $wf_key, $wf_by);
+        $wf_name, $wf_code, $wf_position, $wf_site, $wf_event, $wf_key, $wf_by,
+        $ref_employee);
     $found = mysqli_stmt_fetch($stmt);
     mysqli_stmt_close($stmt);
 
@@ -456,6 +462,11 @@ function doc_find($doc_id)
         'new_staff'       => $new_staff,
         'is_welfare'      => ($welfare !== null),
         'welfare'         => $welfare,
+        /* ชื่อพนักงานที่เป็นผู้รับของ — ใบเบิกสวัสดิการ/พนักงานใหม่ = ชื่อในใบเอง
+           ใบจ่ายของใบเบิกนั้น = ชื่อในใบเบิกต้นทาง · ใบอื่น = '' (ผู้รับคือผู้ขอเบิกตามเดิม) */
+        'employee_receiver' => ($welfare !== null) ? $wf_name
+                             : (($new_staff !== null) ? $ns_name
+                             : (($ref_employee === null) ? '' : $ref_employee)),
         'items'           => doc_items($doc_id)
     );
 }
