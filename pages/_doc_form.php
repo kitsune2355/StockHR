@@ -46,6 +46,87 @@ function df_json($value)
     return str_replace('<', '\u003C', json_encode($value));
 }
 
+/* ---------- ช่องยิงรหัส ----------
+ * รับได้ทั้งบาร์โค้ดและ QR เพราะเครื่องอ่านถอดรหัสเองแล้วส่งมาเป็นการกดปุ่ม
+ * (ข้อแม้อยู่ที่ตัวเครื่อง: รุ่นเลเซอร์เส้นตรงอ่าน QR ไม่ได้)
+ *
+ * แยกเป็นช่องต่างหาก ไม่ดักการกดปุ่มทั้งหน้า เพราะหน้านี้มีช่องจำนวน
+ * กับหมายเหตุที่ต้องพิมพ์เอง ถ้าดักทั้งหน้าตัวเลขที่พิมพ์จะหาย
+ *
+ * อ่านจากตำแหน่งปุ่มบนแป้น ไม่ใช่ตัวอักษรที่ Windows แปลงมา
+ * จึงยิงได้แม้เปิดภาษาไทยค้างไว้ (ดู assets/js/barcode-scan.js)
+ * — และเพราะอย่างนี้เองจึงรวมกับช่องค้นหาสินค้าไม่ได้ พิมพ์ชื่อไทยในช่องนี้จะได้ตัวอังกฤษ
+ *
+ * ปุ่มกล้อง: ส่องด้วยกล้องของเครื่อง สำหรับคนที่ไม่มีเครื่องยิงอยู่ในมือ
+ * อ่านบาร์โค้ดแท่งได้เฉพาะเครื่องที่มีตัวถอดรหัสในตัว (Android เป็นหลัก)
+ * เครื่องที่ต้องใช้ตัวสำรองอ่านได้เฉพาะ QR (ดูเหตุผลใน assets/js/qr-cam.js)
+ */
+function df_scan_box($doc_type)
+{
+    $ph = ($doc_type === 'issue') ? 'ยิงบาร์โค้ดหรือ QR เพื่อตรวจของที่หยิบ' : 'ยิงบาร์โค้ดหรือ QR เพื่อเพิ่มสินค้า';
+    ?>
+      <div class="doc-scan">
+        <span class="doc-scan-icon" aria-hidden="true">
+          <i data-lucide="scan-barcode" class="h-4 w-4"></i>
+        </span>
+        <input type="text" id="scanInput" autocomplete="off" spellcheck="false"
+               class="doc-scan-input" placeholder="<?php echo $ph; ?>"
+               aria-label="ช่องยิงบาร์โค้ดหรือ QR">
+        <button type="button" id="btnScanCam" class="doc-scan-cam"
+                title="เปิดกล้องเพื่อส่อง QR หรือบาร์โค้ด">
+          <i data-lucide="camera" class="h-3.5 w-3.5" aria-hidden="true"></i>
+        </button>
+      </div>
+    <?php
+}
+
+/* ---------- ปุ่มเปิด/ปิดโหมดยิง + กรอบโหมดยิง (ใช้ทั้งสามหน้า) ----------
+ * ช่องยิงไม่โผล่เป็นช่องพิมพ์ลอย ๆ อีกต่อไป ต้องกดปุ่ม "ยิงบาร์โค้ด" เปิดกรอบโหมดยิงก่อน
+ * กรอบมีหัวบอกชัดว่าเป็น "โหมด" ยิงแล้วเกิดอะไรขึ้น — ไม่ใช่ช่องค้นหาอีกช่อง
+ * สถานะเปิด/ปิดจำแยกหน้า ค่าเริ่มต้น: หน้าเบิกปิด / รับเข้า-จ่ายออกเปิด (ดู setupScanToggle) */
+function df_scan_toggle()
+{
+    ?>
+            <button type="button" id="btnScanToggle" class="tf-scan-toggle"
+                    aria-expanded="false" aria-controls="scanBox"
+                    title="เปิดช่องยิงบาร์โค้ด / QR">
+              <i data-lucide="scan-barcode" class="h-4 w-4" aria-hidden="true"></i>
+              <span class="tf-scan-toggle-text">ยิงบาร์โค้ด</span>
+            </button>
+    <?php
+}
+
+function df_scan_panel($doc_type, $extra_class = '')
+{
+    $what = array(
+        'request' => 'ยิงแล้วสินค้าเข้า “รายการที่จะเบิก” ทันที',
+        'receive' => 'ยิงแล้วเพิ่มบรรทัดในตาราง ยิงซ้ำตัวเดิมจะบวกจำนวน',
+        'issue'   => 'ยิงของที่หยิบทีละชิ้น ระบบนับเทียบกับใบเบิกให้'
+    );
+    ?>
+          <div id="scanBox" hidden class="tf-scan-box <?php echo $extra_class; ?>">
+            <div class="tf-scan-head">
+              <span>โหมดยิงบาร์โค้ด — <?php echo $what[$doc_type]; ?></span>
+              <button type="button" id="btnScanClose" class="tf-scan-close" aria-label="ปิดช่องยิงบาร์โค้ด">
+                <i data-lucide="x" class="h-3.5 w-3.5" aria-hidden="true"></i>
+              </button>
+            </div>
+            <?php df_scan_box($doc_type); ?>
+          </div>
+    <?php
+}
+
+function df_save_button($cls, $text)
+{
+    ?>
+        <button type="button" id="btnSave" class="<?php echo $cls; ?>" disabled>
+          <i data-lucide="save" class="btn-icon h-4 w-4" aria-hidden="true"></i>
+          <i data-lucide="loader-circle" class="btn-spinner h-4 w-4 animate-spin" aria-hidden="true" hidden></i>
+          <span><?php echo htmlspecialchars($text, ENT_QUOTES, 'UTF-8'); ?></span>
+        </button>
+    <?php
+}
+
 $panel    = 'flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900';
 $label    = 'mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300';
 $input    = 'input-control h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-800 placeholder:text-slate-400 transition hover:border-slate-300 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:ring-brand-900';
@@ -162,43 +243,17 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
       </div>
     </form>
 
-    <!-- ===== แถบเครื่องมือของรายการสินค้า ===== -->
+    <?php if ($doc_type !== 'request') { ?>
+    <!-- ===== แถบเครื่องมือของรายการสินค้า (รับเข้า / จ่ายออก) =====
+         แบบเดียวกับหน้าเบิก: ช่องยิงอยู่หลังปุ่ม "ยิงบาร์โค้ด" ในกรอบโหมดยิง
+         และปุ่มบันทึกอยู่แถบสรุปด้านล่าง (ต่อจากยอดรวมที่ต้องตรวจก่อนกด)
+         สองหน้านี้ยิงเป็นหลัก กรอบโหมดยิงจึงเปิดรอไว้ตั้งแต่แรก ปิดแล้วระบบจำไว้ให้ -->
     <div class="grid-toolbar flex flex-none flex-wrap items-center gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
       <span class="text-sm font-medium text-slate-700 dark:text-slate-300">รายการสินค้า</span>
 
-      <!-- ===== ช่องยิงรหัส =====
-           รับได้ทั้งบาร์โค้ดและ QR เพราะเครื่องอ่านถอดรหัสเองแล้วส่งมาเป็นการกดปุ่ม
-           (ข้อแม้อยู่ที่ตัวเครื่อง: รุ่นเลเซอร์เส้นตรงอ่าน QR ไม่ได้)
-
-           แยกเป็นช่องต่างหาก ไม่ดักการกดปุ่มทั้งหน้า เพราะหน้านี้มีช่องจำนวน
-           กับหมายเหตุที่ต้องพิมพ์เอง ถ้าดักทั้งหน้าตัวเลขที่พิมพ์จะหาย
-
-           อ่านจากตำแหน่งปุ่มบนแป้น ไม่ใช่ตัวอักษรที่ Windows แปลงมา
-           จึงยิงได้แม้เปิดภาษาไทยค้างไว้ (ดู assets/js/barcode-scan.js) -->
-      <div class="doc-scan">
-        <span class="doc-scan-icon" aria-hidden="true">
-          <i data-lucide="scan-barcode" class="h-4 w-4"></i>
-        </span>
-        <input type="text" id="scanInput" autocomplete="off" spellcheck="false"
-               class="doc-scan-input"
-               placeholder="<?php echo ($doc_type === 'issue') ? 'ยิงบาร์โค้ดหรือ QR เพื่อตรวจของที่หยิบ' : 'ยิงบาร์โค้ดหรือ QR เพื่อเพิ่มสินค้า'; ?>"
-               aria-label="ช่องยิงบาร์โค้ดหรือ QR">
-        <!-- ส่องด้วยกล้องของเครื่อง สำหรับคนที่ไม่มีเครื่องยิงอยู่ในมือ
-             เช่นเปิดหน้านี้จากมือถือตอนยืนอยู่ที่ชั้นวาง
-
-             อ่านบาร์โค้ดแท่งได้เฉพาะเครื่องที่มีตัวถอดรหัสในตัว (Android เป็นหลัก)
-             เครื่องที่ต้องใช้ตัวสำรองอ่านได้เฉพาะ QR ข้อความในกล่องกล้อง
-             จะบอกเองตอนเปิด (ดูเหตุผลใน assets/js/qr-cam.js) -->
-        <button type="button" id="btnScanCam" class="doc-scan-cam"
-                title="เปิดกล้องเพื่อส่อง QR หรือบาร์โค้ด">
-          <i data-lucide="camera" class="h-3.5 w-3.5" aria-hidden="true"></i>
-        </button>
-      </div>
-
-      <?php /* grid-toolbar-actions ทำให้แถบปุ่มของหน้านี้ใช้กฎเดียวกับหน้าอื่นบนมือถือ
-               (ปุ่มรองเหลือแต่ไอคอนเกาะกลุ่มซ้าย ปุ่มบันทึกไปสุดขวา แถวเดียวจบ)
-               ไม่ต้องมีกฎเฉพาะของหน้านี้แยกอีกชุด */ ?>
       <div class="grid-toolbar-actions ml-auto flex flex-wrap items-center gap-2">
+        <?php df_scan_toggle(); ?>
+
         <?php if ($doc_type === 'receive') { ?>
         <?php /* ปุ่มเพิ่มรายการยังต้องมีอยู่ แม้จะยิงบาร์โค้ดได้แล้ว
                  เพราะของบางอย่างไม่มีฉลากแปะ และเครื่องอ่านก็เสียได้ */ ?>
@@ -207,14 +262,11 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
           <span class="btn-label">เพิ่มรายการ</span>
         </button>
         <?php } ?>
-
-        <button type="button" id="btnSave" class="<?php echo $btn_main; ?>" disabled>
-          <i data-lucide="save" class="btn-icon h-4 w-4" aria-hidden="true"></i>
-          <i data-lucide="loader-circle" class="btn-spinner h-4 w-4 animate-spin" aria-hidden="true" hidden></i>
-          <span>บันทึกเอกสาร</span>
-        </button>
       </div>
     </div>
+
+    <?php df_scan_panel($doc_type, 'mx-4 mt-3 flex-none'); ?>
+    <?php } ?>
 
     <!-- ผลของการยิงล่าสุด — ต้องเห็นชัดโดยไม่ต้องเพ่ง เพราะคนยิงมองของอยู่ ไม่ได้มองจอ
          มีเสียงตอบรับคู่กันด้วย เสียงสูงสั้น = เจอ  เสียงต่ำยาว = ไม่เจอ -->
@@ -296,14 +348,23 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
              เพราะหน้านี้มีสองฝั่งอยู่แล้ว ถ้าเพิ่มแถบที่สามจะเหลือที่ให้ชื่อสินค้าน้อย
              และตัวกรองชุดนี้กรองเฉพาะฝั่งซ้าย ไม่ได้กรองทั้งหน้า -->
         <div class="tf-filters">
-          <div class="relative">
-            <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-slate-400" aria-hidden="true">
-              <i data-lucide="search" class="h-4 w-4"></i>
-            </span>
-            <input type="search" id="tfSearch" autocomplete="off"
-                   placeholder="ค้นรหัส ชื่อสินค้า หรือหมวดหมู่"
-                   class="<?php echo $input; ?> pl-10">
+          <!-- ช่องค้นหาเป็นช่องพิมพ์ช่องเดียวที่เห็นตลอด
+               ช่องยิงบาร์โค้ดซ่อนไว้หลังปุ่มข้าง ๆ เพราะเดิมสองช่องวางห่างกันแต่หน้าตาเหมือนกัน
+               ผู้ใช้ (โดยเฉพาะผู้อนุมัติที่เข้ามาแก้จำนวน) พิมพ์ชื่อสินค้าลงช่องยิงแล้วได้ตัวอังกฤษมั่ว ๆ
+               คนที่ยิงเป็นประจำเปิดค้างไว้ได้ ระบบจำไว้ให้ในเบราว์เซอร์ (ดู setupScanToggle ใน doc-form.js) -->
+          <div class="tf-search-row">
+            <div class="relative min-w-0 flex-1">
+              <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-slate-400" aria-hidden="true">
+                <i data-lucide="search" class="h-4 w-4"></i>
+              </span>
+              <input type="search" id="tfSearch" autocomplete="off"
+                     placeholder="ค้นรหัส ชื่อสินค้า หรือหมวดหมู่"
+                     class="<?php echo $input; ?> pl-10">
+            </div>
+            <?php df_scan_toggle(); ?>
           </div>
+
+          <?php df_scan_panel($doc_type); ?>
 
           <div class="tf-filters-row tf-filters-row3">
             <select id="tfCategory" class="<?php echo $input; ?>"
@@ -383,12 +444,15 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
            ส่วนใบเบิกไม่ใช้ตาราง แต่เป็นตัวเลือกสองฝั่งที่มีช่องจำนวนอยู่ในตัวอยู่แล้ว
            บรรทัดนี้จึงไม่มีอะไรจะบอก -->
       <?php if ($doc_type !== 'request') { ?>
-      <span class="ml-auto text-xs text-slate-400 dark:text-slate-500">
+      <span class="text-xs text-slate-400 dark:text-slate-500">
         <?php echo ($doc_type === 'receive')
                    ? 'คลิกที่ช่องเพื่อแก้ไขได้ทันที'
                    : 'ดับเบิลคลิกที่รายการเพื่อแก้ไขจำนวนหรือหมายเหตุ'; ?>
       </span>
       <?php } ?>
+      <!-- ปุ่มบันทึกอยู่ท้ายแถบสรุปทุกหน้า ต่อจากยอดรวมที่ต้องตรวจก่อนกด
+           (บนจอเล็กแถบนี้ตรึงไว้ล่างจอ ดู app.css) -->
+      <?php df_save_button($btn_main, ($edit_doc_id > 0) ? 'บันทึกการแก้ไข' : 'บันทึกเอกสาร'); ?>
     </div>
   </div>
 </div>
