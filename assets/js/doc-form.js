@@ -1248,6 +1248,75 @@
     }
   }
 
+  /* ---------- ปุ่มเปิด/ปิดช่องยิง (ทั้งสามหน้า) ----------
+   * ช่องยิงซ่อนไว้หลังปุ่ม "ยิงบาร์โค้ด" ไม่ให้มีช่องพิมพ์ลอย ๆ ที่หน้าตาเหมือนช่องค้นหา
+   * จำสถานะไว้ในเบราว์เซอร์แยกหน้า (ความสะดวกส่วนตัว ไม่ต้องลงฐานข้อมูล)
+   *   หน้าเบิก        ค่าเริ่มต้น "ปิด" — คนเบิกส่วนใหญ่ค้นจากรายการ ไม่ได้ถือเครื่องยิง
+   *   รับเข้า/จ่ายออก  ค่าเริ่มต้น "เปิด" — คนคลังยิงเป็นหลัก เข้าหน้ามาต้องยิงได้ทันที
+   * หน้าเบิกใช้คีย์เดิม (hl-req-scan-open) คนที่เคยเปิดค้างไว้จะได้ไม่หายไป */
+  var SCAN_KEY = TYPE === "request" ? "hl-req-scan-open" : "hl-" + TYPE + "-scan-open";
+  var SCAN_DEFAULT_OPEN = TYPE !== "request";
+
+  function scanBoxOpen(on, focus) {
+    var box = el("scanBox");
+    var btn = el("btnScanToggle");
+    if (!box || !btn) {
+      return;
+    }
+    setHidden(box, !on);
+    btn.setAttribute("aria-expanded", on ? "true" : "false");
+    btn.classList.toggle("is-on", on);
+    if (on && focus) {
+      el("scanInput").focus();
+    }
+  }
+
+  function setupScanToggle() {
+    var btn = el("btnScanToggle");
+    if (!btn) {
+      return;
+    }
+
+    /* "1" = เปิด, "0" = ปิด, ไม่มีค่า = ใช้ค่าเริ่มต้นของหน้า */
+    var remembered = SCAN_DEFAULT_OPEN;
+    try {
+      var saved = localStorage.getItem(SCAN_KEY);
+      if (saved === "1" || saved === "0") {
+        remembered = saved === "1";
+      }
+    } catch (e) {
+      remembered = SCAN_DEFAULT_OPEN;
+    }
+    scanBoxOpen(remembered, false);
+
+    function remember(on) {
+      try {
+        localStorage.setItem(SCAN_KEY, on ? "1" : "0");
+      } catch (e) {
+        /* โหมดส่วนตัวบางเบราว์เซอร์ห้ามเขียน — แค่ไม่จำ ใช้งานได้ปกติ */
+      }
+    }
+
+    btn.addEventListener("click", function () {
+      var on = el("scanBox").hidden;
+      scanBoxOpen(on, true);
+      remember(on);
+    });
+    el("btnScanClose").addEventListener("click", function () {
+      scanBoxOpen(false, false);
+      remember(false);
+      btn.focus();
+    });
+    /* Esc ในช่องยิง = ปิดโหมดยิง กลับไปช่องค้นหา (หน้าเบิก) หรือปุ่มเปิดโหมดยิง (หน้าที่ไม่มีช่องค้นหา) */
+    el("scanInput").addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        scanBoxOpen(false, false);
+        remember(false);
+        (el("tfSearch") || btn).focus();
+      }
+    });
+  }
+
   function setupScanner() {
     var input = el("scanInput");
     if (!input || !window.BarcodeScan) {
@@ -1262,11 +1331,13 @@
     });
 
     initScanCam();
+    setupScanToggle();
 
     /* พอโหลดเสร็จให้เคอร์เซอร์รออยู่ที่ช่องยิงเลย เดินมาถึงก็ยิงได้ทันที
            ยกเว้นหน้าเบิกที่คนส่วนใหญ่ไม่ได้ใช้เครื่องอ่าน และช่องแรกที่ควรโฟกัส
-           คือหน่วยงานที่ขอเบิก ไม่ใช่ช่องยิง */
-    if (TYPE !== "request") {
+           คือหน่วยงานที่ขอเบิก ไม่ใช่ช่องยิง
+           และเฉพาะตอนกรอบโหมดยิงเปิดอยู่ — ถ้าผู้ใช้ปิดไว้ แปลว่าไม่ได้ยิง */
+    if (TYPE !== "request" && !el("scanBox").hidden) {
       input.focus();
     }
   }
@@ -1832,7 +1903,13 @@
       refHtml: has("refDocId") ? el("refDocId").innerHTML : "",
       noReqOff: has("noRequest") ? el("noRequest").hidden : true,
       receiver: has("receiverName") ? el("receiverName").value : "",
+      /* หน้าเบิก: ช่องยิงต้องเปิดระหว่างคู่มือ ไม่งั้นขั้น "ยิงรหัส" ถูกข้าม
+         (คู่มือข้ามจุดที่มองไม่เห็น) — จำสถานะเดิมไว้คืนตอนปิด */
+      scanOpen: has("scanBox") ? !el("scanBox").hidden : null,
     };
+    if (demoBackup.scanOpen === false) {
+      scanBoxOpen(true, false);
+    }
 
     DATA.products = DEMO_PRODUCTS.concat(DATA.products);
     for (var i = 0; i < DEMO_PRODUCTS.length; i++) {
@@ -1956,6 +2033,9 @@
 
     if (el("btnSave")) {
       el("btnSave").disabled = b.saveOff;
+    }
+    if (b.scanOpen === false) {
+      scanBoxOpen(false, false);
     }
     demoBanner(false);
     refreshTotals();
