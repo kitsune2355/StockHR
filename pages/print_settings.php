@@ -129,9 +129,14 @@ function ps_toggle($key, $title, $hint)
 
       <section class="ps-sec" id="psSecNotes">
         <h3 class="ps-h"><i data-lucide="list-ordered" class="h-4 w-4" aria-hidden="true"></i> หมายเหตุท้ายฟอร์ม</h3>
-        <p id="psNsNote" class="ps-hint" hidden>เอกสารรับชุดเครื่องแบบ (019-HRM): เงื่อนไขข้อ 2-4 และข้อความ "ได้รับเครื่องแบบพนักงานครบถ้วนแล้ว"
-          ใช้ชุดเดียวกับหน้าเซ็นรับ (ค่า uniform_receipt_terms) จึงไม่ได้แก้ที่หน้านี้</p>
-        <div class="ps-fld">
+        <!-- ใบจ่าย: ใช้หมายเหตุชุดเดียวกับเอกสารรับชุดเครื่องแบบ (เปิด = ซ่อนตัวแก้ไขของใบจ่าย) -->
+        <div class="ps-toggles" style="margin-bottom:.75rem">
+          <?php ps_toggle('notes_same_uniform', 'ใช้หมายเหตุเดียวกับเอกสารรับชุดเครื่องแบบ',
+                          'พิมพ์เงื่อนไข เลขข้อ และข้อความรับทราบชุดเดียวกับแท็บ "เอกสารรับชุดเครื่องแบบ" — แก้ที่แท็บนั้นที่เดียว'); ?>
+        </div>
+        <p id="psNsNote" class="ps-hint" hidden>เอกสารรับชุดเครื่องแบบ (019-HRM): หมายเหตุนี้คือเงื่อนไขที่พนักงานรับทราบ
+          ใช้ทั้งบนใบพิมพ์ หน้าเซ็นรับของพนักงาน และใบจ่าย (ถ้าแท็บใบจ่ายเปิด "ใช้หมายเหตุเดียวกับเอกสารรับชุดเครื่องแบบ") — แก้ที่นี่ที่เดียว</p>
+        <div class="ps-fld" id="psNotesOwn">
         <p class="ps-sub">จะเป็นข้อ ๆ มีเลข มีจุด หรือข้อความธรรมดาก็ได้ ลบหมด = ไม่พิมพ์กล่องหมายเหตุ</p>
         
 
@@ -153,6 +158,14 @@ function ps_toggle($key, $title, $hint)
         </div>
         <textarea id="notes" data-key="notes" hidden></textarea>
         <p class="ps-hint">กด Enter = ข้อใหม่ / บรรทัดใหม่ · วางข้อความจากที่อื่นจะเหลือแต่ตัวอักษร (ไม่ติดสี/ฟอนต์มา)</p>
+        </div>
+
+        <div class="ps-row ps-fld" id="psNotesStartRow">
+          <label for="notes_start" class="<?php echo $label; ?> mb-0">เริ่มเลขข้อที่ (รายการเลขข้อชุดแรก)</label>
+          <input type="number" id="notes_start" data-key="notes_start" min="1" max="50" class="<?php echo $input; ?> ps-num">
+        </div>
+        <div class="ps-fld" style="margin-top:1rem">
+          <?php ps_text('ack', 'ข้อความรับทราบใต้หมายเหตุ', 'พิมพ์ตัวหนาใต้กล่องหมายเหตุ เหนือช่องลงนาม', $input); ?>
         </div>
 
         <div class="ps-row ps-fld">
