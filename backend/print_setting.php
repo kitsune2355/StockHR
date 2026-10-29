@@ -298,3 +298,87 @@ function print_setting_save($all_values, $actor)
 
     return setting_set_many($store, $actor, $allow);
 }
+
+
+/* ============================================================
+ *  เอกสารสมมติสำหรับตัวอย่างในหน้าตั้งค่า (print_doc.php?mock=<ประเภท>)
+ *  ไม่อ่านเอกสารจริง — ตัวอย่างเหมือนกันทุกครั้ง และมีครบทุกส่วนที่ตั้งค่าได้
+ *  (เอกสารรับชุดเครื่องแบบมีข้อมูลพนักงาน — stock_hr ไม่มีการปรับจำนวนตอนอนุมัติ จึงไม่มีบรรทัดไม่อนุมัติ)
+ *  อ่านฐานข้อมูลที่เดียว: หน่วยงานแรกที่บริษัทมีโลโก้ ให้หัวกระดาษมีโลโก้เหมือนของจริง
+ * ============================================================ */
+function print_mock_item($no, $code, $name, $unit, $qty, $price, $extra = array())
+{
+    $it = array(
+        'item_id' => -$no, 'line_no' => $no, 'product_id' => -$no,
+        'product_code' => $code, 'product_name' => $name, 'unit_name' => $unit,
+        'qty' => $qty, 'qty_requested' => null, 'qty_issued' => 0, 'price' => $price,
+        'amount' => $qty * $price, 'unit_cost' => 0, 'total_cost' => 0, 'note' => '',
+        'must_return' => false, 'balance' => 0
+    );
+    foreach ($extra as $k => $v) { $it[$k] = $v; }
+    $it['amount'] = $it['qty'] * $it['price'];
+    return $it;
+}
+
+function print_mock_doc($type)
+{
+    if (!in_array($type, print_types())) { return null; }
+
+    $dept_id = 0;
+    $r = @mysqli_query(db_connect(),
+        "SELECT d.`department_id` FROM `tb_department` d INNER JOIN `tb_company` c ON c.`company_id` = d.`company_id`
+         WHERE c.`logo_file` <> '' AND c.`is_active` = 1 ORDER BY c.`company_id`, d.`department_id` LIMIT 1");
+    if ($r) { $row = mysqli_fetch_row($r); if ($row) { $dept_id = (int)$row[0]; } mysqli_free_result($r); }
+
+    $today = date('Y-m-d');
+    $ymd   = sprintf('%02d%02d', ((int)date('Y') + 543) % 100, (int)date('n'));   // เลขที่เอกสารใช้ปี พ.ศ. 2 หลัก + เดือน
+    $doc = array(
+        'doc_id' => 0, 'doc_type' => ($type === 'uniform') ? 'request' : $type,
+        'doc_type_label' => '', 'doc_no' => 'ตัวอย่าง-0001', 'doc_date' => $today,
+        'department_id' => $dept_id, 'department_name' => 'หน่วยงานตัวอย่าง',
+        'requester' => '__mock__', 'requester_name' => 'สมชาย ตัวอย่าง',
+        'status' => 'approved', 'status_label' => 'อนุมัติแล้ว',
+        'ref_doc_id' => 0, 'ref_doc_no' => '', 'note' => 'ใช้ในงานประจำเดือน (ตัวอย่างหมายเหตุผู้ขอ)',
+        'approved_by' => '__mock_approver__', 'approved_by_name' => 'สมหญิง ผู้อนุมัติ',
+        'approved_at' => $today . ' 10:30:00', 'approve_note' => '',
+        'created_by' => '__mock__', 'created_by_name' => 'สมชาย ตัวอย่าง',
+        'received_at' => '', 'receiver_name' => '', 'employee_receiver' => '', 'cancel_note' => '',
+        'new_staff' => null, 'is_new_staff' => false,
+        'items' => array(
+            print_mock_item(1, 'EX-SHT-001', 'เสื้อยูนิฟอร์ม แขนสั้น ไซซ์ M', 'ตัว', 3, 250),
+            print_mock_item(2, 'EX-PNT-002', 'กางเกงยูนิฟอร์ม เอว 32', 'ตัว', 2, 320),
+            print_mock_item(3, 'EX-SHO-003', 'รองเท้าเซฟตี้ เบอร์ 41', 'คู่', 1, 650),
+        ),
+        '_mock_ref_off' => array(),
+    );
+
+    if ($type === 'request') {
+        $doc['doc_no'] = 'RQ-' . $ymd . '-0001';
+    } elseif ($type === 'uniform') {
+        /* ใบเบิกพนักงานใหม่ = พิมพ์เป็นเอกสารรับชุดเครื่องแบบ (uniform_receipt_for_doc ดูจาก new_staff) */
+        $doc['doc_no'] = 'NRQ-' . $ymd . '-0001';
+        $doc['is_new_staff'] = true;
+        $doc['new_staff'] = array('employee_name' => 'สมศักดิ์ พนักงานใหม่', 'employee_code' => 'EMP0001',
+                                  'position_name' => 'พนักงานต้อนรับ', 'start_date' => date('Y-m-d', strtotime('+7 days')));
+    } elseif ($type === 'issue') {
+        $doc['doc_no'] = 'IS-' . $ymd . '-0001';
+        $doc['status'] = 'issued'; $doc['status_label'] = 'จ่ายแล้ว';
+        $doc['ref_doc_no'] = 'RQ-' . $ymd . '-0001';
+        $doc['created_by_name'] = 'สมปอง เจ้าหน้าที่คลัง';
+    } elseif ($type === 'receive') {
+        $doc['doc_no'] = 'RC-' . $ymd . '-0001';
+        $doc['status'] = 'received'; $doc['status_label'] = 'รับเข้าแล้ว';
+        $doc['approved_by'] = ''; $doc['approved_by_name'] = ''; $doc['approved_at'] = '';
+        $doc['note'] = 'ใบส่งของเลขที่ INV-0001 (ตัวอย่าง)';
+    } elseif ($type === 'adjust') {
+        $doc['doc_no'] = 'ADJ-' . $ymd . '-0001';
+        $doc['status'] = 'waiting'; $doc['status_label'] = 'รออนุมัติ';
+        $doc['approved_by'] = ''; $doc['approved_by_name'] = ''; $doc['approved_at'] = '';
+        $doc['note'] = 'ตรวจนับประจำเดือน (ตัวอย่าง)';
+        /* adjust_doc_lines(): ยอดเดิม = balance, นับได้ = qty */
+        $doc['items'][0]['balance'] = 5;
+        $doc['items'][1]['balance'] = 2;
+        $doc['items'][2]['balance'] = 0;
+    }
+    return $doc;
+}

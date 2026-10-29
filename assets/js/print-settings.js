@@ -8,6 +8,7 @@
  *  ทุกช่องในฟอร์มมี data-key = ชื่อช่อง (title, sign1, fs_table, notes …) ไม่มีชื่อประเภทนำหน้า
  *  ช่องที่ไม่เกี่ยวกับเอกสารที่เลือก (applies จาก API) ถูกซ่อน
  *
+ *  ตัวอย่างเป็นเอกสารสมมติ (print_doc.php?mock=<ประเภท> — ดู print_mock_doc) ไม่ใช่เอกสารจริงในระบบ
  *  ตัวอย่างทันที: ทุกครั้งที่แก้ (หน่วง 350ms) ส่งค่าที่ยังไม่บันทึกไปที่
  *  print_doc.php แบบ POST (preview_cfg) ให้วาดใบใหม่ในเฟรมที่ซ่อนอยู่ เสร็จแล้วสลับเฟรม
  *  หน้าพิมพ์ใช้ค่านั้นวาดครั้งเดียว ไม่ลงฐานข้อมูล
@@ -25,7 +26,6 @@
     var vals = {};       // type -> ค่าที่กำลังแก้ (รวมของแท็บที่ไม่ได้เปิดอยู่)
     var defaults = {};
     var applies = {};    // ช่อง -> ประเภทที่ช่องนี้มีผล
-    var samples = {};
     var cur = 'request';
     var ready = false;
 
@@ -305,10 +305,8 @@
         var html = '';
         for (var i = 0; i < TYPES.length; i++) {
             var t = TYPES[i];
-            var s = samples[t.key];
             html += '<button type="button" role="tab" class="ps-type' + (t.key === cur ? ' is-on' : '') + '"' +
-                ' data-type="' + t.key + '" aria-selected="' + (t.key === cur ? 'true' : 'false') + '"' +
-                ' title="' + (s ? 'ตัวอย่างจาก ' + s.doc_no : 'ยังไม่มีเอกสารประเภทนี้ในระบบ — ตั้งค่าได้ แต่ดูตัวอย่างไม่ได้') + '">' +
+                ' data-type="' + t.key + '" aria-selected="' + (t.key === cur ? 'true' : 'false') + '">' +
                 t.label + '<span class="ps-type-dot" aria-hidden="true"></span></button>';
         }
         el('psTypes').innerHTML = html;
@@ -316,14 +314,8 @@
 
     function renderPreview() {
         pvTimer = null;
-        var s = samples[cur];
-        el('psNoDoc').hidden = !!s;
-        el('psFrame').hidden = !s;
-        el('psFrameB').hidden = !s;
-        el('psOpen').hidden = !s;
-        if (!s) { return; }
-
-        var url = 'print_doc.php?doc_id=' + s.doc_id;
+        /* เอกสารสมมติของประเภทที่เลือก — มีครบทุกส่วนที่ตั้งค่าได้ เหมือนกันทุกครั้งที่เปิด */
+        var url = 'print_doc.php?mock=' + encodeURIComponent(cur);
         el('psOpen').href = url;
 
         /* วาดในเฟรมที่ซ่อนอยู่ แล้วสลับเมื่อโหลดเสร็จ — รอบเก่าที่ตามไม่ทันถูกทิ้ง (pvSeq) */
@@ -365,7 +357,6 @@
         post({ action: 'get' }, function (res) {
             defaults = res.defaults || {};
             applies = res.applies || {};
-            samples = res.samples || {};
             var v = res.values || {};
             for (var i = 0; i < TYPES.length; i++) {
                 var t = TYPES[i].key;
@@ -376,9 +367,6 @@
                 saved[t] = o;
                 vals[t] = copy(o);
                 if (defaults[t]) { defaults[t].notes = normNotes(defaults[t].notes); }
-            }
-            for (var j = 0; j < TYPES.length; j++) {
-                if (samples[TYPES[j].key]) { cur = TYPES[j].key; break; }
             }
             el('psLoading').hidden = true;
             el('psBody').hidden = false;
