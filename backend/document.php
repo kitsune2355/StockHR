@@ -746,6 +746,9 @@ function doc_insert($doc_type, $data, $status, $actor)
     $doc_id = mysqli_stmt_insert_id($stmt);
     mysqli_stmt_close($stmt);
 
+    /* รหัสแบบฟอร์ม ณ ตอนออกใบ (sql/085) — ไม่สำเร็จก็ไม่ล้มใบ ใบพิมพ์ใช้รหัสปัจจุบันแทน */
+    doc_snapshot_form_code($doc_id);
+
     /* ---------- รายการสินค้า ---------- */
     /* ราคาต่อหน่วยเก็บตั้งแต่ตอนสร้างบรรทัด
        ใบรับเข้า = ราคาที่ซื้อจริงซึ่งผู้ใช้กรอกมา
@@ -785,6 +788,58 @@ function doc_insert($doc_type, $data, $status, $actor)
     $res = db_ok('บันทึกเรียบร้อย', $doc_id);
     $res['doc_no'] = $doc_no;
     return $res;
+}
+
+
+/* ============================================================
+ *  รหัสแบบฟอร์ม snapshot (sql/085)
+ *  เก็บรหัสไว้กับเอกสารตอนสร้าง — แก้รหัสภายหลัง ใบเก่ายังพิมพ์รหัสรุ่นเดิม
+ *    form_code         = tb_company.form_code (ใบเบิก/ใบจ่าย/ใบรับ/ใบปรับยอดทั่วไป)
+ *    uniform_form_code = รหัสเอกสารรับชุดเครื่องแบบ (019-HRM) ใช้เมื่อใบนั้นพิมพ์เป็นเอกสารรับชุด
+ *  เก็บทั้งสองค่าทุกใบ เพราะตอนสร้างหัวใบยังไม่รู้ว่าเป็นใบพนักงานใหม่ (tb_doc_new_staff บันทึกทีหลัง)
+ *  ก่อนรัน sql/085 ทุกฟังก์ชันด้านล่างไม่ทำอะไร (print ใช้รหัสปัจจุบันตามเดิม)
+ * ============================================================ */
+function doc_header_has_form_code()
+{
+    static $has = null;
+    if ($has !== null) { return $has; }
+
+    $result = mysqli_query(db_connect(), "SHOW COLUMNS FROM `tb_doc_header` LIKE 'uniform_form_code'");
+    $has = ($result && mysqli_num_rows($result) > 0);
+    if ($result) { mysqli_free_result($result); }
+    return $has;
+}
+
+/* คัดลอกรหัสแบบฟอร์มของบริษัท (จากหน่วยงานของใบ) และรหัสเอกสารรับชุดเครื่องแบบ มาเก็บที่ใบ ณ ตอนนี้
+   ใบไม่มีหน่วยงาน / บริษัทไม่ได้ตั้งรหัส = form_code ว่าง */
+function doc_snapshot_form_code($doc_id)
+{
+    if (!doc_header_has_form_code()) { return true; }
+
+    require_once dirname(__FILE__) . '/uniform_receipt.php';
+    $connect = db_connect();
+    $uniform = mysqli_real_escape_string($connect, uniform_receipt_form_code());
+
+    return (bool)mysqli_query($connect,
+        "UPDATE `tb_doc_header` h
+         LEFT JOIN `tb_department` d ON d.`department_id` = h.`department_id`
+         LEFT JOIN `tb_company`    c ON c.`company_id`    = d.`company_id`
+         SET h.`form_code` = COALESCE(c.`form_code`, ''), h.`uniform_form_code` = '" . $uniform . "'
+         WHERE h.`doc_id` = " . (int)$doc_id);
+}
+
+/* รหัสที่เก็บไว้กับใบ array('form_code' => ..., 'uniform_form_code' => ...)
+   null = ยังไม่ได้รัน sql/085 (ให้ผู้เรียกใช้รหัสปัจจุบันแทน) */
+function doc_form_codes($doc_id)
+{
+    if (!doc_header_has_form_code()) { return null; }
+
+    $result = mysqli_query(db_connect(),
+        "SELECT `form_code`, `uniform_form_code` FROM `tb_doc_header` WHERE `doc_id` = " . (int)$doc_id . " LIMIT 1");
+    if (!$result) { return null; }
+    $row = mysqli_fetch_row($result);
+    mysqli_free_result($result);
+    return $row ? array('form_code' => (string)$row[0], 'uniform_form_code' => (string)$row[1]) : null;
 }
 
 

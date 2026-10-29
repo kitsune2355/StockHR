@@ -731,11 +731,21 @@ body.is-embed .bar { display: none; }
 
   <!-- ============ รหัสแบบฟอร์ม ============
        ระบบเอกสารควบคุมขององค์กร รหัสและรอบแก้ไขต่างกันในแต่ละบริษัท
-       ตั้งได้ที่หน้า "หน่วยงาน" แท็บบริษัท บริษัทที่ยังไม่ได้ตั้งจะไม่มีบรรทัดนี้ -->
+       ตั้งได้ที่หน้า "หน่วยงาน" แท็บบริษัท บริษัทที่ยังไม่ได้ตั้งจะไม่มีบรรทัดนี้
+       ใช้รหัสที่เก็บไว้กับใบตอนออกใบ (sql/085) — แก้รหัสภายหลัง ใบเก่ายังพิมพ์รหัสรุ่นเดิม
+       ก่อนรัน sql/085 / เอกสารสมมติในหน้าตั้งค่า = รหัสปัจจุบัน -->
+  <?php
+  $form_code = $company['form_code'];
+  $snap = $is_mock ? null : doc_form_codes($doc['doc_id']);
+  if ($snap !== null) {
+      $form_code = $snap['form_code'];
+      if (trim($snap['uniform_form_code']) !== '') { $ur_form_code = $snap['uniform_form_code']; }
+  }
+  ?>
   <?php if ($uniform_receipt !== null): ?>
   <div class="form-code"><?php echo pd_esc($ur_form_code); ?></div>
-  <?php elseif (trim($company['form_code']) !== ''): ?>
-  <div class="form-code"><?php echo pd_esc($company['form_code']); ?></div>
+  <?php elseif (trim($form_code) !== ''): ?>
+  <div class="form-code"><?php echo pd_esc($form_code); ?></div>
   <?php endif; ?>
 
 </div>

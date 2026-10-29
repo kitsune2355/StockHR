@@ -471,6 +471,9 @@ function request_update($doc_id, $data, $actor, $actor_role = '')
     $changed = mysqli_stmt_affected_rows($stmt);
     mysqli_stmt_close($stmt);
 
+    /* แก้ใบที่ยังรออนุมัติ เปลี่ยนหน่วยงานข้ามบริษัทได้ — ถือว่าออกใบใหม่ รหัสแบบฟอร์มตามปัจจุบัน */
+    doc_snapshot_form_code($id);
+
     /* affected_rows < 1 อาจแปลว่าค่าไม่เปลี่ยน (แก้แต่รายการ) หรือสถานะเปลี่ยนไปแล้ว
        เช็คสถานะซ้ำให้ชัด */
     $recheck = doc_find($id);
