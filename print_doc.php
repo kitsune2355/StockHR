@@ -56,6 +56,24 @@ require_once dirname(__FILE__) . '/backend/document.php';
 require_once dirname(__FILE__) . '/backend/user.php';
 require_once dirname(__FILE__) . '/backend/company_logo.php';
 require_once dirname(__FILE__) . '/backend/adjust.php';
+/* ข้อความ/ส่วนที่พิมพ์ ตั้งได้ที่ Admin mode > เอกสารพิมพ์ (คีย์ print_<ประเภท>_<ช่อง> ใน tb_app_setting) */
+require_once dirname(__FILE__) . '/backend/print_setting.php';
+
+/* ตัวอย่างแบบทันทีจากหน้า Admin mode > เอกสารพิมพ์: ส่งค่าที่ยังไม่บันทึกมาทาง POST
+   ใช้วาดหน้านี้ครั้งเดียว ไม่ลงฐานข้อมูล — เฉพาะ super_admin ที่ล็อกอินอยู่ (ไม่ใช่ผ่านลิงก์เซ็นรับ) */
+if (!$by_token && isset($sess_role) && $sess_role === 'super_admin'
+    && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['preview_cfg'])) {
+    $pv_raw = (string)$_POST['preview_cfg'];
+    if (function_exists('get_magic_quotes_gpc') && get_magic_quotes_gpc()) { $pv_raw = stripslashes($pv_raw); }   // PHP 5.2 บางเครื่องเปิด magic quotes
+    $pv_in = json_decode($pv_raw, true);
+    if (is_array($pv_in) && isset($pv_in['type']) && isset($pv_in['values'])) {
+        $pv = print_setting_clean($pv_in['values']);
+        /* ค่าที่ไม่ผ่าน (เช่นตัวเลขนอกช่วง) ถูกตัดทิ้ง ใช้ค่าที่บันทึกไว้แทน */
+        $GLOBALS['PRINT_CFG_PREVIEW'] = array('type' => (string)$pv_in['type'], 'values' => $pv['values']);
+    }
+}
+/* ค่าตั้งแยกรายประเภทเอกสาร — ใช้ของใบเบิกไปก่อน แล้วเปลี่ยนเป็นของประเภทจริงหลังโหลดเอกสาร (ดู $print_type) */
+$PC = print_cfg('request');
 
 $doc = doc_find($doc_id);
 
@@ -162,20 +180,11 @@ if ($deny === '') {
                 ? (($doc['created_by_name'] !== '') ? $doc['created_by_name'] : pd_full_name($doc['created_by']))
                 : '';
 
-    $title_map = array(
-        'request' => 'ใบเบิกวัสดุ',
-        'issue'   => 'ใบจ่ายวัสดุ',
-        'receive' => 'ใบรับวัสดุเข้าคลัง',
-        'adjust'  => 'ใบปรับยอดสินค้า'
-    );
-    $paper_title = isset($title_map[$doc['doc_type']]) ? $title_map[$doc['doc_type']] : $doc['doc_type_label'];
+    $print_type = in_array($doc['doc_type'], print_types()) ? $doc['doc_type'] : 'request';
 
     /* ใบเบิกพนักงานใหม่ (sql/072) — พิมพ์ข้อมูลพนักงานและป้าย "ต้องคืน"
        ใบนี้เป็นหลักฐานตอนพนักงานลาออก ว่ารับอะไรไปและต้องคืนอะไร */
     $new_staff = !empty($doc['new_staff']) ? $doc['new_staff'] : null;
-    if ($new_staff !== null) {
-        $paper_title = 'ใบเบิกวัสดุ (พนักงานใหม่)';
-    }
 
     /* ใบจ่ายของใบเบิกพนักงานใหม่ = "เอกสารรับชุดเครื่องแบบพนักงาน" (แบบฟอร์ม 019-HRM)
        พนักงานเซ็นรับทราบเงื่อนไขการหักค่าชุด/คืนชุดบนใบนี้ ไม่ใช่ใบจ่ายวัสดุทั่วไป
@@ -187,9 +196,17 @@ if ($deny === '') {
     require_once dirname(__FILE__) . '/backend/uniform_receipt.php';
     $uniform_receipt = uniform_receipt_for_doc($doc, isset($ref_request) ? $ref_request : null);
     if ($uniform_receipt !== null) {
-        $paper_title  = 'เอกสารรับชุดเครื่องแบบพนักงาน';
+        $print_type   = 'uniform';
         $ur_terms     = uniform_receipt_terms();       // ข้อ 2-4 (ข้อ 1 คือตารางรายการ)
         $ur_form_code = uniform_receipt_form_code();
+    }
+
+    /* ค่าตั้งของเอกสารประเภทนี้ (Admin mode > เอกสารพิมพ์ แยกตั้งได้ทั้ง 5 แบบ) */
+    $PC = print_cfg($print_type);
+    $paper_title = $PC['title'];
+    /* ใบพนักงานใหม่ที่ไม่ได้พิมพ์เป็นเอกสารรับชุดเครื่องแบบ (กรณีเฉพาะ) — ชื่อใบเบิก + (พนักงานใหม่) ตามเดิม */
+    if ($new_staff !== null && $uniform_receipt === null) {
+        $paper_title = $PC['title'] . ' (พนักงานใหม่)';
     }
 }
 ?>
@@ -360,8 +377,28 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
     .paper, .bar, .deny { width: 100%; }
 }
 </style>
+<?php
+/* ขนาดตัวอักษรตั้งได้ที่ Admin mode > เอกสารพิมพ์ — ทับค่าใน CSS ด้านบน
+   ส่วนย่อยที่ผูกกับส่วนหลัก (รหัสสินค้า หมายเหตุใต้ตาราง) ย่อ/ขยายตามสัดส่วนเดิม */
+$fs_tb = print_px($PC, 'fs_table');
+$fs_nt = print_px($PC, 'fs_notes');
+?>
+<style>
+.ph-co   { font-size: <?php echo print_px($PC, 'fs_company'); ?>px; }
+.ph-title{ font-size: <?php echo print_px($PC, 'fs_title'); ?>px; }
+.meta    { font-size: <?php echo print_px($PC, 'fs_meta'); ?>px; }
+table.items { font-size: <?php echo $fs_tb; ?>px; }
+table.items .code { font-size: <?php echo round($fs_tb * 0.92, 1); ?>px; }
+.notes   { font-size: <?php echo $fs_nt; ?>px; }
+.notes-rich p { margin: 0 0 2px; }
+.notes-rich ul { margin: 0; padding-left: 18px; }
+.estimate{ font-size: <?php echo round($fs_nt * 0.96, 1); ?>px; }
+.sign    { font-size: <?php echo print_px($PC, 'fs_sign'); ?>px; }
+/* ตัวอย่างในหน้า Admin mode > เอกสารพิมพ์ (iframe ?embed=1) ไม่ต้องมีปุ่มพิมพ์/ปิด */
+body.is-embed .bar { display: none; }
+</style>
 </head>
-<body>
+<body<?php echo (isset($_GET['embed']) && $_GET['embed'] === '1') ? ' class="is-embed"' : ''; ?>>
 
 <?php if ($deny !== ''): ?>
 
@@ -385,13 +422,13 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
 
     <div class="ph-text">
       <div class="ph-co"><?php echo pd_esc($company['company_name'] !== '' ? $company['company_name'] : 'บริษัท แฮปปี้แลนด์ กรุ๊ป จำกัด'); ?></div>
-      <div class="ph-sub">หน่วยงาน <?php echo pd_esc($doc['department_name'] !== '' ? $doc['department_name'] : '-'); ?></div>
+      <div class="ph-sub"><?php echo pd_esc($PC['label_dept']); ?> <?php echo pd_esc($doc['department_name'] !== '' ? $doc['department_name'] : '-'); ?></div>
     </div>
 
     <div class="ph-doc">
       <div class="ph-title"><?php echo pd_esc($paper_title); ?></div>
-      <div class="ph-no">เลขที่ <?php echo pd_esc($doc['doc_no']); ?></div>
-      <div class="ph-date">วันที่ <?php echo pd_esc(thai_date_long($doc['doc_date'])); ?></div>
+      <div class="ph-no"><?php echo pd_esc($PC['label_no']); ?> <?php echo pd_esc($doc['doc_no']); ?></div>
+      <div class="ph-date"><?php echo pd_esc($PC['label_date']); ?> <?php echo pd_esc(thai_date_long($doc['doc_date'])); ?></div>
     </div>
   </div>
 
@@ -431,7 +468,8 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
     <div><b>ผู้ขอเบิก:</b> <span><?php echo pd_esc($doc['requester_name'] !== '' ? $doc['requester_name'] : $doc['requester']); ?></span></div>
     <div><b>สถานะ:</b> <span><?php echo pd_esc($doc['status_label']); ?></span></div>
 
-    <?php if ($doc['ref_doc_no'] !== ''): ?>
+    <?php /* เปิด/ปิดได้ที่ Admin mode > เอกสารพิมพ์ */ ?>
+    <?php if ($PC['show_ref'] === '1' && $doc['ref_doc_no'] !== ''): ?>
     <div><b>อ้างอิงใบเบิก:</b> <span><?php echo pd_esc($doc['ref_doc_no']); ?></span></div>
     <?php endif; ?>
 
@@ -439,7 +477,7 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
     <div><b>ผู้อนุมัติ:</b> <span><?php echo pd_esc($approver_name); ?> <?php echo pd_esc(thai_date_time($approved_at, '')); ?></span></div>
     <?php endif; ?>
 
-    <?php if (trim($doc['note']) !== ''): ?>
+    <?php if ($PC['show_req_note'] === '1' && trim($doc['note']) !== ''): ?>
     <div style="min-width:100%"><b>หมายเหตุผู้ขอ:</b> <span><?php echo pd_esc($doc['note']); ?></span></div>
     <?php endif; ?>
 
@@ -452,7 +490,7 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
   <table class="items">
     <thead>
       <tr>
-        <th style="width:34px">ที่</th>
+        <th style="width:34px"><?php echo pd_esc($PC['label_line']); ?></th>
         <th style="width:92px">รหัส</th>
         <th>รายการ</th>
         <th style="width:56px">หน่วย</th>
@@ -479,7 +517,7 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
       </tr>
       <?php endfor; ?>
 
-      <?php $blank = 8 - count($adj_lines); for ($i = 0; $i < $blank; $i++): ?>
+      <?php $blank = (int)$PC['blank_rows'] - count($adj_lines); for ($i = 0; $i < $blank; $i++): ?>
       <tr><td class="c">&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
       <?php endfor; ?>
     </tbody>
@@ -506,7 +544,7 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
   <table class="items">
     <thead>
       <tr>
-        <th style="width:34px">ที่</th>
+        <th style="width:34px"><?php echo pd_esc($PC['label_line']); ?></th>
         <th style="width:88px">รหัส</th>
         <th>รายการ</th>
         <th style="width:60px">หน่วย</th>
@@ -539,7 +577,7 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
       <?php
       /* เติมแถวว่างให้ตารางดูเต็มหน้าและมีที่ให้เขียนเพิ่มด้วยปากกา
          ใบเบิกจริงมักมีการเพิ่มรายการหน้างาน ถ้าตารางจบพอดีจะไม่มีที่เขียน */
-      $blank = 8 - count($items);
+      $blank = (int)$PC['blank_rows'] - count($items);
       for ($i = 0; $i < $blank; $i++): ?>
       <tr>
         <td class="c">&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td>
@@ -560,7 +598,7 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
 
   <?php endif; /* /!$is_adjust */ ?>
 
-  <?php if ($is_estimate): ?>
+  <?php if ($is_estimate && $PC['show_estimate'] === '1'): ?>
   <p class="estimate">
     * ราคาต่อหน่วยเป็นราคาซื้อล่าสุดของสินค้า ณ วันที่พิมพ์ ใช้ประกอบการพิจารณาเท่านั้น
     ยอดที่ลงบัญชีจริงจะยืนยันอีกครั้งเมื่อคลังจ่ายของ
@@ -601,13 +639,11 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
     </ol>
   </div>
   <?php endif; ?>
-  <?php elseif (!$is_adjust): ?>
-  <div class="notes">
+  <?php elseif (print_notes_has_text($PC['notes'])): ?>
+  <?php /* HTML จากตัวแก้ไข ผ่าน print_clean_html() แล้ว (เหลือแท็กจัดรูปแบบ ไม่มี attribute) */ ?>
+  <div class="notes notes-rich">
     <div class="notes-h">หมายเหตุ:</div>
-    <ol>
-      <li>กรณีขอเบิกวัสดุที่นอกเหนือในแบบฟอร์มนี้ให้ส่งรายละเอียดทางอีเมลล์หาเจ้าหน้าที่ฝ่ายทรัพยากรบุคคล</li>
-      <li>รอบการส่งใบเบิกและเวลารับของ ให้เป็นไปตามประกาศของฝ่ายทรัพยากรบุคคล</li>
-    </ol>
+    <?php echo $PC['notes']; ?>
   </div>
   <?php endif; ?>
 
@@ -645,21 +681,21 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
     if ($is_adjust) {
 
         /* ใบปรับยอดมีสองฝ่าย: คนตรวจนับ/บันทึก กับคนอนุมัติ */
-        pd_sign_box('ผู้บันทึก / ผู้ตรวจนับ', $maker_name,
+        pd_sign_box($PC['sign1'], $maker_name,
                     pd_esc(thai_date_long($doc['doc_date'])), '');
 
-        pd_sign_box('ผู้อนุมัติ', $approver_name,
+        pd_sign_box($PC['sign2'], $approver_name,
                     $approved_at !== '' ? pd_esc(thai_date_long($approved_at)) : '............', '');
 
     } else {
 
-        pd_sign_box('ผู้ขอเบิก', $doc['requester_name'],
+        pd_sign_box($PC['sign1'], $doc['requester_name'],
                     pd_esc(thai_date_long($doc['doc_date'])), '');
 
-        pd_sign_box('ผู้อนุมัติ', $approver_name,
+        pd_sign_box($PC['sign2'], $approver_name,
                     $approved_at !== '' ? pd_esc(thai_date_long($approved_at)) : '............', '');
 
-        pd_sign_box('ผู้จ่ายของ', $issuer_name,
+        pd_sign_box($PC['sign3'], $issuer_name,
                     ($issuer_name !== '' && $doc['doc_date'] !== '') ? pd_esc(thai_date_long($doc['doc_date'])) : '............', '');
 
         /* ผู้รับของเป็นช่องเดียวที่มีลายเซ็นจริง — วาดไว้ตอนกดเซ็นรับ
@@ -667,13 +703,13 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
         /* เอกสารรับชุดเครื่องแบบ: ผู้รับคือตัวพนักงานที่เซ็นรับทราบเงื่อนไข
            ยังไม่ได้เซ็นในระบบ = พิมพ์ชื่อพนักงานไว้ให้เซ็นด้วยปากกา */
         if ($uniform_receipt !== null) {
-            pd_sign_box('พนักงาน (ผู้รับชุดเครื่องแบบ)',
+            pd_sign_box($PC['sign4'],
                         $doc['receiver_name'] !== '' ? $doc['receiver_name'] : $uniform_receipt['employee_name'],
                         $doc['received_at'] !== '' ? pd_esc(thai_date_long($doc['received_at'])) : '............',
                         $receiver_sign);
         } else {
             /* ใบจ่ายของใบเบิกสวัสดิการ ที่ยังไม่มีชื่อผู้รับ (ใบเก่า) = ชื่อพนักงานในใบเบิกต้นทาง */
-            pd_sign_box('ผู้รับของ', (string)$doc['receiver_name'] !== '' ? $doc['receiver_name'] : $doc['employee_receiver'],
+            pd_sign_box($PC['sign4'], (string)$doc['receiver_name'] !== '' ? $doc['receiver_name'] : $doc['employee_receiver'],
                         $doc['received_at'] !== '' ? pd_esc(thai_date_long($doc['received_at'])) : '............',
                         $receiver_sign);
         }

@@ -77,7 +77,7 @@ if ($action === 'reset') {
  * ============================================================ */
 if ($action === 'admin_list') {
 
-    api_require_role(array('super_admin', 'admin'));
+    api_require_role(array('super_admin'));   // หน้าคู่มือการใช้งานอยู่ใน Admin mode
 
     api_ok(array(
         'guides' => guide_list(),
@@ -89,7 +89,7 @@ if ($action === 'admin_list') {
 if ($action === 'admin_save') {
 
     api_require_csrf($input);
-    api_require_role(array('super_admin', 'admin'));
+    api_require_role(array('super_admin'));   // หน้าคู่มือการใช้งานอยู่ใน Admin mode
 
     $rows = isset($input['rows']) && is_array($input['rows']) ? $input['rows'] : array();
 
@@ -103,7 +103,7 @@ if ($action === 'admin_save') {
 if ($action === 'admin_toggle') {
 
     api_require_csrf($input);
-    api_require_role(array('super_admin', 'admin'));
+    api_require_role(array('super_admin'));   // หน้าคู่มือการใช้งานอยู่ใน Admin mode
 
     $res = guide_toggle(
         isset($input['guide_id']) ? (int)$input['guide_id'] : 0,
