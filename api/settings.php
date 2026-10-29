@@ -28,7 +28,8 @@ require_once dirname(dirname(__FILE__)) . '/backend/mailer.php';
 
 api_require_post();
 $actor = api_require_login();
-api_require_role(array('super_admin', 'admin'));
+/* หน้าอีเมลแจ้งเตือนอยู่ใน Admin mode — เฉพาะผู้ดูแลระบบสูงสุด (includes/menu.php) */
+api_require_role(array('super_admin'));
 
 $input  = api_input();
 $action = isset($input['action']) ? $input['action'] : '';

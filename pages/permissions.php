@@ -39,6 +39,9 @@ $saved_map  = menu_permission_map();
 foreach ($APP_NAV as $section) {
     foreach ($section['items'] as $item) {
 
+        /* Admin mode ล็อกไว้ที่ super_admin (super_only ใน includes/menu.php) ไม่มีอะไรให้ตั้ง */
+        if (!empty($item['super_only'])) { continue; }
+
         /* หัวข้อที่มีเมนูย่อย ไม่มีหน้าของตัวเอง สิทธิ์คิดจากลูกทั้งหมด
            จึงให้ตั้งค่าที่ลูกอย่างเดียว แล้วแสดงชื่อหัวข้อแม่กำกับไว้ */
         if (isset($item['children'])) {

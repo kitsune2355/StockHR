@@ -35,6 +35,7 @@
 $ROLE_ALL   = array('super_admin', 'admin', 'approver', 'general');
 $ROLE_STAFF = array('super_admin', 'admin', 'approver');
 $ROLE_ADMIN = array('super_admin', 'admin');
+$ROLE_SUPER = array('super_admin');
 
 $APP_NAV = array(
 
@@ -159,10 +160,17 @@ $APP_NAV = array(
                นอกจากอ่านแล้วซ้ำซ้อนบนแถบเมนู ยังไปทำให้หน้าสิทธิ์การใช้งาน
                ยุบกลุ่มผิด เพราะที่นั่นจัดกลุ่มด้วยชื่อ ไม่ใช่ด้วยคีย์
                (แก้ที่ groupOf ใน permissions.js แล้ว แต่ชื่อซ้ำก็ยังไม่ควรอยู่ดี) */
-            array('key' => 'setup', 'title' => 'อีเมลและคู่มือ', 'icon' => 'mail',
-                  'roles' => $ROLE_ADMIN, 'children' => array(
-                array('key' => 'settings',       'title' => 'อีเมลแจ้งเตือน',  'icon' => 'mail',        'roles' => $ROLE_ADMIN, 'file' => 'pages/settings.php', 'full' => true),
-                array('key' => 'settings_guide', 'title' => 'คู่มือการใช้งาน', 'icon' => 'circle-help', 'roles' => $ROLE_ADMIN, 'file' => 'pages/settings.php', 'full' => true),
+            /* ---------- Admin mode : ค่าตั้งระดับระบบ เฉพาะผู้ดูแลระบบสูงสุด ----------
+               super_only = ล็อกไว้ที่ super_admin เสมอ หน้า "สิทธิ์การใช้งาน" เปิดให้ role อื่นไม่ได้
+               (ดู app_apply_permissions ด้านล่าง และ pages/permissions.php ที่ข้ามกลุ่มนี้)
+               เพราะเป็นของที่กระทบทั้งองค์กร: อีเมลขาออก คำอธิบายคู่มือ และหน้าตาเอกสารที่พิมพ์ */
+            array('key' => 'setup', 'title' => 'Admin mode', 'icon' => 'shield-ellipsis',
+                  'roles' => $ROLE_SUPER, 'super_only' => true, 'children' => array(
+                array('key' => 'settings',       'title' => 'อีเมลแจ้งเตือน',  'icon' => 'mail',        'roles' => $ROLE_SUPER, 'file' => 'pages/settings.php', 'full' => true),
+                array('key' => 'settings_guide', 'title' => 'คู่มือการใช้งาน', 'icon' => 'circle-help', 'roles' => $ROLE_SUPER, 'file' => 'pages/settings.php', 'full' => true),
+                /* ชื่อเอกสาร ป้ายหัวกระดาษ ข้อมูลที่พิมพ์ หมายเหตุท้ายฟอร์ม ของ print_doc.php
+                   แก้ได้เองโดยไม่ต้องแก้โค้ด (เก็บใน tb_app_setting คีย์ print_* — ดู backend/print_setting.php) */
+                array('key' => 'print_settings', 'title' => 'เอกสารพิมพ์', 'icon' => 'printer', 'roles' => $ROLE_SUPER, 'file' => 'pages/print_settings.php', 'full' => true),
             )),
 
             /* กำหนดรายชื่อคนที่อนุมัติใบปรับยอดสินค้าได้ (นอกจาก super_admin/admin ที่อนุมัติได้เสมอ)
@@ -228,6 +236,11 @@ function app_apply_permissions()
 
     foreach ($APP_NAV as $si => $section) {
         foreach ($section['items'] as $ii => $item) {
+
+            /* Admin mode: ไม่ฟังตาราง — เป็นของ super_admin เท่านั้นเสมอ */
+            if (!empty($item['super_only'])) {
+                continue;
+            }
 
             if (isset($item['children'])) {
                 foreach ($item['children'] as $ci => $child) {
