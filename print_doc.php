@@ -197,7 +197,6 @@ if ($deny === '') {
     $uniform_receipt = uniform_receipt_for_doc($doc, isset($ref_request) ? $ref_request : null);
     if ($uniform_receipt !== null) {
         $print_type   = 'uniform';
-        $ur_terms     = uniform_receipt_terms();       // ข้อ 2-4 (ข้อ 1 คือตารางรายการ)
         $ur_form_code = uniform_receipt_form_code();
     }
 
@@ -609,16 +608,17 @@ body.is-embed .bar { display: none; }
        ข้อความชุดนี้เป็นเงื่อนไขการเบิกที่ฝ่ายทรัพยากรบุคคลกำหนด — ไม่เกี่ยวกับใบปรับยอด -->
   <?php if ($uniform_receipt !== null): ?>
   <!-- เอกสารรับชุดเครื่องแบบ: เงื่อนไขที่พนักงานรับทราบตอนเซ็นรับ (ข้อ 2-4 ของแบบฟอร์ม 019-HRM)
-       เลขข้อเริ่มที่ 2 ให้ตรงกับแบบฟอร์มกระดาษ ข้อ 1 คือตารางรายการด้านบน -->
-  <div class="notes">
+       แก้ได้ที่ Admin mode > เอกสารพิมพ์ แท็บเอกสารรับชุดเครื่องแบบ — ชุดเดียวกับหน้าเซ็นรับ (sign.php)
+       เลขข้อเริ่มตาม notes_start (ค่าตั้งต้น 2 ให้ตรงกับแบบฟอร์มกระดาษ ข้อ 1 คือตารางรายการด้านบน) -->
+  <?php if (print_notes_has_text($PC['notes'])): ?>
+  <div class="notes notes-rich">
     <div class="notes-h">หมายเหตุ:</div>
-    <ol start="2">
-      <?php foreach ($ur_terms as $ln): ?>
-      <li><?php echo pd_esc($ln); ?></li>
-      <?php endforeach; ?>
-    </ol>
+    <?php echo print_notes_render($PC); ?>
   </div>
-  <p class="ur-ack">ได้รับเครื่องแบบพนักงานครบถ้วนแล้ว</p>
+  <?php endif; ?>
+  <?php if (trim($PC['ack']) !== ''): ?>
+  <p class="ur-ack"><?php echo pd_esc($PC['ack']); ?></p>
+  <?php endif; ?>
   <?php elseif ($new_staff !== null): ?>
   <?php
   /* ใบพนักงานใหม่ใช้หมายเหตุของตัวเอง (ตั้งได้ที่หน้า "อุปกรณ์พนักงานใหม่")
@@ -639,12 +639,19 @@ body.is-embed .bar { display: none; }
     </ol>
   </div>
   <?php endif; ?>
-  <?php elseif (print_notes_has_text($PC['notes'])): ?>
-  <?php /* HTML จากตัวแก้ไข ผ่าน print_clean_html() แล้ว (เหลือแท็กจัดรูปแบบ ไม่มี attribute) */ ?>
+  <?php else: ?>
+  <?php /* HTML จากตัวแก้ไข ผ่าน print_clean_html() แล้ว (เหลือแท็กจัดรูปแบบ ไม่มี attribute)
+           ใบจ่ายอาจใช้หมายเหตุ + ข้อความรับทราบชุดเดียวกับเอกสารรับชุดเครื่องแบบ (ดู print_notes_for) */
+        $NT = print_notes_for($PC, $print_type); ?>
+  <?php if ($NT['has']): ?>
   <div class="notes notes-rich">
     <div class="notes-h">หมายเหตุ:</div>
-    <?php echo $PC['notes']; ?>
+    <?php echo $NT['notes']; ?>
   </div>
+  <?php endif; ?>
+  <?php if ($NT['ack'] !== ''): ?>
+  <p class="ur-ack"><?php echo pd_esc($NT['ack']); ?></p>
+  <?php endif; ?>
   <?php endif; ?>
 
   <!-- ============ ช่องลงนาม ============

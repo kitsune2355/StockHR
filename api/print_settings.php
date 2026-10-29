@@ -45,7 +45,9 @@ if ($action === 'get') {
                         WHERE h.`doc_type` = 'request' AND n.`doc_id` IS NULL ORDER BY h.`doc_id` DESC LIMIT 1",
         'uniform'   => "SELECT h.`doc_id`, h.`doc_no` FROM `tb_doc_header` h INNER JOIN `tb_doc_new_staff` n ON n.`doc_id` = h.`doc_id`
                         ORDER BY h.`doc_id` DESC LIMIT 1",
-        'issue'     => "SELECT `doc_id`, `doc_no` FROM `tb_doc_header` WHERE `doc_type` = 'issue'   ORDER BY `doc_id` DESC LIMIT 1",
+        /* ใบจ่ายของใบเบิกพนักงานใหม่พิมพ์เป็นเอกสารรับชุดเครื่องแบบ (uniform_receipt_for_doc) — ตัวอย่างของแท็บใบจ่ายต้องไม่ใช่ใบแบบนั้น */
+        'issue'     => "SELECT h.`doc_id`, h.`doc_no` FROM `tb_doc_header` h LEFT JOIN `tb_doc_new_staff` n ON n.`doc_id` = h.`ref_doc_id`
+                        WHERE h.`doc_type` = 'issue' AND n.`doc_id` IS NULL ORDER BY h.`doc_id` DESC LIMIT 1",
         'receive'   => "SELECT `doc_id`, `doc_no` FROM `tb_doc_header` WHERE `doc_type` = 'receive' ORDER BY `doc_id` DESC LIMIT 1",
         'adjust'    => "SELECT `doc_id`, `doc_no` FROM `tb_doc_header` WHERE `doc_type` = 'adjust'  ORDER BY `doc_id` DESC LIMIT 1",
     );

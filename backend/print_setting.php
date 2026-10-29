@@ -68,10 +68,19 @@ function print_setting_defs()
 
         /* ---------- ตาราง / หมายเหตุท้ายฟอร์ม ---------- */
         'blank_rows' => array('type' => 'int', 'min' => 0, 'max' => 20, 'types' => $ALL, 'default' => '8'),
-        /* เอกสารรับชุดเครื่องแบบไม่อยู่ในรายการ: เงื่อนไขข้อ 2-4 ใช้ชุดเดียวกับหน้าเซ็นรับ (uniform_receipt_terms) */
-        'notes'      => array('type' => 'html', 'max' => 1900, 'types' => array('request', 'issue', 'receive', 'adjust'),
-                            'default' => array('request' => $notes_req, 'uniform' => '', 'issue' => $notes_req,
+        /* เอกสารรับชุดเครื่องแบบ: หมายเหตุ = เงื่อนไขที่พนักงานรับทราบ ใช้ทั้งใบพิมพ์และหน้าเซ็นรับ (sign.php)
+           ยังไม่เคยตั้งที่นี่ = ใช้ uniform_receipt_terms() (ค่าตั้ง uniform_receipt_terms / ข้อความตามแบบฟอร์มกระดาษ) */
+        'notes'      => array('type' => 'html', 'max' => 1900, 'types' => $ALL,
+                            'default' => array('request' => $notes_req, 'uniform' => '@uniform_terms', 'issue' => $notes_req,
                                                'receive' => $notes_req, 'adjust' => '')),
+        /* เลขข้อแรกของรายการเลขข้อในหมายเหตุ — แบบฟอร์ม 019-HRM เริ่มที่ข้อ 2 (ข้อ 1 คือตารางรายการ) */
+        'notes_start'=> array('type' => 'int', 'min' => 1, 'max' => 50, 'types' => $ALL,
+                            'default' => array('request' => '1', 'uniform' => '2', 'issue' => '1', 'receive' => '1', 'adjust' => '1')),
+        /* ใบจ่าย: ใช้หมายเหตุ (เงื่อนไข + เลขข้อเริ่ม + ข้อความรับทราบ) ชุดเดียวกับเอกสารรับชุดเครื่องแบบ
+           ระบบนี้จ่ายชุดเครื่องแบบเป็นหลัก เงื่อนไขการรับชุดจึงต้องอยู่บนใบจ่ายด้วย — แก้ที่แท็บเครื่องแบบที่เดียว */
+        'notes_same_uniform' => array('type' => 'bool', 'types' => array('issue'), 'default' => '1'),
+        /* ข้อความรับทราบใต้หมายเหตุของเอกสารรับชุดเครื่องแบบ */
+        'ack'        => array('type' => 'text', 'max' => 140, 'types' => array('uniform'), 'default' => 'ได้รับเครื่องแบบพนักงานครบถ้วนแล้ว'),
     );
 }
 
@@ -80,6 +89,14 @@ function print_default($def, $type)
 {
     $d = $def['default'];
     if (is_array($d)) { $d = isset($d[$type]) ? $d[$type] : ''; }
+    if ($d === '@uniform_terms') {
+        require_once dirname(__FILE__) . '/uniform_receipt.php';
+        $li = '';
+        foreach (uniform_receipt_terms() as $ln) {
+            $li .= '<li>' . htmlspecialchars($ln, ENT_QUOTES, 'UTF-8') . '</li>';
+        }
+        $d = ($li !== '') ? '<ol>' . $li . '</ol>' : '';
+    }
     if ($d === '@new_staff_terms') {
         $li = '';
         foreach (explode("\n", str_replace("\r", '', setting_get('new_staff_terms', ''))) as $ln) {
@@ -105,6 +122,31 @@ function print_clean_html($html)
     $html = preg_replace('/<p>(\s|&nbsp;|<br>)*<\/p>/i', '', $html);
     $html = preg_replace('/(<br>\s*)+$/i', '', trim($html));
     return trim($html);
+}
+
+/* HTML หมายเหตุพร้อมพิมพ์: ใส่เลขข้อเริ่มต้นให้รายการเลขข้อชุดแรก (notes_start)
+   ตัวทำความสะอาดตัด attribute ทุกตัวทิ้ง จึงเก็บเลขเริ่มแยกไว้ แล้วเติมตอนแสดงผลที่นี่ที่เดียว */
+function print_notes_render($cfg)
+{
+    $html  = $cfg['notes'];
+    $start = isset($cfg['notes_start']) ? (int)$cfg['notes_start'] : 1;
+    if ($start > 1) {
+        $html = preg_replace('/<ol>/', '<ol start="' . $start . '">', $html, 1);
+    }
+    return $html;
+}
+
+/* หมายเหตุที่ใช้พิมพ์จริงของเอกสารประเภทหนึ่ง
+   ใบจ่ายที่เปิด "ใช้หมายเหตุเดียวกับเอกสารรับชุดเครื่องแบบ" = ดึงหมายเหตุ เลขข้อเริ่ม และข้อความรับทราบของแท็บเครื่องแบบ
+   คืน array('notes' => HTML พร้อมพิมพ์, 'ack' => ข้อความรับทราบ หรือ '') */
+function print_notes_for($cfg, $type)
+{
+    if ($type === 'issue' && isset($cfg['notes_same_uniform']) && $cfg['notes_same_uniform'] === '1') {
+        $u = print_cfg('uniform');
+        return array('notes' => print_notes_render($u), 'has' => print_notes_has_text($u['notes']), 'ack' => trim($u['ack']));
+    }
+    return array('notes' => print_notes_render($cfg), 'has' => print_notes_has_text($cfg['notes']),
+                 'ack' => ($type === 'uniform') ? trim($cfg['ack']) : '');
 }
 
 /* หมายเหตุมีเนื้อหาจริงไหม — ว่าง = ไม่พิมพ์กล่องหมายเหตุ */

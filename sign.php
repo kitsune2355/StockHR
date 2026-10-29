@@ -124,7 +124,10 @@ $page_title = ($fatal === '') ? ('เซ็นรับของ ' . $doc['doc_n
    พนักงานต้องอ่านเงื่อนไขการหักค่าชุด/คืนชุดก่อนเซ็น — ข้อความชุดเดียวกับที่พิมพ์บน print_doc.php */
 require_once dirname(__FILE__) . '/backend/uniform_receipt.php';
 $sg_uniform = ($fatal === '') ? uniform_receipt_for_doc($doc) : null;
-$sg_terms   = ($sg_uniform !== null) ? uniform_receipt_terms() : array();
+/* เงื่อนไขอ่านจากค่าตั้งเอกสารพิมพ์ (Admin mode > เอกสารพิมพ์ แท็บเอกสารรับชุดเครื่องแบบ)
+   ชุดเดียวกับใบพิมพ์ — ยังไม่เคยตั้ง = uniform_receipt_terms() ตามเดิม */
+require_once dirname(__FILE__) . '/backend/print_setting.php';
+$sg_terms_html = ($sg_uniform !== null) ? print_notes_render(print_cfg('uniform')) : '';
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -240,6 +243,9 @@ h2 {
     color: #78350f;
 }
 .terms li + li { margin-top: 8px; }
+/* เงื่อนไขจากตัวแก้ไขในหน้า Admin mode > เอกสารพิมพ์ — อาจมีย่อหน้าธรรมดา/รายการจุดปนมาด้วย */
+.terms-rich p { margin: 0 0 8px; line-height: 1.7; }
+.terms-rich ul { padding-left: 20px; margin: 0 0 8px; }
 .code { font-size: 12px; color: #94a3b8; }
 
 /* ---------- ผืนเซ็น ---------- */
@@ -450,11 +456,8 @@ input[type=text]:focus {
 <?php if ($sg_uniform !== null) { ?>
       <!-- ---------- เงื่อนไขที่พนักงานรับทราบ (ข้อ 2-4 ของแบบฟอร์ม 019-HRM) ---------- -->
       <h2>เงื่อนไขการรับชุดเครื่องแบบ</h2>
-      <ol class="terms" start="2">
-<?php   foreach ($sg_terms as $ln) { ?>
-        <li><?php echo sg_esc($ln); ?></li>
-<?php   } ?>
-      </ol>
+      <?php /* HTML ผ่าน print_clean_html() แล้ว (แท็กจัดรูปแบบพื้นฐาน ไม่มี attribute นอกจาก start ของรายการ) */ ?>
+      <div class="terms-rich"><?php echo str_replace('<ol', '<ol class="terms"', $sg_terms_html); ?></div>
 <?php } ?>
 
 <?php if ($can_sign) { ?>

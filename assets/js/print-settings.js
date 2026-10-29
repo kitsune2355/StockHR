@@ -176,6 +176,15 @@
             if (f.type === 'checkbox') { f.checked = (v === '1'); } else { f.value = v; }
         }
         editor().innerHTML = values.notes || '';
+        applyStart();
+    }
+
+    function applyStart() {
+        var st = el('notes_start');
+        var ol = editor().querySelector('ol');
+        if (!st || !ol) { return; }
+        var n = parseInt(st.value, 10);
+        if (n > 1) { ol.setAttribute('start', String(n)); } else { ol.removeAttribute('start'); }
     }
 
     function read() {
@@ -207,6 +216,11 @@
             }
             secs[s].hidden = !any;
         }
+        /* ใบจ่ายที่ใช้หมายเหตุของเอกสารรับชุดเครื่องแบบ — ไม่ต้องมีตัวแก้ไข/เลขข้อของตัวเอง */
+        var same = document.querySelector('[data-key="notes_same_uniform"]');   // ps_toggle ไม่มี id
+        var linked = !!same && cur === 'issue' && same.checked;
+        if (el('psNotesOwn') && linked) { el('psNotesOwn').hidden = true; }
+        if (el('psNotesStartRow') && linked) { el('psNotesStartRow').hidden = true; }
         el('psForName').textContent = labelOf(cur);
         el('psNsNote').hidden = (cur !== 'uniform');
     }
@@ -378,10 +392,13 @@
 
         el('psBody').addEventListener('input', function (e) {
             if (e.target === editor()) { return; }   // ตัวแก้ไขจัดการเองใน syncEditor
+            if (e.target.id === 'notes_start') { applyStart(); }
+            if (e.target.getAttribute('data-key') === 'notes_same_uniform') { applyVisibility(); }
             changed();
         });
         el('psBody').addEventListener('change', function (e) {
             if (e.target === editor()) { return; }
+            if (e.target.getAttribute('data-key') === 'notes_same_uniform') { applyVisibility(); }
             changed();
         });
 
