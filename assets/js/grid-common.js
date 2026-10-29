@@ -138,7 +138,98 @@
         for (key in page) {
             if (page.hasOwnProperty(key)) { opts[key] = page[key]; }
         }
+        if (opts.columns) { fitHeaders(opts.columns, opts.columnDefaults || {}); }
         return opts;
+    }
+
+    /* ============================================================
+     *  ชื่อหัวคอลัมน์ต้องเห็นเต็ม ไม่ถูกตัดเป็น "…"
+     *
+     *  ทุกตารางใช้ layout: fitColumns ซึ่งบีบคอลัมน์ลงได้จนถึง minWidth
+     *  หลายคอลัมน์ตั้ง minWidth ไว้แคบกว่าชื่อหัวคอลัมน์ (บวกลูกศรเรียงลำดับ + กรวยกรอง)
+     *  ชื่อจึงถูกตัดเหลือ "จำนวนที่จ…" อ่านไม่รู้เรื่อง
+     *
+     *  แก้ที่นี่ที่เดียวให้ทุกตาราง: ก่อนสร้างตาราง วัดความกว้างจริงของหัวแต่ละคอลัมน์
+     *  ด้วยหัวคอลัมน์จำลองที่ใช้ CSS ชุดเดียวกับของจริง (ฟอนต์ ขนาดตัวอักษรที่ผู้ใช้ตั้ง
+     *  padding ที่เว้นให้ลูกศร และไอคอนกรวย) แล้วยก minWidth ขึ้นให้พอดีชื่อ
+     *  จอแคบจนวางไม่พอ responsiveLayout: collapse จะย้ายคอลัมน์ไปไว้ใต้ปุ่ม + ของแถวแทน
+     *  ไม่ตัดชื่อทิ้ง
+     *
+     *  คอลัมน์ที่ไม่ต้องการให้ยก ใส่ fitHeader: false ในนิยามคอลัมน์
+     * ============================================================ */
+    function headerProbe() {
+        var wrap = document.createElement('div');
+        wrap.className = 'tabulator';
+        wrap.setAttribute('aria-hidden', 'true');
+        wrap.style.cssText = 'position:absolute;left:-10000px;top:0;visibility:hidden;'
+                           + 'width:auto;height:auto;border:0;overflow:visible;';
+        wrap.innerHTML =
+            '<div class="tabulator-header" style="overflow:visible">'
+          +   '<div class="tabulator-col" style="position:static;display:inline-block;width:auto;min-width:0">'
+          +     '<div class="tabulator-col-content">'
+          +       '<div class="tabulator-col-title-holder">'
+          +         '<div class="tabulator-col-title" style="width:auto"></div>'
+          +         '<span class="grid-filter-toggle"></span>'
+          +       '</div>'
+          +     '</div>'
+          +   '</div>'
+          + '</div>';
+        document.body.appendChild(wrap);
+        return {
+            wrap:   wrap,
+            col:    wrap.querySelector('.tabulator-col'),
+            title:  wrap.querySelector('.tabulator-col-title'),
+            funnel: wrap.querySelector('.grid-filter-toggle')
+        };
+    }
+
+    function headerTitleText(def) {
+        var t = (def.title === undefined || def.title === null) ? '' : String(def.title);
+        /* ชื่อบางคอลัมน์มีแท็ก HTML ปนมา วัดเฉพาะตัวอักษรที่เห็นจริง */
+        return t.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    function fitHeaders(columns, defaults) {
+        if (!document.body) { return; }
+        var probe = null;
+
+        function walk(list) {
+            for (var i = 0; i < list.length; i++) {
+                var def = list[i];
+                if (!def) { continue; }
+
+                /* คอลัมน์กลุ่ม (หัวสองชั้น) — ปรับที่คอลัมน์ลูก ตัวกลุ่มกว้างตามลูกเอง */
+                if (def.columns && def.columns.length) { walk(def.columns); continue; }
+
+                var text = headerTitleText(def);
+                if (text === '' || def.fitHeader === false) { continue; }
+
+                if (!probe) { probe = headerProbe(); }
+
+                var sortable = (def.headerSort !== undefined) ? def.headerSort
+                             : ((defaults.headerSort !== undefined) ? defaults.headerSort : true);
+                probe.col.className = 'tabulator-col' + (sortable ? ' tabulator-sortable' : '');
+                probe.title.textContent = text;
+                probe.funnel.style.display = def.headerFilter ? '' : 'none';
+
+                /* +2 กันเศษ pixel ปัดเศษ ทำให้ตัวสุดท้ายถูกตัดทั้งที่วัดได้พอดี
+                   ฟอนต์ Prompt ยังโหลดไม่เสร็จ (เปิดครั้งแรก เน็ตช้า) = วัดได้จากฟอนต์สำรองที่แคบกว่า
+                   จึงเผื่อไว้ 20% ไม่งั้นพอฟอนต์จริงมาถึง ชื่อจะกลับไปถูกตัดอีก */
+                var w = probe.col.getBoundingClientRect().width;
+                if (document.fonts && document.fonts.status !== 'loaded') { w *= 1.2; }
+                var need = Math.ceil(w) + 2;
+
+                if (!(def.minWidth >= need)) { def.minWidth = need; }
+                if (typeof def.width === 'number' && def.width < need) { def.width = need; }
+                if (typeof def.maxWidth === 'number' && def.maxWidth < need) { def.maxWidth = need; }
+            }
+        }
+
+        try {
+            walk(columns);
+        } finally {
+            if (probe && probe.wrap.parentNode) { probe.wrap.parentNode.removeChild(probe.wrap); }
+        }
     }
 
     /* ---------- คอลัมน์ที่เป็นปุ่ม/ตัวช่วย ไม่ใช่ข้อมูล ----------
