@@ -75,13 +75,17 @@ if (!$by_token && isset($sess_role) && $sess_role === 'super_admin'
 /* ค่าตั้งแยกรายประเภทเอกสาร — ใช้ของใบเบิกไปก่อน แล้วเปลี่ยนเป็นของประเภทจริงหลังโหลดเอกสาร (ดู $print_type) */
 $PC = print_cfg('request');
 
-$doc = doc_find($doc_id);
+/* ตัวอย่างในหน้า Admin mode > เอกสารพิมพ์: ?mock=<ประเภท> = เอกสารสมมติ ไม่อ่านเอกสารจริง
+   เฉพาะ super_admin ที่ล็อกอินอยู่ — คนอื่นส่ง mock มาก็ถูกเมิน กลับไปใช้ doc_id ตามปกติ */
+$is_mock = (!$by_token && isset($sess_role) && $sess_role === 'super_admin'
+            && isset($_GET['mock']) && in_array($_GET['mock'], print_types()));
+$doc = $is_mock ? print_mock_doc($_GET['mock']) : doc_find($doc_id);
 
 $deny = '';
 if ($doc === null) {
     $deny = 'ไม่พบเอกสารที่ต้องการพิมพ์';
 
-} elseif (!$by_token && !doc_can_read($doc, $sess_username, $sess_role)) {
+} elseif (!$is_mock && !$by_token && !doc_can_read($doc, $sess_username, $sess_role)) {
     /* กติกาเดียวกับ api/documents.php เป๊ะ ๆ เพราะเรียกฟังก์ชันตัวเดียวกัน
        ถ้าเขียนแยกกัน วันหนึ่งจะแก้ที่เดียวแล้วเหลือรูรั่วไว้อีกทาง */
     $deny = 'คุณไม่มีสิทธิ์พิมพ์เอกสารใบนี้';

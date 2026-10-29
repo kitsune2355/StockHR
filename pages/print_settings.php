@@ -194,12 +194,11 @@ function ps_toggle($key, $title, $hint)
         <i data-lucide="external-link" class="h-4 w-4" aria-hidden="true"></i>
       </a>
     </div>
-    <p class="ps-pv-note">ตัวอย่างจากเอกสารล่าสุดของจริง — เปลี่ยนตามที่กำลังแก้ทันที <span id="psPvState"></span> (ใบจริงจะเปลี่ยนเมื่อกดบันทึก)</p>
+    <p class="ps-pv-note">ตัวอย่างจากข้อมูลสมมติ — เปลี่ยนตามที่กำลังแก้ทันที <span id="psPvState"></span> (ใบจริงจะเปลี่ยนเมื่อกดบันทึก)</p>
     <div id="psFrameWrap" class="ps-frame-wrap">
       <!-- สองเฟรมสลับกัน: วาดใบใหม่ในเฟรมที่ซ่อนอยู่ เสร็จแล้วค่อยสลับ — ไม่กระพริบขาวทุกครั้งที่พิมพ์ -->
       <iframe id="psFrame" name="psFrameA" title="ตัวอย่างเอกสารพิมพ์" class="ps-frame"></iframe>
       <iframe id="psFrameB" name="psFrameB" title="ตัวอย่างเอกสารพิมพ์" class="ps-frame" style="visibility:hidden"></iframe>
-      <div id="psNoDoc" hidden class="ps-nodoc">ยังไม่มีเอกสารประเภทนี้ในระบบ</div>
     </div>
   </div>
 </div>
