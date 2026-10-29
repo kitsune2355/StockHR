@@ -29,7 +29,16 @@ require_once dirname(dirname(__FILE__)) . '/backend/department.php';
 
 api_require_post();
 $actor = api_require_login();
-api_require_role(array('super_admin'));
+
+/* ใครใช้ได้ = ใครเข้าเมนู "หน่วยงาน" ได้ (ตั้งที่หน้า "สิทธิ์การใช้งาน") — กติกาเดียวกับแถบเมนูและ router
+   เดิมล็อกไว้ที่ super_admin ตายตัว เปิดเมนูให้ admin แล้วเข้าหน้าได้ แต่กดบันทึกโดนปฏิเสธ */
+require_once dirname(dirname(__FILE__)) . '/includes/menu.php';
+app_apply_permissions();
+$routes = app_routes();
+$actor_role = isset($_SESSION['sess_role']) ? $_SESSION['sess_role'] : '';
+if (!isset($routes['agencies']) || !app_can_access($routes['agencies'], $actor_role)) {
+    api_fail('คุณไม่มีสิทธิ์ใช้งานส่วนนี้', 403);
+}
 
 $input  = api_input();
 $action = isset($input['action']) ? $input['action'] : '';
