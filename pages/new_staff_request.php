@@ -145,16 +145,24 @@ function ns_step_head($no, $title, $hint, $icon, $right = '')
             </div>
 
             <div class="tf-filters">
-              <div class="relative">
-                <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-slate-400" aria-hidden="true">
-                  <i data-lucide="search" class="h-4 w-4"></i>
-                </span>
-                <input type="search" id="tfSearch" autocomplete="off"
-                       placeholder="ค้นรหัส ชื่อสินค้า หรือหมวดหมู่"
-                       class="<?php echo $input; ?> pl-10">
+              <div class="tf-search-row">
+                <div class="relative min-w-0 flex-1">
+                  <span class="pointer-events-none absolute inset-y-0 left-0 flex w-10 items-center justify-center text-slate-400" aria-hidden="true">
+                    <i data-lucide="search" class="h-4 w-4"></i>
+                  </span>
+                  <input type="search" id="tfSearch" autocomplete="off"
+                         placeholder="ค้นรหัส ชื่อสินค้า หรือหมวดหมู่"
+                         class="<?php echo $input; ?> pl-10">
+                </div>
+                <button type="button" id="btnFilterToggle" class="tf-filter-toggle"
+                        aria-expanded="false" aria-controls="tfFilterBox" title="ตัวกรอง: หมวดหมู่ / หมวดหมู่ย่อย / เฉพาะที่มีของ">
+                  <i data-lucide="sliders-horizontal" class="h-4 w-4" aria-hidden="true"></i>
+                  <span id="tfFilterCount" class="tf-filter-count" hidden>0</span>
+                </button>
               </div>
 
-              <div class="tf-filters-row tf-filters-row3">
+              <!-- ตัวกรองซ่อนไว้หลังปุ่มข้างช่องค้นหา (ดู setupFilterToggle ใน doc-transfer.js) -->
+              <div id="tfFilterBox" hidden class="tf-filters-row tf-filters-row3">
                 <select id="tfCategory" class="<?php echo $input; ?>"
                         data-search data-search-placeholder="พิมพ์ชื่อหมวดหมู่"
                         aria-label="กรองตามหมวดหมู่หลัก">

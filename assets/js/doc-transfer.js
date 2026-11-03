@@ -236,6 +236,8 @@
             var sub  = elSub ? Number(elSub.value) || 0 : 0;
             var only = elStock.checked;
 
+            showFilterCount((cat > 0 ? 1 : 0) + (sub > 0 ? 1 : 0) + (only ? 1 : 0));
+
             var html = '';
             var n    = 0;
 
@@ -529,6 +531,34 @@
 
         if (elSub) { elSub.addEventListener('change', renderLeft); }
         elStock.addEventListener('change', renderLeft);
+
+        /* ---------- ปุ่มตัวกรอง (กรวย) ข้างช่องค้นหา ----------
+         * หมวดหมู่ / หมวดย่อย / เฉพาะที่มีของ ซ่อนไว้หลังปุ่มนี้ กางไว้ตลอดกินที่รายการสินค้า
+         * ตัวเลขบนปุ่ม = จำนวนตัวกรองที่ใช้อยู่ ปิดกล่องแล้วยังรู้ว่ารายการถูกกรองอยู่
+         * หน้าที่ไม่มีปุ่มนี้ (โครงเก่า) กล่องตัวกรองแสดงตามปกติ */
+        var elFilterBtn = el('btnFilterToggle');
+        var elFilterBox = el('tfFilterBox');
+        var elFilterN   = el('tfFilterCount');
+
+        function showFilterCount(n) {
+            if (!elFilterBtn) { return; }
+            elFilterBtn.classList.toggle('is-active', n > 0);
+            if (elFilterN) {
+                elFilterN.textContent = String(n);
+                if (n > 0) { elFilterN.removeAttribute('hidden'); } else { elFilterN.setAttribute('hidden', ''); }
+            }
+        }
+
+        if (elFilterBtn && elFilterBox) {
+            elFilterBtn.addEventListener('click', function () {
+                var open = elFilterBox.hasAttribute('hidden');
+                if (open) { elFilterBox.removeAttribute('hidden'); } else { elFilterBox.setAttribute('hidden', ''); }
+                elFilterBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                elFilterBtn.classList.toggle('is-on', open);
+            });
+        } else if (elFilterBox) {
+            elFilterBox.removeAttribute('hidden');
+        }
 
         var clearBtn = el('tfClear');
         if (clearBtn) {

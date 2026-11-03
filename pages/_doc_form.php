@@ -362,11 +362,19 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
                      class="<?php echo $input; ?> pl-10">
             </div>
             <?php df_scan_toggle(); ?>
+            <button type="button" id="btnFilterToggle" class="tf-filter-toggle"
+                    aria-expanded="false" aria-controls="tfFilterBox" title="ตัวกรอง: หมวดหมู่ / หมวดหมู่ย่อย / เฉพาะที่มีของ">
+              <i data-lucide="sliders-horizontal" class="h-4 w-4" aria-hidden="true"></i>
+              <span id="tfFilterCount" class="tf-filter-count" hidden>0</span>
+            </button>
           </div>
 
           <?php df_scan_panel($doc_type); ?>
 
-          <div class="tf-filters-row tf-filters-row3">
+          <!-- ตัวกรองหมวดหมู่/หมวดย่อย/เฉพาะที่มีของ ซ่อนไว้หลังปุ่มกรวย (#btnFilterToggle)
+               กางไว้ตลอดกินที่เหนือรายการสินค้าไปสองสามแถว โดยเฉพาะบนมือถือ ทั้งที่ส่วนใหญ่ใช้แค่ช่องค้นหา
+               (เปิด/ปิด และตัวเลขบนปุ่ม ดู setupFilterToggle ใน doc-transfer.js) -->
+          <div id="tfFilterBox" hidden class="tf-filters-row tf-filters-row3">
             <select id="tfCategory" class="<?php echo $input; ?>"
                     data-search data-search-placeholder="พิมพ์ชื่อหมวดหมู่"
                     aria-label="กรองตามหมวดหมู่หลัก">

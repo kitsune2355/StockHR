@@ -2502,7 +2502,9 @@ input[type="date"].input-control { min-height: 2.75rem; }
         grid-template-columns: 1fr;
         gap: 1rem;
     }
-    #docForm > div {
+    /* :not([hidden]) — กล่องที่ซ่อนด้วย hidden (เช่น #editBanner) ต้องไม่ถูก display:flex ดึงกลับมา
+       (selector นี้มี id จึงชนะ [hidden][hidden] ที่ต้นไฟล์) */
+    #docForm > div:not([hidden]) {
         display: flex;
         flex-direction: column;
         min-width: 0;
@@ -6149,6 +6151,31 @@ button.bc-side-toggle { display: none; }
     .tf-scan-toggle { padding: 0; width: 2.75rem; justify-content: center; }
     .tf-scan-toggle-text { display: none; }
 }
+
+/* ปุ่มตัวกรอง (หมวดหมู่ / หมวดย่อย / เฉพาะที่มีของ) — ไอคอนอย่างเดียว ข้างช่องค้นหา
+   ตัวเลขมุมขวาบน = จำนวนตัวกรองที่ใช้อยู่ ปิดกล่องแล้วยังรู้ว่ารายการถูกกรอง */
+.tf-filter-toggle {
+    position: relative; flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 2.75rem; height: 2.75rem;
+    border: 1px solid #e2e8f0; border-radius: .75rem;
+    color: #475569; background: #fff;
+    transition: background .15s, border-color .15s, color .15s;
+}
+.tf-filter-toggle:hover { background: #f8fafc; border-color: #cbd5e1; }
+.tf-filter-toggle.is-on,
+.tf-filter-toggle.is-active { background: #effbf9; border-color: #99e6dc; color: #055f59; }
+.tf-filter-count {
+    position: absolute; top: -.375rem; right: -.375rem;
+    min-width: 1.125rem; height: 1.125rem; padding: 0 .25rem;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 999px; background: #029488; color: #fff;
+    font-size: 0.6875rem; font-weight: 600; line-height: 1;
+}
+.dark .tf-filter-toggle       { background: #1e293b; border-color: #334155; color: #cbd5e1; }
+.dark .tf-filter-toggle:hover { background: #273449; }
+.dark .tf-filter-toggle.is-on,
+.dark .tf-filter-toggle.is-active { background: rgba(45, 212, 191, .12); border-color: rgba(45, 212, 191, .45); color: #5eead4; }
 
 .tf-scan-box {
     display: grid; gap: .375rem;
