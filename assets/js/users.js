@@ -539,7 +539,22 @@
             accessorClipboard: function (v) { return names(v).join(", "); },
           };
         })(),
-        G.filterOwn(),
+        /* ค่าในช่องเป็นอาร์เรย์ของรหัสหน่วยงาน — ถ้าให้ Tabulator ดึงตัวเลือกจากค่าในช่องเอง (filterOwn)
+           รายการกรองจะขึ้นเป็นเลข 1 2 3 ... จึงส่งชื่อหน่วยงานไปให้เลือก แล้วกรองว่าแถวดูแลหน่วยงานนั้นไหม */
+        G.filterPick(depts),
+        {
+          headerFilterFunc: function (headerValue, rowValue) {
+            if (headerValue === "" || headerValue === null || headerValue === undefined) {
+              return true;
+            }
+            var ids = normalizeDeptIds(rowValue);
+            /* ตัวเลือก "— ไม่ระบุ —" (รหัส 0) = คนที่ยังไม่ได้ผูกหน่วยงานเลย */
+            if (Number(headerValue) === 0) {
+              return ids.length === 0;
+            }
+            return ids.indexOf(Number(headerValue)) !== -1;
+          },
+        },
         {
           title: "หน่วยงานที่ดูแล",
           field: "dept_ids",
