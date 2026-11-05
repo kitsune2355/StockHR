@@ -7998,3 +7998,130 @@ a.bn-ns-row:hover { background: #f8fafc; }
 /* พื้นต้องทึบ — แถบนี้ติดอยู่บนสุดขณะเลื่อน ถ้าโปร่งแสงเนื้อหาด้านล่างจะทะลุขึ้นมา */
 .dark .ps-for { background: #0d2526; border-color: #134e4a; color: #5eead4; }
 .dark .ps-for-hint { color: #5eead4; }
+
+
+/* ============================================================
+ *  หน้ารายการใบเบิก (ผู้อนุมัติ/ผู้ดูแลระบบ) — ตาราง + แผงรายละเอียดด้านขวา
+ *  pages/_doc_list.php ($review_mode) + doc-list.js (review*)
+ * ============================================================ */
+
+/* ตัวกรองไม่กางค้างในโหมดนี้แม้จอกว้าง — สามคอลัมน์ตารางเหลือที่ไม่พอ
+   ใช้ลิ้นชักเดียวกับจอแคบ (ปุ่ม "ตัวกรอง" บนแถบเครื่องมือ) */
+@media (min-width: 1280px) {
+    .fp-layout.is-review { display: block; }
+    .fp-layout.is-review .fp-main { display: flex; height: 100%; }
+    .fp-layout.is-review button.fp-toggle { display: inline-flex; }
+    .fp-layout.is-review .fp-close { display: inline-flex; }
+    .fp-layout.is-review .fp-side {
+        position: fixed; top: 4rem; right: 0; bottom: 0; z-index: 60;
+        width: min(20rem, 88vw);
+        border-radius: 1rem 0 0 0; border-right: 0;
+        transform: translateX(100%);
+        transition: transform .2s ease;
+        box-shadow: -12px 0 30px rgba(15, 23, 42, .18);
+    }
+    .fp-layout.is-review .fp-side.is-open { transform: translateX(0); }
+}
+
+.rv-body { flex-direction: column; }
+.rv-pane { display: none; }
+.rv-hint-wide { display: none !important; }
+
+@media (min-width: 1024px) {
+    .rv-body { flex-direction: row; }
+    .rv-body #grid { min-width: 0; }
+    .rv-pane {
+        display: flex; flex-direction: column;
+        width: 25rem; flex: none; min-height: 0;
+        border-left: 1px solid #e2e8f0; background: #fcfdfd;
+    }
+    .rv-hint-wide   { display: inline-flex !important; }
+    .rv-hint-narrow { display: none !important; }
+    .fp-layout.is-review .tabulator-row { cursor: pointer; }
+}
+@media (min-width: 1800px) { .rv-pane { width: 29rem; } }
+
+/* แถวที่เปิดอยู่ — แถบสีด้านซ้าย + พื้นอ่อน ต้องเห็นว่าแผงขวาคือใบไหน */
+.tabulator-row.rv-sel,
+.tabulator-row.rv-sel.tabulator-row-even { background: #ecfeff !important; box-shadow: inset 3px 0 0 #0891b2; }
+
+
+.rv-doc { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.rv-doc[hidden] { display: none; }
+
+.rv-head {
+    position: sticky; top: 0; z-index: 2;
+    display: flex; align-items: flex-start; gap: .5rem;
+    padding: .875rem 1rem; background: #fcfdfd; border-bottom: 1px solid #f1f5f9;
+}
+.rv-head > .min-w-0 { flex: 1 1 auto; }
+.rv-no { display: block; font-size: 1rem; color: #0f172a; margin-bottom: .25rem; }
+.rv-full {
+    flex: none; display: inline-flex; align-items: center; gap: .375rem;
+    height: 2rem; padding: 0 .625rem; border-radius: .625rem;
+    border: 1px solid #e2e8f0; background: #fff; font-size: .75rem; color: #475569;
+}
+.rv-full:hover { background: #f8fafc; color: #0f172a; }
+.rv-icon { padding: 0; width: 2rem; justify-content: center; }
+
+.rv-meta {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .3rem .875rem;
+    padding: .75rem 1rem; font-size: .8125rem;
+}
+.rv-meta dt { color: #94a3b8; }
+.rv-meta dd { color: #1e293b; font-weight: 500; overflow-wrap: anywhere; }
+
+.rv-sec { padding: .25rem 1rem .375rem; font-size: .75rem; font-weight: 600; color: #64748b; }
+.rv-lines { padding: 0 1rem; }
+.rv-list { border: 1px solid #e2e8f0; border-radius: .75rem; background: #fff; overflow: hidden; }
+.rv-row {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .625rem;
+    padding: .5rem .625rem; font-size: .8125rem;
+}
+.rv-row + .rv-row { border-top: 1px solid #f1f5f9; }
+.rv-name { display: grid; min-width: 0; color: #1e293b; overflow-wrap: anywhere; }
+.rv-code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: .6875rem; color: #0e7490; }
+.rv-qty { font-size: .875rem; color: #0f172a; white-space: nowrap; }
+
+.rv-locked {
+    margin: .75rem 1rem 0; padding: .625rem .75rem; border-radius: .75rem;
+    background: #f1f5f9; color: #475569; font-size: .8125rem; line-height: 1.6;
+}
+.rv-locked[hidden] { display: none; }
+
+.rv-decide {
+    position: sticky; bottom: 0; margin-top: auto;
+    display: grid; gap: .5rem; padding: .75rem 1rem 1rem;
+    background: #fcfdfd; border-top: 1px solid #f1f5f9;
+}
+.rv-decide[hidden] { display: none; }
+.rv-note {
+    width: 100%; resize: vertical; min-height: 2.75rem;
+    padding: .5rem .75rem; border: 1px solid #e2e8f0; border-radius: .75rem;
+    font-size: .8125rem; background: #fff; color: #0f172a;
+}
+.rv-note:focus { outline: none; border-color: #0891b2; box-shadow: 0 0 0 3px rgba(8, 145, 178, .15); }
+.rv-actions { display: grid; grid-template-columns: 1fr 1.6fr; gap: .5rem; }
+.rv-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: .375rem;
+    height: 2.75rem; border-radius: .75rem; font-size: .875rem; font-weight: 600;
+    transition: background .15s, border-color .15s;
+}
+.rv-btn-ok  { background: #0e7490; color: #fff; }
+.rv-btn-ok:hover { background: #155e75; }
+.rv-btn-bad { background: #fff; border: 1px solid #fecaca; color: #b91c1c; }
+.rv-btn-bad:hover { background: #fef2f2; }
+
+.dark .rv-pane, .dark .rv-head, .dark .rv-decide { background: #0b1220; border-color: #1e293b; }
+.dark .rv-no { color: #e2e8f0; }
+.dark .rv-meta dd, .dark .rv-name { color: #e2e8f0; }
+.dark .rv-code { color: #67e8f9; }
+.dark .rv-full { background: #1e293b; border-color: #334155; color: #cbd5e1; }
+.dark .rv-list { background: #0f172a; border-color: #1e293b; }
+.dark .rv-row + .rv-row { border-top-color: #1e293b; }
+.dark .rv-qty { color: #e2e8f0; }
+.dark .rv-locked { background: #1e293b; color: #cbd5e1; }
+.dark .rv-note { background: #0f172a; border-color: #334155; color: #e2e8f0; }
+.dark .rv-btn-bad { background: transparent; border-color: rgba(239, 68, 68, .4); color: #fca5a5; }
+.dark .tabulator-row.rv-sel,
+.dark .tabulator-row.rv-sel.tabulator-row-even { background: rgba(34, 211, 238, .1) !important; }

@@ -186,6 +186,12 @@
         }
 
         openFromUrl();
+
+        /* โหลดตารางใหม่ (รีเฟรช หรือหลังทำงานในกล่องรายละเอียดเต็ม เช่นยกเลิกใบ)
+           ใบที่เปิดอยู่ในแผงอาจเปลี่ยนสถานะไปแล้ว ต้องอ่านใหม่ด้วย ไม่งั้นแผงโชว์ของเก่า */
+        if (rvDoc && !rvDoc._demo && reviewOn()) {
+          reviewSelect(rvDoc.doc_id);
+        }
       },
       function (message) {
         setHidden(el("listLoading"), true);
@@ -216,7 +222,12 @@
 
     var id = parseInt(m[1], 10);
     if (id > 0) {
-      openDetail(id);
+      /* หน้ารายการใบเบิกของผู้อนุมัติเปิดในแผงด้านขวา ไม่ใช่กล่องลอย */
+      if (reviewOn()) {
+        reviewSelect(id);
+      } else {
+        openDetail(id);
+      }
     }
   }
 
@@ -676,6 +687,7 @@
 
            renderComplete ยิงหลังวาดเสร็จทุกรอบ จึงเป็นที่เดียวที่เชื่อได้ */
     table.on("renderComplete", function () {
+      reviewMark();
       /* แถววาดใหม่ = ปุ่ม ⋮ ที่เมนูเกาะอยู่หายไปแล้ว ปิดเมนูทิ้ง
          (ยกเว้นเมนูที่คู่มือกางค้างไว้ — teardown เป็นคนปิด) */
       if (!rowMenuPinned) {
@@ -686,6 +698,21 @@
       } else if (window.lucide) {
         window.lucide.createIcons();
       }
+    });
+    /* แผงด้านขวา: คลิกที่ใดก็ได้ในแถว (ยกเว้นปุ่มในคอลัมน์จัดการ) = เปิดใบนั้นในแผง */
+    table.on("rowClick", function (e, row) {
+      if (!reviewOn()) {
+        return;
+      }
+      var t = e.target;
+      if (t && t.closest && t.closest("[data-row-act],[data-row-more],button,a,input")) {
+        return;
+      }
+      var d = row.getData();
+      if (d._demo) {
+        return;
+      }
+      reviewSelect(d.doc_id);
     });
     table.on("dataFiltered", function (filters) {
       syncQuickStatusFromTable(filters || []);
@@ -1123,6 +1150,16 @@
         cssClass: "cell-rowacts",
       }),
     );
+
+    /* มีแผงด้านขวา: ตอนแผงเปิด ตารางแคบลง ให้บริษัทถูกพับก่อนผู้ขอเบิกกับหน่วยงาน
+       (หมายเหตุ/รายการ/จำนวนรวม พับก่อนอยู่แล้ว และทั้งหมดนี้ดูได้จากแผง) */
+    if (CFG.reviewMode === true) {
+      for (var rc = 0; rc < cols.length; rc++) {
+        if (cols[rc].field === "company_name") {
+          cols[rc].responsive = 5;
+        }
+      }
+    }
 
     return cols;
   }
@@ -2208,23 +2245,340 @@
         confirm: isNo ? "ยืนยันไม่อนุมัติ" : "ยืนยันอนุมัติ",
       },
       function (reason) {
-        post(
-          {
-            action: "decide",
-            csrf_token: CFG.csrfToken,
-            doc_id: openDoc.doc_id,
-            decision: decision,
-            reason: reason,
-          },
-          function (res) {
-            ok(res.message);
-            closeDetail();
-            load();
-          },
-          bad,
-        );
+        var decidedId = openDoc.doc_id;
+        sendDecision(decidedId, decision, reason, function () {
+          closeDetail();
+          afterDecision(decidedId);
+        });
       },
     );
+  }
+
+  function sendDecision(docId, decision, reason, done) {
+    post(
+      {
+        action: "decide",
+        csrf_token: CFG.csrfToken,
+        doc_id: docId,
+        decision: decision,
+        reason: reason,
+      },
+      function (res) {
+        ok(res.message);
+        done();
+      },
+      bad,
+    );
+  }
+
+  /* ============================================================
+   *  แผงรายละเอียดใบเบิก (หน้ารายการใบเบิกของผู้อนุมัติ/ผู้ดูแลระบบ)
+   * ============================================================
+   *  คลิกแถว = เปิดใบนั้นในแผงด้านขวา ใบที่รออนุมัติมีปุ่มอนุมัติ/ไม่อนุมัติให้เลย
+   *  ไม่ต้องเปิดกล่องรายละเอียดแล้วเปิดกล่องยืนยันซ้อนอีกชั้น
+   *  ตัดสินเสร็จจะเลื่อนไปใบถัดไปที่ยังรออนุมัติให้เอง ไล่ทีละใบได้ต่อเนื่อง
+   *
+   *  เฉพาะจอกว้าง (>= 1024px) — จอแคบไม่มีที่ให้สองฝั่ง ใช้กล่องรายละเอียดเดิม
+   */
+  var rvDoc = null;
+
+  function reviewOn() {
+    return (
+      CFG.reviewMode === true &&
+      !!el("rvPane") &&
+      window.matchMedia("(min-width: 1024px)").matches
+    );
+  }
+
+  /* กติกาเดียวกับ request_decide() ฝั่งเซิร์ฟเวอร์: รออนุมัติ + เป็นผู้อนุมัติ + ไม่ใช่ใบของตัวเอง */
+  function reviewCanDecide(doc) {
+    return (
+      doc.doc_type === "request" &&
+      doc.status === "waiting" &&
+      isApprover() &&
+      doc.requester !== ME
+    );
+  }
+
+  function reviewMark() {
+    if (!table) {
+      return;
+    }
+    var rows = table.getRows();
+    for (var i = 0; i < rows.length; i++) {
+      var node = rows[i].getElement();
+      if (node) {
+        node.classList.toggle(
+          "rv-sel",
+          !!rvDoc && rows[i].getData().doc_id === rvDoc.doc_id,
+        );
+      }
+    }
+  }
+
+  /* แผงเปิด/ปิดแล้วตารางแคบ/กว้างขึ้น responsiveLayout: collapse พับและคืนคอลัมน์ให้เองตามลำดับ
+     (ลำดับดูที่ reviewMode ท้าย buildColumns) ไม่สั่ง hide()/show() เอง
+     เพราะจะปนกับการพับของตารางจนคืนผิดคอลัมน์ */
+  function reviewPaneShow(show) {
+    var pane = el("rvPane");
+    if (!pane || pane.hidden === !show) {
+      return;
+    }
+    setHidden(pane, !show);
+    /* สั่งคำนวณคอลัมน์ใหม่เอง ไม่รอการจับขนาดอัตโนมัติ ซึ่งบางทีไม่คืนคอลัมน์ตอนตารางกว้างขึ้น */
+    if (table) {
+      table.redraw(true);
+    }
+  }
+
+  function reviewClose() {
+    rvDoc = null;
+    reviewPaneShow(false);
+    reviewMark();
+  }
+
+  function reviewSelect(id) {
+    post(
+      { action: "get", doc_id: id },
+      function (res) {
+        reviewRender(res.doc);
+      },
+      bad,
+    );
+  }
+
+  function reviewRender(doc) {
+    rvDoc = doc;
+    var items = doc.items || [];
+    var can = reviewCanDecide(doc);
+
+    el("rvNo").textContent = doc.doc_no;
+    el("rvStatus").innerHTML = statusPill(doc.status, doc.status_label);
+
+    var shortDate = function (v) {
+      return window.ThaiDate ? window.ThaiDate.short(v, "") : v;
+    };
+    var meta = [
+      ["วันที่", shortDate(doc.doc_date)],
+      ["หน่วยงาน", doc.department_name || "-"],
+      ["ผู้ขอเบิก", doc.requester_name || doc.requester || "-"],
+    ];
+    /* ใบพนักงานใหม่ / ใบจากระบบสวัสดิการ: คนที่จะได้ของคือพนักงาน ไม่ใช่ผู้ขอเบิก (HR ที่กดส่ง) */
+    var emp = doc.new_staff || doc.welfare;
+    if (emp) {
+      meta.push([
+        "พนักงาน",
+        emp.employee_name + (emp.position_name ? " · " + emp.position_name : ""),
+      ]);
+    }
+    if (doc.new_staff) {
+      meta.push(["เริ่มงาน", shortDate(doc.new_staff.start_date)]);
+    }
+    if (doc.note) {
+      meta.push(["หมายเหตุ", doc.note]);
+    }
+    if (doc.status !== "waiting" && doc.approve_note) {
+      meta.push(["ผู้อนุมัติเขียน", doc.approve_note]);
+    }
+    var mh = "";
+    for (var m = 0; m < meta.length; m++) {
+      mh += "<dt>" + meta[m][0] + "</dt><dd>" + escapeHtml(meta[m][1]) + "</dd>";
+    }
+    el("rvMeta").innerHTML = mh;
+
+    var h = '<div class="rv-list">';
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      h +=
+        '<div class="rv-row"><div class="rv-name"><span class="rv-code">' +
+        escapeHtml(it.product_code) +
+        "</span><span>" +
+        escapeHtml(it.product_name) +
+        "</span></div>" +
+        '<b class="rv-qty">' +
+        fmt(it.qty) +
+        " " +
+        escapeHtml(it.unit_name || "") +
+        "</b></div>";
+    }
+    el("rvLines").innerHTML = h + "</div>";
+
+    setHidden(el("rvDecide"), !can);
+    el("rvNote").value = "";
+
+    var lock = "";
+    if (!can) {
+      if (doc.status !== "waiting") {
+        lock =
+          "ใบนี้ตัดสินแล้ว (" +
+          (doc.status_label || doc.status) +
+          ") — กดไอคอนลูกศรขยายด้านบน เพื่อดูรายละเอียดเต็ม ประวัติ หรือทำงานอื่นกับใบนี้";
+      } else if (doc.requester === ME) {
+        lock = "ใบนี้เป็นของคุณเอง อนุมัติเองไม่ได้ ต้องให้ผู้อนุมัติคนอื่นตรวจ";
+      }
+    }
+    el("rvLocked").textContent = lock;
+    setHidden(el("rvLocked"), lock === "");
+
+    reviewPaneShow(true);
+    el("rvDoc").scrollTop = 0;
+    reviewMark();
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+  }
+
+  /* ใบถัดไปที่ยังรออนุมัติ ตามลำดับที่เห็นในตารางตอนนี้ (ข้ามใบที่เพิ่งตัดสิน) */
+  function nextWaitingAfter(id) {
+    if (!table) {
+      return 0;
+    }
+    var rows = table.getRows("active");
+    var seen = false;
+    var first = 0;
+    for (var i = 0; i < rows.length; i++) {
+      var d = rows[i].getData();
+      if (d.doc_id === id) {
+        seen = true;
+        continue;
+      }
+      if (d.status !== "waiting" || d.requester === ME) {
+        continue;
+      }
+      if (seen) {
+        return d.doc_id;
+      }
+      if (!first) {
+        first = d.doc_id;
+      }
+    }
+    return first;
+  }
+
+  /* หลังตัดสินใบใดใบหนึ่ง (จากแผง ไอคอนในแถว หรือกล่องรายละเอียดเต็ม)
+     ใบที่ตัดสินเปิดอยู่ในแผง = พาไปใบถัดไป ไม่มีใบถัดไปแล้วก็ปิดแผง
+     แผงปิดอยู่ หรือเปิดใบอื่นอยู่ (กดไอคอนในแถว) = ไม่ยุ่งกับแผง ไม่แย่งจอคนกำลังอ่าน */
+  function afterDecision(id) {
+    if (!reviewOn() || !rvDoc || rvDoc.doc_id !== id) {
+      load();
+      return;
+    }
+    var next = nextWaitingAfter(id);
+    rvDoc = null; // load() จะได้ไม่อ่านใบที่ตัดสินแล้วกลับมาทับใบถัดไป
+    load();
+    if (next) {
+      reviewSelect(next);
+    } else {
+      reviewClose();
+    }
+  }
+
+  function reviewInit() {
+    if (!CFG.reviewMode || !el("rvPane")) {
+      return;
+    }
+
+    function demoGuard(doc) {
+      if (doc && doc._demo) {
+        if (typeof window.appInfo === "function") {
+          window.appInfo("นี่คือใบตัวอย่างสำหรับสาธิต กดใช้งานจริงไม่ได้ ปิดคู่มือแล้วลองกับใบจริงได้เลย");
+        }
+        return true;
+      }
+      return false;
+    }
+
+    el("rvApprove").addEventListener("click", function () {
+      var doc = rvDoc;
+      if (!doc || demoGuard(doc)) {
+        return;
+      }
+      sendDecision(doc.doc_id, "approved", String(el("rvNote").value || "").trim(), function () {
+        afterDecision(doc.doc_id);
+      });
+    });
+
+    el("rvReject").addEventListener("click", function () {
+      var doc = rvDoc;
+      if (!doc || demoGuard(doc)) {
+        return;
+      }
+      var note = String(el("rvNote").value || "").trim();
+      var run = function (reason) {
+        sendDecision(doc.doc_id, "rejected", reason, function () {
+          afterDecision(doc.doc_id);
+        });
+      };
+      /* เหตุผลจำเป็น — ถ้าเขียนไว้ในช่องหมายเหตุแล้วใช้เลย ไม่ต้องพิมพ์ซ้ำ */
+      if (note !== "" && typeof window.appConfirmDanger === "function") {
+        window
+          .appConfirmDanger({
+            title: "ไม่อนุมัติใบเบิก " + doc.doc_no,
+            text: "เหตุผล: " + note,
+            confirmText: "ยืนยันไม่อนุมัติ",
+          })
+          .then(function (yes) {
+            if (yes) {
+              run(note);
+            }
+          });
+        return;
+      }
+      askReason(
+        {
+          title: "ไม่อนุมัติใบเบิก " + doc.doc_no,
+          text: "ระบุเหตุผล เพื่อให้ผู้ขอเบิกรู้ว่าต้องแก้อะไร",
+          required: true,
+          danger: true,
+          confirm: "ยืนยันไม่อนุมัติ",
+        },
+        run,
+      );
+    });
+
+    el("rvPrint").addEventListener("click", function () {
+      if (rvDoc && !demoGuard(rvDoc)) {
+        window.open("print_doc.php?doc_id=" + rvDoc.doc_id, "_blank", "noopener");
+      }
+    });
+
+    el("rvFull").addEventListener("click", function () {
+      if (rvDoc && !demoGuard(rvDoc)) {
+        openDetail(rvDoc.doc_id);
+      }
+    });
+
+    el("rvClose").addEventListener("click", reviewClose);
+  }
+
+  /* แผงระหว่างเปิดคู่มือ: เปิดใบสาธิตไว้ในแผง ให้คู่มือชี้ปุ่มได้
+     ปิดคู่มือแล้วคืนใบที่เปิดค้างไว้เดิม */
+  var rvBeforeDemo = null;
+
+  function reviewDemo(on) {
+    if (!reviewOn()) {
+      return;
+    }
+    if (!on) {
+      var back = rvBeforeDemo;
+      rvBeforeDemo = null;
+      if (back) {
+        reviewRender(back);
+      } else {
+        reviewClose();
+      }
+      return;
+    }
+    rvBeforeDemo = rvDoc && !rvDoc._demo ? rvDoc : null;
+    var d = demoRow();
+    d.status = "waiting";
+    d.status_label = "รออนุมัติ";
+    d.requester = "";
+    d.items = [
+      { product_code: "EX-PMB-002", product_name: "เสื้อฟอร์ม ผู้ชาย PRO (ดำ) ไซซ์ M", unit_name: "ตัว", qty: 3 },
+      { product_code: "EX-SHO-004", product_name: "รองเท้าเซฟตี้ เบอร์ 40", unit_name: "คู่", qty: 1 },
+    ];
+    reviewRender(d);
   }
 
   /* ---------- เซ็นรับของ ----------
@@ -2559,6 +2913,7 @@
     });
 
     bindRowActions();
+    reviewInit();
     load();
   }
 
@@ -2662,6 +3017,7 @@
 
     table.addRow(demoRow(), true); // true = บนสุด คู่มือจะได้ชี้แถวแรกเสมอ
     demoBanner(true);
+    reviewDemo(true);
 
     if (typeof window.renderIcons === "function") {
       window.renderIcons();
@@ -2693,6 +3049,7 @@
     }
 
     demoBanner(false);
+    reviewDemo(false);
   }
 
   function demoBanner(on) {

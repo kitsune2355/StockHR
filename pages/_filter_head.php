@@ -16,5 +16,5 @@
  *  เขียนให้รองรับ PHP 5.2.6
  * ============================================================ */
 ?>
-<div class="fp-layout">
+<div class="fp-layout<?php echo (isset($fp_layout_class) && $fp_layout_class !== '') ? ' ' . $fp_layout_class : ''; ?>">
   <div class="fp-main">

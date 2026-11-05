@@ -58,6 +58,13 @@ $status_of = array(
 
 $filter_hint = 'กรองจากเอกสารทั้งหมดของหน้านี้';
 
+/* ---------- โหมดตรวจใบเบิก (ผู้อนุมัติ / ผู้ดูแลระบบ ที่หน้ารายการใบเบิก) ----------
+   ตาราง + แผงรายละเอียดด้านขวา คลิกแถวแล้วดูรายละเอียดและอนุมัติได้ในหน้าเดียว
+   ตัวกรองย่อเป็นปุ่มเปิดด้านข้าง เพราะสามคอลัมน์ ตารางจะเหลือที่ไม่พอ
+   (จอแคบกว่า 1024px ไม่มีแผง ใช้กล่องรายละเอียดเดิม — ดู reviewOn() ใน doc-list.js) */
+$review_mode     = ($doc_type === 'request' && in_array($sess_role, array('super_admin', 'admin', 'approver')));
+$fp_layout_class = $review_mode ? 'is-review' : '';
+
 include dirname(__FILE__) . '/_filter_head.php';
 ?>
 
@@ -119,12 +126,59 @@ include dirname(__FILE__) . '/_filter_head.php';
     กำลังโหลดเอกสาร...
   </div>
 
-  <div id="listBody" hidden class="flex min-h-0 flex-1 flex-col">
+  <div id="listBody" hidden class="flex min-h-0 flex-1<?php echo $review_mode ? ' rv-body' : ' flex-col'; ?>">
     <div id="grid" class="min-h-0 flex-1"></div>
+
+    <?php if ($review_mode) { ?>
+    <!-- ===== แผงรายละเอียดใบเบิก ===== -->
+    <!-- ซ่อนไว้จนกว่าจะคลิกแถว ตารางจะได้ใช้พื้นที่เต็มตอนยังไม่ได้เลือกใบไหน -->
+    <aside id="rvPane" hidden class="rv-pane" aria-label="รายละเอียดใบเบิก">
+      <div id="rvDoc" class="rv-doc">
+        <div class="rv-head">
+          <div class="min-w-0">
+            <b id="rvNo" class="rv-no"></b>
+            <span id="rvStatus"></span>
+          </div>
+          <button type="button" id="rvPrint" class="rv-full rv-icon" title="พิมพ์ใบเบิก" aria-label="พิมพ์ใบเบิก">
+            <i data-lucide="printer" class="h-4 w-4" aria-hidden="true"></i>
+          </button>
+          <button type="button" id="rvFull" class="rv-full rv-icon" title="รายละเอียดเต็ม (ประวัติ งานอื่น)" aria-label="รายละเอียดเต็ม">
+            <i data-lucide="maximize-2" class="h-4 w-4" aria-hidden="true"></i>
+          </button>
+          <button type="button" id="rvClose" class="rv-full rv-icon" title="ปิดแผงรายละเอียด" aria-label="ปิดแผงรายละเอียด">
+            <i data-lucide="x" class="h-4 w-4" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <dl id="rvMeta" class="rv-meta"></dl>
+
+        <div class="rv-sec">รายการที่ขอเบิก</div>
+        <div id="rvLines" class="rv-lines"></div>
+
+        <p id="rvLocked" hidden class="rv-locked"></p>
+
+        <div id="rvDecide" hidden class="rv-decide">
+          <textarea id="rvNote" rows="2" maxlength="300" class="rv-note"
+                    placeholder="หมายเหตุ (อนุมัติไม่บังคับ · ไม่อนุมัติต้องระบุเหตุผล)"></textarea>
+          <div class="rv-actions">
+            <button type="button" id="rvReject" class="rv-btn rv-btn-bad">
+              <i data-lucide="x" class="h-4 w-4" aria-hidden="true"></i> ไม่อนุมัติ
+            </button>
+            <button type="button" id="rvApprove" class="rv-btn rv-btn-ok">
+              <i data-lucide="check" class="h-4 w-4" aria-hidden="true"></i> อนุมัติ
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+    <?php } ?>
   </div>
 
   <div class="grid-hints">
-    <span><i data-lucide="eye" class="h-3.5 w-3.5" aria-hidden="true"></i> กด "ดูรายละเอียด" เพื่อดูรายการสินค้าและทำงานกับเอกสาร</span>
+    <?php if ($review_mode) { ?>
+    <span class="rv-hint-wide"><i data-lucide="mouse-pointer-click" class="h-3.5 w-3.5" aria-hidden="true"></i> คลิกแถวเพื่อดูรายละเอียดและอนุมัติในแผงด้านขวา</span>
+    <?php } ?>
+    <span<?php echo $review_mode ? ' class="rv-hint-narrow"' : ''; ?>><i data-lucide="eye" class="h-3.5 w-3.5" aria-hidden="true"></i> กด "ดูรายละเอียด" เพื่อดูรายการสินค้าและทำงานกับเอกสาร</span>
     <span><i data-lucide="circle-dot" class="h-3.5 w-3.5" aria-hidden="true"></i> จุดสีข้างปุ่ม = ใบนั้นมีงานรอคุณอยู่</span>
     <span><i data-lucide="table-properties" class="h-3.5 w-3.5" aria-hidden="true"></i> ลากคลุมแล้ว Ctrl+C คัดลอกไปวางใน Excel ได้</span>
   </div>
@@ -220,6 +274,8 @@ window.DOCLIST = {
     exportName: <?php echo dl_json($export_name); ?>,
     /* 'new_staff' = เฉพาะใบพนักงานใหม่ (new_staff_list.php), 'general' = เฉพาะใบปกติ (request_list.php), '' = ทุกใบ */
     kind:       <?php echo dl_json(isset($list_kind) ? $list_kind : ''); ?>,
+    /* ตาราง + แผงรายละเอียดด้านขวา (ดู $review_mode ด้านบน) */
+    reviewMode: <?php echo dl_json($review_mode); ?>,
     /* ใช้กับแถวตัวอย่างของคู่มือ ให้วันที่ตรงกับเซิร์ฟเวอร์ ไม่ใช่นาฬิกาเครื่องผู้ใช้ */
     today:      <?php echo dl_json(date('Y-m-d')); ?>
 };
