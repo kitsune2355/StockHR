@@ -384,15 +384,16 @@ function product_image_memory_limit()
 
 
 /* พอจะย่อรูปขนาดนี้ไหวไหม — ขอเพิ่มหน่วยความจำให้เองถ้าโฮสต์ยอม */
-function product_image_memory_ok($info)
+function product_image_memory_ok($info, $max = null)
 {
     $w = (int)$info[0];
     $h = (int)$info[1];
     if ($w <= 0 || $h <= 0) { return false; }
+    if ($max === null) { $max = PRODUCT_IMAGE_MAX_SIDE; }
 
     /* ต้นทาง (กว้าง x สูง x 4) + ปลายทางหลังย่อ + เผื่อที่ทำงานของ GD เอง */
     $need = ($w * $h * 4)
-          + (PRODUCT_IMAGE_MAX_SIDE * PRODUCT_IMAGE_MAX_SIDE * 4)
+          + ($max * $max * 4)
           + (4 * 1024 * 1024);
 
     $limit = product_image_memory_limit();
@@ -423,11 +424,13 @@ function product_image_memory_ok($info)
  *  ไม่มี GD หรือย่อไม่สำเร็จ ก็ก๊อปไฟล์เดิมไป — ผ่าน getimagesize มาแล้ว
  *  ว่าเป็นรูปจริง และนามสกุลก็ถูกบังคับจากผลการอ่านหัวไฟล์
  * ============================================================ */
-function product_image_write($src, $dest, $info, $ext)
+/* $max = ด้านยาวสุดหลังย่อ ไม่ส่ง = ขนาดรูปสินค้า
+   ไฟล์แนบใบบิล (backend/doc_attachment.php) ส่งค่าใหญ่กว่า ตัวหนังสือในบิลต้องยังอ่านออก */
+function product_image_write($src, $dest, $info, $ext, $max = null)
 {
     $w   = (int)$info[0];
     $h   = (int)$info[1];
-    $max = PRODUCT_IMAGE_MAX_SIDE;
+    if ($max === null) { $max = PRODUCT_IMAGE_MAX_SIDE; }
 
     if (!extension_loaded('gd') || $w <= 0 || $h <= 0) {
         return @copy($src, $dest);
@@ -439,7 +442,7 @@ function product_image_write($src, $dest, $info, $ext)
        ไฟล์ที่ได้จะใหญ่กว่าที่ควรเป็น แต่ผ่านการตรวจหัวไฟล์มาแล้วว่าเป็นรูปจริง
        และยังถูกจำกัดขนาดไฟล์ไว้ที่ 3 MB อยู่ดี
        ผู้เรียกเป็นคนตัดสินว่าจะเตือนผู้ใช้ไหม (ดู product_image_save) */
-    if (!product_image_memory_ok($info)) {
+    if (!product_image_memory_ok($info, $max)) {
         return @copy($src, $dest);
     }
 

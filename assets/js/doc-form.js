@@ -1691,6 +1691,16 @@
       post(
         payload,
         function (res) {
+          /* ใบรับเข้าที่เลือกไฟล์บิลไว้: บันทึกใบสำเร็จแล้วค่อยอัปโหลด (ต้องมี doc_id ก่อน)
+             ปุ่มยังหมุนอยู่ระหว่างอัปโหลด กันกดบันทึกซ้ำ */
+          if (EDIT_ID <= 0 && attachStaged.length && res.doc_id) {
+            uploadStaged(res, function () {
+              busy(false);
+              resetForm();
+            });
+            return;
+          }
+
           busy(false);
           if (typeof window.appSuccess === "function") {
             window.appSuccess(res.message);
@@ -1730,8 +1740,164 @@
     }
   }
 
+  /* ============================================================
+   *  แนบรูป/ไฟล์ใบบิล (เฉพาะหน้าบันทึกรับเข้า)
+   * ============================================================
+   *  เลือกไฟล์ไว้ก่อนในหน้านี้ ยังไม่ส่งขึ้นเซิร์ฟเวอร์ เพราะใบยังไม่มี doc_id
+   *  กดบันทึกใบสำเร็จแล้วจึงอัปโหลดทีละไฟล์ (uploadStaged)
+   *  ไฟล์ไหนไม่ผ่าน ใบยังบันทึกอยู่ — บอกให้ไปแนบเพิ่มจากประวัติรับเข้า
+   */
+  var attachStaged = []; // { file, url }
+
+  function attachRender() {
+    var list = el("attachList");
+    if (!list || !window.DocAttach) {
+      return;
+    }
+    var A = window.DocAttach;
+    var h = "";
+    for (var i = 0; i < attachStaged.length; i++) {
+      var s = attachStaged[i];
+      h +=
+        '<li class="att-chip" title="' +
+        A.esc(s.file.name) +
+        " · " +
+        A.size(s.file.size) +
+        ' · อัปโหลดตอนบันทึก">' +
+        '<i data-lucide="' +
+        (A.isPdf(s.file.type || s.file.name) ? "file-text" : "image") +
+        '" class="h-3.5 w-3.5 flex-none" aria-hidden="true"></i>' +
+        '<button type="button" class="att-chip-name" data-att-preview="' +
+        i +
+        '" title="พรีวิว">' +
+        A.esc(s.file.name) +
+        "</button>" +
+        '<button type="button" data-att-remove="' +
+        i +
+        '" aria-label="เอาไฟล์นี้ออก">' +
+        '<i data-lucide="x" class="h-3.5 w-3.5" aria-hidden="true"></i></button></li>';
+    }
+    list.innerHTML = h;
+    setHidden(list, attachStaged.length === 0);
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+  }
+
+  function attachClear() {
+    for (var i = 0; i < attachStaged.length; i++) {
+      if (attachStaged[i].url) {
+        URL.revokeObjectURL(attachStaged[i].url);
+      }
+    }
+    attachStaged = [];
+    attachRender();
+  }
+
+  function setupAttach() {
+    var input = el("attachInput");
+    if (!input || !window.DocAttach) {
+      return;
+    }
+    var A = window.DocAttach;
+
+    input.addEventListener("change", function () {
+      var files = input.files ? Array.prototype.slice.call(input.files) : [];
+      var errors = [];
+      for (var i = 0; i < files.length; i++) {
+        if (attachStaged.length >= A.MAX_FILES) {
+          errors.push("แนบได้สูงสุด " + A.MAX_FILES + " ไฟล์ต่อใบ");
+          break;
+        }
+        var err = A.check(files[i]);
+        if (err) {
+          errors.push(err);
+          continue;
+        }
+        /* blob URL ของทุกไฟล์ (รูปและ PDF) ไว้พรีวิวก่อนอัปโหลด — คืนหน่วยความจำตอนเอาออก/ล้างฟอร์ม */
+        attachStaged.push({ file: files[i], url: URL.createObjectURL(files[i]) });
+      }
+      input.value = ""; // เลือกไฟล์เดิมซ้ำได้หลังเอาออก
+      attachRender();
+      if (errors.length && typeof window.appError === "function") {
+        window.appError(errors.join("\n"));
+      }
+    });
+
+    el("attachList").addEventListener("click", function (e) {
+      var pre = e.target.closest ? e.target.closest("[data-att-preview]") : null;
+      if (pre) {
+        var items = [];
+        for (var p = 0; p < attachStaged.length; p++) {
+          var sf = attachStaged[p].file;
+          items.push({
+            url: attachStaged[p].url,
+            name: sf.name,
+            kind: /^image\//.test(sf.type) ? "image" : A.isPdf(sf.type || sf.name) ? "pdf" : "other",
+          });
+        }
+        A.preview(items, num(pre.getAttribute("data-att-preview")));
+        return;
+      }
+      var btn = e.target.closest ? e.target.closest("[data-att-remove]") : null;
+      if (!btn) {
+        return;
+      }
+      var idx = num(btn.getAttribute("data-att-remove"));
+      var gone = attachStaged.splice(idx, 1)[0];
+      if (gone && gone.url) {
+        URL.revokeObjectURL(gone.url);
+      }
+      attachRender();
+    });
+  }
+
+  function uploadStaged(saveRes, done) {
+    var files = [];
+    for (var i = 0; i < attachStaged.length; i++) {
+      files.push(attachStaged[i].file);
+    }
+    var total = files.length;
+
+    window.DocAttach.upload(
+      saveRes.doc_id,
+      files,
+      CFG.csrfToken,
+      null,
+      function (okCount, fails) {
+        var msg =
+          saveRes.message +
+          (okCount ? " · แนบไฟล์ใบบิล " + okCount + " ไฟล์" : "");
+        if (!fails.length) {
+          if (typeof window.appSuccess === "function") {
+            window.appSuccess(msg);
+          }
+        } else {
+          /* ใบบันทึกแล้ว (สต๊อกเปลี่ยนแล้ว) แค่ไฟล์ไม่ขึ้น — ห้ามให้เข้าใจว่าบันทึกใบไม่สำเร็จ */
+          var text =
+            "บันทึกใบรับเข้า " +
+            (saveRes.doc_no || "") +
+            " แล้ว แต่แนบไฟล์ไม่สำเร็จ " +
+            fails.length +
+            " จาก " +
+            total +
+            " ไฟล์\n\n" +
+            fails.join("\n") +
+            "\n\nแนบเพิ่มได้ที่ ประวัติรับเข้า › ดูรายละเอียดใบนี้";
+          if (typeof window.appError === "function") {
+            window.appError(text);
+          } else {
+            alert(text);
+          }
+        }
+        done();
+      },
+    );
+  }
+
   function resetForm() {
     items.clear();
+    attachClear();
     el("docNote").value = "";
     if (has("receiverName")) {
       el("receiverName").value = "";
@@ -1794,6 +1960,7 @@
     }
     el("btnSave").addEventListener("click", save);
     el("docNote").addEventListener("input", clearError);
+    setupAttach();
 
     /* กัน Enter ในช่องหัวเอกสารไปกดปุ่มบันทึกโดยไม่ตั้งใจ */
     var form = el("docForm");

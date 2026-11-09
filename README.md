@@ -103,6 +103,15 @@ http://localhost/stock_hr/
    chmod 775 assets/img/company
    ```
 
+   **ไฟล์ใบบิลที่แนบกับใบรับเข้า** เก็บที่ `storage/doc_attach/` (ระบบสร้างโฟลเดอร์ให้เอง)
+   ต้องให้ PHP เขียนที่รากโปรเจกต์ได้ หรือสร้าง `storage/` ไว้ก่อนแล้วให้สิทธิ์เขียน
+   ระบบเขียน `storage/.htaccess` ปิดการเปิดตรงผ่านเว็บให้เอง — ถ้าโฮสต์ปิด `AllowOverride`
+   ให้กันโฟลเดอร์ `storage/` ด้วยวิธีของโฮสต์แทน (ไฟล์ดูได้ผ่าน `api/attachment.php` เท่านั้น)
+
+   ```bash
+   mkdir -p storage && chmod 775 storage
+   ```
+
 4. **ตั้งตัวส่งอีเมล** — Linux ใช้ crontab แทน Task Scheduler
 
    ```

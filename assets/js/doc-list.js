@@ -1453,6 +1453,8 @@
 
     } /* /else (ไม่ใช่ใบปรับยอด) */
 
+    renderAttach(doc);
+
     /* ---------- ปุ่มทำงาน ----------
      * ปุ่มพิมพ์อยู่นอกรายการ actionsFor() เพราะเปิดหน้าใหม่ ไม่ได้เปลี่ยนสถานะเอกสาร
      * และต้องมีให้กดได้เสมอทุกสถานะ รวมถึงใบที่ยกเลิกไปแล้ว (ยังต้องเก็บเป็นหลักฐาน) */
@@ -2254,6 +2256,186 @@
     );
   }
 
+  /* ============================================================
+   *  ไฟล์แนบ (รูป/ไฟล์ใบบิลของใบรับเข้า) ในกล่องรายละเอียด
+   * ============================================================
+   *  ฝ่ายบัญชีเปิดดูในแท็บใหม่ หรือดาวน์โหลดได้ทีละไฟล์
+   *  แนบเพิ่ม/ลบได้ตามสิทธิ์ที่เซิร์ฟเวอร์ส่งมา (doc.can_attach / ไฟล์.can_delete)
+   *  ไม่มี doc.attachments = ยังไม่รัน sql/087 หรือไม่ใช่ใบรับเข้า -> ไม่แสดงส่วนนี้
+   */
+  function renderAttach(doc) {
+    var box = el("docAttach");
+    if (!box) {
+      return;
+    }
+    if (!window.DocAttach || !doc || !doc.attachments) {
+      setHidden(box, true);
+      return;
+    }
+    var A = window.DocAttach;
+    var list = doc.attachments;
+    var canAdd = !!doc.can_attach && list.length < (doc.attach_max || A.MAX_FILES);
+
+    var h =
+      '<div class="att-head">' +
+      '<span class="att-title">ไฟล์ใบบิล' + (list.length ? " · " + list.length : "") + "</span>" +
+      (canAdd
+        ? '<label class="att-link" title="รูปหรือ PDF · ไม่เกิน 10 MB ต่อไฟล์">' +
+          '<input type="file" id="docAttachInput" multiple accept="image/*,application/pdf">' +
+          '<i data-lucide="plus" class="h-3.5 w-3.5" aria-hidden="true"></i><span>แนบ</span></label>'
+        : "") +
+      "</div>";
+
+    if (!list.length) {
+      h += '<p class="att-empty">ยังไม่มีไฟล์แนบ</p>';
+    } else {
+      h += '<ul class="att-list">';
+      for (var i = 0; i < list.length; i++) {
+        var f = list[i];
+        var by = f.created_by ? " · " + A.esc(f.created_by) : "";
+        h +=
+          '<li class="att-item">' +
+          '<a href="' + A.esc(f.url) + '" target="_blank" rel="noopener" class="att-open" title="เปิดดู">' +
+          A.thumb(f.is_image ? f.url : "", !f.is_image) +
+          '<span class="att-name"><b>' + A.esc(f.orig_name) + "</b><small>" +
+          A.size(f.file_size) + " · " + A.esc(dateTime(f.created_at)) + by + "</small></span></a>" +
+          '<a href="' + A.esc(f.url.replace("action=view", "action=download")) +
+          '" class="att-icon" title="ดาวน์โหลด" aria-label="ดาวน์โหลด">' +
+          '<i data-lucide="download" class="h-4 w-4" aria-hidden="true"></i></a>' +
+          (f.can_delete
+            ? '<button type="button" class="att-icon att-del" data-att-del="' + f.attach_id +
+              '" title="ลบไฟล์" aria-label="ลบไฟล์"><i data-lucide="trash-2" class="h-4 w-4" aria-hidden="true"></i></button>'
+            : "") +
+          "</li>";
+      }
+      h += "</ul>";
+    }
+
+    box.innerHTML = h;
+    setHidden(box, false);
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+  }
+
+  function dateTime(v) {
+    return window.ThaiDate && window.ThaiDate.dateTime ? window.ThaiDate.dateTime(v, v) : v;
+  }
+
+  function bindAttach() {
+    var box = el("docAttach");
+    if (!box || !window.DocAttach) {
+      return;
+    }
+    var A = window.DocAttach;
+
+    function apply(list) {
+      if (openDoc && list) {
+        openDoc.attachments = list;
+        renderAttach(openDoc);
+      }
+    }
+
+    box.addEventListener("change", function (e) {
+      var input = e.target;
+      if (!input || input.id !== "docAttachInput" || !openDoc) {
+        return;
+      }
+      var room = (openDoc.attach_max || A.MAX_FILES) - openDoc.attachments.length;
+      var picked = Array.prototype.slice.call(input.files || []);
+      var errors = [];
+      var files = [];
+      for (var i = 0; i < picked.length; i++) {
+        var err = A.check(picked[i]);
+        if (err) {
+          errors.push(err);
+        } else if (files.length >= room) {
+          errors.push("แนบได้สูงสุด " + (openDoc.attach_max || A.MAX_FILES) + " ไฟล์ต่อใบ");
+          break;
+        } else {
+          files.push(picked[i]);
+        }
+      }
+      input.value = "";
+      if (!files.length) {
+        if (errors.length) {
+          bad(errors.join("\n"));
+        }
+        return;
+      }
+      var docId = openDoc.doc_id;
+      box.classList.add("is-busy");
+      A.upload(docId, files, CFG.csrfToken, null, function (okCount, fails, list) {
+        box.classList.remove("is-busy");
+        if (openDoc && openDoc.doc_id === docId) {
+          apply(list);
+        }
+        var all = errors.concat(fails);
+        if (all.length) {
+          bad((okCount ? "แนบสำเร็จ " + okCount + " ไฟล์\n\n" : "") + all.join("\n"));
+        } else {
+          ok("แนบไฟล์ใบบิล " + okCount + " ไฟล์แล้ว");
+        }
+      });
+    });
+
+    box.addEventListener("click", function (e) {
+      /* คลิกไฟล์ = พรีวิวในหน้า (Ctrl/⌘-คลิก หรือคลิกกลาง ยังเปิดแท็บใหม่ตามปกติของลิงก์) */
+      var open = e.target.closest ? e.target.closest(".att-open") : null;
+      if (open && openDoc && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
+        e.preventDefault();
+        var files = openDoc.attachments || [];
+        var items = [];
+        var start = 0;
+        for (var k = 0; k < files.length; k++) {
+          if (files[k].url === open.getAttribute("href")) {
+            start = k;
+          }
+          items.push({
+            url: files[k].url,
+            name: files[k].orig_name,
+            kind: files[k].is_image ? "image" : A.isPdf(files[k].mime_type) ? "pdf" : "other",
+            download: files[k].url.replace("action=view", "action=download"),
+          });
+        }
+        A.preview(items, start);
+        return;
+      }
+
+      var btn = e.target.closest ? e.target.closest("[data-att-del]") : null;
+      if (!btn || !openDoc) {
+        return;
+      }
+      var id = Number(btn.getAttribute("data-att-del"));
+      var run = function () {
+        A.remove(
+          id,
+          CFG.csrfToken,
+          function (res) {
+            apply(res.attachments);
+            ok(res.message);
+          },
+          bad,
+        );
+      };
+      if (typeof window.appConfirmDanger === "function") {
+        window
+          .appConfirmDanger({
+            title: "ลบไฟล์แนบ",
+            text: "ลบไฟล์นี้ออกจากใบ " + openDoc.doc_no + "? ลบแล้วกู้คืนไม่ได้",
+            confirmText: "ลบไฟล์",
+          })
+          .then(function (yes) {
+            if (yes) {
+              run();
+            }
+          });
+      } else if (window.confirm("ลบไฟล์นี้?")) {
+        run();
+      }
+    });
+  }
+
   function sendDecision(docId, decision, reason, done) {
     post(
       {
@@ -2914,6 +3096,7 @@
 
     bindRowActions();
     reviewInit();
+    bindAttach();
     load();
   }
 

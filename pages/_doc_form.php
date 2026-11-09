@@ -212,6 +212,20 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
         </div>
       </div>
 
+      <?php if ($doc_type === 'receive') { ?>
+      <!-- ===== แนบรูป/ไฟล์ใบบิล (ไม่บังคับ) =====
+           หลักฐานให้ฝ่ายบัญชี เลือกไว้ก่อน แล้วอัปโหลดหลังบันทึกใบสำเร็จ (doc-form.js + doc-attach.js)
+           บนมือถือ "เลือกไฟล์" เปิดกล้องถ่ายบิลได้เลย (accept image/*) -->
+      <div id="attachBox" class="att-bar mt-3">
+        <label class="att-btn" title="รูปหรือ PDF ของใบบิล สำหรับฝ่ายบัญชี · ไม่เกิน 10 MB ต่อไฟล์ · สูงสุด 10 ไฟล์ (ไม่บังคับ)">
+          <input type="file" id="attachInput" multiple accept="image/*,application/pdf">
+          <i data-lucide="paperclip" class="h-4 w-4" aria-hidden="true"></i>
+          <span>แนบใบบิล</span>
+        </label>
+        <ul id="attachList" class="att-chips" hidden></ul>
+      </div>
+      <?php } ?>
+
       <?php if ($doc_type === 'request') { ?>
       <!-- บอกว่าหน่วยงานมาจากไหน ไม่ให้ผู้ใช้งงว่าทำไมเปลี่ยนไม่ได้ -->
       <div id="deptLocked" hidden
@@ -496,4 +510,8 @@ window.SCAN_CAM_LIB = '<?php echo asset_url('assets/js/zxing.js', $ASSET_BASE); 
 <?php } ?>
 <script src="<?php echo asset_url('assets/js/barcode-scan.js', $ASSET_BASE); ?>"></script>
 <script src="<?php echo asset_url('assets/js/qr-cam.js', $ASSET_BASE); ?>"></script>
+<?php if ($doc_type === 'receive') { ?>
+<!-- แนบรูป/ไฟล์ใบบิล (ตรวจไฟล์ + อัปโหลดทีละไฟล์) -->
+<script src="<?php echo asset_url('assets/js/doc-attach.js', $ASSET_BASE); ?>"></script>
+<?php } ?>
 <script src="<?php echo asset_url('assets/js/doc-form.js', $ASSET_BASE); ?>"></script>

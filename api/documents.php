@@ -298,6 +298,18 @@ if ($action === 'get') {
         $doc['adjust_lines'] = adjust_doc_lines($doc);
     }
 
+    /* ใบรับเข้า: ไฟล์แนบ (รูป/ไฟล์ใบบิล) ให้กล่องรายละเอียดแสดง + บอกว่าคนนี้แนบเพิ่ม/ลบได้ไหม
+       ตารางยังไม่มี (ยังไม่รัน sql/087) = ไม่ส่ง attachments มาเลย หน้าเว็บจะไม่แสดงส่วนนี้ */
+    if ($doc['doc_type'] === 'receive') {
+        require_once dirname(dirname(__FILE__)) . '/backend/doc_attachment.php';
+        if (doc_attachment_ready()) {
+            $doc['attachments']    = doc_attachment_list_for($doc['doc_id'], $actor, $actor_role);
+            $doc['attach_max']     = DOC_ATTACH_MAX;
+            $doc['can_attach']     = ($doc['status'] !== 'cancelled'
+                                      && in_array($actor_role, doc_write_roles_for('receive')));
+        }
+    }
+
     /* ไทม์ไลน์เหตุการณ์ของเอกสาร (ยื่น/แก้ไข/อนุมัติ/ส่งกลับ/ยกเลิก/จ่ายครบ)
        ตารางอาจยังไม่มีในระบบเก่า — doc_history() คืน array() เปล่าเอง ไม่ error */
     $doc['history'] = doc_history($doc['doc_id']);

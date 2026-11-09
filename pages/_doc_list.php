@@ -254,6 +254,11 @@ include dirname(__FILE__) . '/_filter_head.php';
       <div class="doc-sum">
         จำนวนรวม <b id="docTotal" class="num">0</b>
       </div>
+
+      <?php if ($doc_type === 'receive') { ?>
+      <!-- ไฟล์แนบ (รูป/ไฟล์ใบบิล) — ฝ่ายบัญชีเปิดดู/ดาวน์โหลดจากตรงนี้ (renderAttach ใน doc-list.js) -->
+      <div id="docAttach" hidden class="att-box mt-4"></div>
+      <?php } ?>
       <!-- ประวัติเอกสารย้ายไปเปิดเป็น modal จากเมนู ⋮ (ดู showHistory ใน doc-list.js) -->
     </div>
 
@@ -287,4 +292,7 @@ window.DOCLIST = {
 <!-- ผืนเซ็นชื่อ ใช้ตอนกด "เซ็นรับของ" ในกล่องรายละเอียดใบจ่าย
      ต้องมาก่อน doc-list.js เพราะที่นั่นเรียก window.SignPad -->
 <script src="<?php echo asset_url('assets/js/signpad.js', $ASSET_BASE); ?>"></script>
+<?php if ($doc_type === 'receive') { ?>
+<script src="<?php echo asset_url('assets/js/doc-attach.js', $ASSET_BASE); ?>"></script>
+<?php } ?>
 <script src="<?php echo asset_url('assets/js/doc-list.js', $ASSET_BASE); ?>"></script>
