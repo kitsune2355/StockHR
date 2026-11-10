@@ -120,8 +120,11 @@ function request_decide($doc_id, $decision, $reason, $actor, $actor_role)
         return db_fail('คำสั่งไม่ถูกต้อง');
     }
 
-    if (!in_array($actor_role, array('super_admin', 'admin', 'approver'))) {
-        return db_fail('คุณไม่มีสิทธิ์อนุมัติใบเบิก');
+    /* ใครอนุมัติได้ = คนในรายชื่อ "ผู้อนุมัติใบเบิก" เท่านั้น (tb_request_approver)
+       ไม่ดู role ไม่ดูหน่วยงาน — อนุมัติได้ทุกหน่วยงาน */
+    if (!request_approver_can($actor)) {
+        return db_fail('คุณไม่ได้อยู่ในรายชื่อผู้อนุมัติใบเบิก — ให้ผู้ดูแลระบบเพิ่มชื่อที่เมนู '
+                     . '"ตั้งค่าระบบ › ผู้อนุมัติใบเบิก" ก่อน');
     }
 
     $doc = doc_find($doc_id);
@@ -137,25 +140,6 @@ function request_decide($doc_id, $decision, $reason, $actor, $actor_role)
        คนคนเดียวจะขอแล้วอนุมัติเองจบในคนเดียว */
     if ($doc['requester'] === $actor) {
         return db_fail('อนุมัติใบเบิกของตัวเองไม่ได้ — ต้องให้ผู้อนุมัติคนอื่นตรวจ');
-    }
-
-    /* ---------- ขอบเขตการอนุมัติผูกกับหน่วยงาน ----------
-     * ผู้อนุมัติอนุมัติได้เฉพาะใบเบิกของหน่วยงานที่ตัวเองสังกัด
-     * ตรงกับการทำงานจริงที่หัวหน้าแต่ละหน่วยงานดูของหน่วยงานตัวเอง
-     * ผู้ดูแลระบบข้ามข้อนี้ได้ เพราะต้องเข้าไปแก้ให้ได้ทุกหน่วยงานเวลามีปัญหา
-     */
-    if ($actor_role === 'approver') {
-        $me = user_find($actor);
-
-        if ($me === null || count($me['dept_ids']) === 0) {
-            return db_fail('บัญชีของคุณยังไม่ได้ระบุหน่วยงาน จึงอนุมัติใบเบิกไม่ได้ '
-                         . 'กรุณาให้ผู้ดูแลระบบตั้งหน่วยงานให้ก่อน');
-        }
-
-        if (!user_has_department($actor, $doc['department_id'])) {
-            return db_fail('บัญชีของคุณไม่มีสิทธิ์อนุมัติใบเบิกของหน่วยงานนี้ '
-                         . 'ใบนี้เป็นของหน่วยงาน "' . $doc['department_name'] . '"');
-        }
     }
 
     $reason = trim($reason);
@@ -287,9 +271,8 @@ function request_cancel($doc_id, $reason, $actor, $actor_role)
 
 
 /* ---------- จำนวนใบเบิกที่รออนุมัติ — ใช้ทำ badge บนเมนู ----------
- * นับเฉพาะใบที่คนนี้กดอนุมัติได้จริง ไม่ใช่ทุกใบที่รออยู่ในระบบ
- * ถ้านับทั้งหมด ผู้อนุมัติของหน่วยงาน ก. จะเห็นเลข 5 แล้วเปิดเข้าไปพบว่า
- * กดอะไรไม่ได้สักใบ เพราะทั้งหมดเป็นของหน่วยงาน ข.
+ * นับเฉพาะใบที่คนนี้กดอนุมัติได้จริง (คนในรายชื่อผู้อนุมัติใบเบิก ไม่นับใบของตัวเอง)
+ * $actor_role ไม่ใช้แล้ว คงพารามิเตอร์ไว้ให้ผู้เรียกเดิม
  */
 function request_waiting_count($actor = '', $actor_role = '', $kind = '')
 {
@@ -306,41 +289,19 @@ function request_waiting_count($actor = '', $actor_role = '', $kind = '')
         $kind_sql = " AND EXISTS (SELECT 1 FROM `tb_doc_new_staff` ns WHERE ns.`doc_id` = `tb_doc_header`.`doc_id`)";
     }
 
-    /* คนที่อนุมัติไม่ได้ ต้องได้ 0 เสมอ ไม่ใช่จำนวนใบที่รออยู่ทั้งระบบ
-       ตอนนี้ main.php เรียกเฉพาะสิทธิ์ที่อนุมัติได้อยู่แล้ว แต่ถ้าวันหลัง
-       มีที่อื่นเรียกโดยไม่กรอง ผู้ใช้ทั่วไปจะเห็นตัวเลขงานที่ตัวเองแตะไม่ได้ */
-    if ($actor_role !== '' &&
-        !in_array($actor_role, array('super_admin', 'admin', 'approver'))) {
-        return 0;
-    }
-
-    $depts = array();
-    if ($actor_role === 'approver' && $actor !== '') {
-        $me = user_find($actor);
-        if ($me === null || count($me['dept_ids']) === 0) {
-            return 0;                       // ไม่มีหน่วยงาน = อนุมัติอะไรไม่ได้
+    /* คนที่ไม่อยู่ในรายชื่อผู้อนุมัติใบเบิก ต้องได้ 0 เสมอ ไม่ใช่จำนวนใบที่รออยู่ทั้งระบบ
+       คนในรายชื่ออนุมัติได้ทุกหน่วยงาน จึงนับทุกใบที่รอ ยกเว้นใบที่ตัวเองขอ (อนุมัติเองไม่ได้)
+       $actor = '' = นับทั้งระบบ (ผู้เรียกที่ไม่ได้ถามในนามใคร) */
+    if ($actor !== '') {
+        if (!request_approver_can($actor)) {
+            return 0;
         }
-        $depts = $me['dept_ids'];
-    }
-
-    if (count($depts) > 0) {
-        $marks = array();
-        $types = '';
-        $values = array();
-        for ($i = 0; $i < count($depts); $i++) {
-            $marks[] = '?';
-            $types .= 'i';
-            $values[] = (int)$depts[$i];
-        }
-        $types .= 's';
-        $values[] = $actor;
         $stmt = mysqli_prepare($connect,
             "SELECT COUNT(*) FROM `tb_doc_header`
              WHERE `doc_type` = 'request' AND `status` = 'waiting'
-               AND `department_id` IN (" . implode(',', $marks) . ")
                AND (`requester` IS NULL OR `requester` <> ?)" . $kind_sql);
         if (!$stmt) { return 0; }
-        user_bind($stmt, $types, $values);
+        mysqli_stmt_bind_param($stmt, 's', $actor);
     } else {
         $stmt = mysqli_prepare($connect,
             "SELECT COUNT(*) FROM `tb_doc_header`
@@ -544,8 +505,9 @@ function request_update($doc_id, $data, $actor, $actor_role = '')
  * ============================================================ */
 function request_return($doc_id, $reason, $actor, $actor_role)
 {
-    if (!in_array($actor_role, array('super_admin', 'admin', 'approver'))) {
-        return db_fail('คุณไม่มีสิทธิ์ส่งกลับใบเบิก');
+    /* สิทธิ์เดียวกับ request_decide — คนในรายชื่อผู้อนุมัติใบเบิก */
+    if (!request_approver_can($actor)) {
+        return db_fail('คุณไม่มีสิทธิ์ส่งกลับใบเบิก — เฉพาะคนในรายชื่อผู้อนุมัติใบเบิก');
     }
 
     $doc = doc_find($doc_id);
@@ -565,15 +527,6 @@ function request_return($doc_id, $reason, $actor, $actor_role)
 
     if ($doc['requester'] === $actor) {
         return db_fail('ส่งกลับใบเบิกของตัวเองไม่ได้');
-    }
-
-    /* ผู้อนุมัติทั่วไปส่งกลับได้เฉพาะหน่วยงานของตัวเอง (เหมือน request_decide) */
-    if ($actor_role === 'approver') {
-        $me = user_find($actor);
-        if ($me === null || count($me['dept_ids']) === 0
-            || !user_has_department($actor, $doc['department_id'])) {
-            return db_fail('บัญชีของคุณไม่มีสิทธิ์กับใบเบิกของหน่วยงานนี้');
-        }
     }
 
     $reason = trim($reason);

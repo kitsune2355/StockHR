@@ -1,8 +1,8 @@
 <?php
 /* ============================================================
- *  pages/approval_settings.php — ตั้งค่าอนุมัติ
+ *  pages/approval_settings.php — ผู้อนุมัติใบปรับยอด และ ผู้อนุมัติใบเบิก (ผ่าน pages/request_approval.php)
  *
- *  กำหนดว่า "ใครกดอนุมัติใบปรับยอดสินค้าได้บ้าง" — เก็บใน tb_adjust_approver
+ *  กำหนดว่า "ใครกดอนุมัติเอกสารได้บ้าง" — ใบปรับยอด: tb_adjust_approver, ใบเบิก: tb_request_approver
  *  ใครอนุมัติได้ = เฉพาะคนในรายชื่อนี้เท่านั้น ไม่ผูกกับ role
  *  (super_admin / admin ที่ไม่ได้ถูกเลือกไว้ ก็อนุมัติไม่ได้)
  *
@@ -24,6 +24,15 @@
 
 if (!isset($sess_username)) { exit('ไม่มีสิทธิ์เข้าถึง'); }
 
+/* หน้าเดียวใช้สองรายชื่อ: pages/request_approval.php ตั้ง $approval_kind = 'request' ก่อน include
+   เปิดตรง (เมนู adjust_approval) = ผู้อนุมัติใบปรับยอดตามเดิม */
+if (!isset($approval_kind) || $approval_kind !== 'request') { $approval_kind = 'adjust'; }
+$ap_doc   = ($approval_kind === 'request') ? 'ใบเบิก' : 'ใบปรับยอด';
+$ap_title = ($approval_kind === 'request') ? 'ผู้อนุมัติใบเบิก' : 'ผู้อนุมัติใบปรับยอดสินค้า';
+$ap_scope = ($approval_kind === 'request')
+          ? 'อนุมัติ / ไม่อนุมัติ / ส่งกลับแก้ไขใบเบิกได้ทุกหน่วยงาน'
+          : 'อนุมัติใบปรับยอดได้';
+
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = md5(uniqid(mt_rand(), true));
 }
@@ -44,10 +53,10 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
       <i data-lucide="user-check" class="h-5 w-5" aria-hidden="true"></i>
     </span>
     <div class="min-w-0 flex-1">
-      <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">ผู้อนุมัติใบปรับยอดสินค้า</h2>
+      <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100"><?php echo $ap_title; ?></h2>
       <!-- จอเล็กซ่อนคำอธิบาย เหลือที่ให้รายชื่อ (ใจความเดียวกันอยู่ในแถบคำแนะนำท้ายหน้าแล้ว) -->
       <p class="mt-0.5 hidden text-sm text-slate-500 sm:block dark:text-slate-400">
-        ติ๊กชื่อทางซ้ายเพื่อเพิ่ม ตรวจรายชื่อทางขวา แล้วกดบันทึก — เฉพาะคนในรายชื่อเท่านั้นที่อนุมัติใบปรับยอดได้
+        ติ๊กชื่อทางซ้ายเพื่อเพิ่ม ตรวจรายชื่อทางขวา แล้วกดบันทึก — เฉพาะคนในรายชื่อเท่านั้นที่<?php echo $ap_scope; ?>
         ผู้ดูแลระบบที่ไม่ได้ถูกเลือกก็อนุมัติไม่ได้
       </p>
     </div>
@@ -122,7 +131,7 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
         <div class="ap-list min-h-0 flex-1 overflow-auto p-3">
           <div id="chipsEmpty" class="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
             <i data-lucide="triangle-alert" class="mt-0.5 h-4 w-4 flex-none" aria-hidden="true"></i>
-            <span>ยังไม่มีผู้อนุมัติ — ใบปรับยอดที่ยื่นเข้ามาจะค้างรอจนกว่าจะเลือกอย่างน้อย 1 คน</span>
+            <span>ยังไม่มีผู้อนุมัติ — <?php echo $ap_doc; ?>ที่ยื่นเข้ามาจะค้างรอจนกว่าจะเลือกอย่างน้อย 1 คน</span>
           </div>
           <ul id="pickList" class="space-y-1.5" role="list"></ul>
 
@@ -158,14 +167,19 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
 
   <div class="grid-hints">
     <span><i data-lucide="users" class="h-3.5 w-3.5" aria-hidden="true"></i> ตั้งได้หลายคน — ใครก็ได้ในรายชื่อกดอนุมัติได้ ไม่ต้องครบทุกคน</span>
-    <span><i data-lucide="bell" class="h-3.5 w-3.5" aria-hidden="true"></i> คนที่เลือกไว้จะได้อีเมลพร้อมลิงก์กดอนุมัติทุกครั้งที่มีใบปรับยอดใหม่</span>
+    <span><i data-lucide="bell" class="h-3.5 w-3.5" aria-hidden="true"></i> คนที่เลือกไว้จะได้อีเมลพร้อมลิงก์กดอนุมัติทุกครั้งที่มี<?php echo $ap_doc; ?>ใหม่</span>
+    <?php if ($approval_kind === 'request') { ?>
+    <span><i data-lucide="building-2" class="h-3.5 w-3.5" aria-hidden="true"></i> ไม่ขึ้นกับ "หน่วยงานที่ดูแล" ในหน้าผู้ใช้งาน — คนในรายชื่ออนุมัติได้ทุกหน่วยงาน</span>
+    <?php } ?>
   </div>
 </div>
 
 <script>
 window.APPROVAL = {
     csrfToken: <?php echo app_json($csrf_token); ?>,
-    endpoint:  'api/approval_settings.php'
+    endpoint:  'api/approval_settings.php',
+    kind:      <?php echo app_json($approval_kind); ?>,
+    docLabel:  <?php echo app_json($ap_doc); ?>
 };
 </script>
 <script src="<?php echo asset_url('assets/js/approval-settings.js', $ASSET_BASE); ?>"></script>

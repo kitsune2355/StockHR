@@ -1,7 +1,7 @@
 /* ============================================================
- *  approval-settings.js — หน้า "ตั้งค่าอนุมัติ"
+ *  approval-settings.js — หน้า "ผู้อนุมัติใบเบิก" และ "ผู้อนุมัติใบปรับยอด"
  *
- *  จัดการรายชื่อผู้อนุมัติใบปรับยอด (tb_adjust_approver) แบบทั้งชุด
+ *  จัดการรายชื่อผู้อนุมัติแบบทั้งชุด — CFG.kind: 'request' (tb_request_approver) | 'adjust' (tb_adjust_approver)
  *
  *    ซ้าย  ผู้ใช้ทั้งหมด — ช่องติ๊กอยู่ติดชื่อ กดได้ทั้งแถว (ไม่ต้องเล็งสวิตช์ที่ขอบขวาจอ)
  *    ขวา   รายชื่อหลังบันทึก — คนที่เพิ่งเพิ่มมีป้าย "เพิ่มใหม่"
@@ -247,7 +247,7 @@
         if (c.removed.length) { lines.push('เอาออก: ' + names(c.removed)); }
         lines.push('หลังบันทึกจะมีผู้อนุมัติ ' + total + ' คน');
         if (total === 0) {
-            lines.push('ไม่มีผู้อนุมัติเลย ใบปรับยอดที่ยื่นเข้ามาจะค้างรอจนกว่าจะเลือกใหม่');
+            lines.push('ไม่มีผู้อนุมัติเลย ' + (CFG.docLabel || 'เอกสาร') + 'ที่ยื่นเข้ามาจะค้างรอจนกว่าจะเลือกใหม่');
         }
 
         var go = function (yes) {
@@ -261,7 +261,7 @@
         for (var i = 0; i < lines.length; i++) { html += '<div>' + esc(lines[i]) + '</div>'; }
         html += '</div>';
 
-        var opts = { title: 'บันทึกรายชื่อผู้อนุมัติ?', html: html, confirmText: 'บันทึก' };
+        var opts = { title: 'บันทึกรายชื่อผู้อนุมัติ' + (CFG.docLabel || '') + '?', html: html, confirmText: 'บันทึก' };
         if (total === 0 && typeof window.appConfirmDanger === 'function') {
             window.appConfirmDanger(opts).then(go);
         } else if (typeof window.appConfirm === 'function') {
@@ -275,7 +275,7 @@
         var list = pickedList().map(function (u) { return u.username; });
 
         busy(true);
-        post({ action: 'save', csrf_token: CFG.csrfToken, usernames: list }, function (res) {
+        post({ action: 'save', kind: CFG.kind, csrf_token: CFG.csrfToken, usernames: list }, function (res) {
             busy(false);
             if (!res || !res.ok) {
                 if (window.appError) { window.appError((res && res.message) || 'บันทึกไม่สำเร็จ', 'บันทึกไม่สำเร็จ'); }
@@ -359,7 +359,7 @@
             }
         } catch (e) {}
 
-        post({ action: 'bootstrap' }, function (res) {
+        post({ action: 'bootstrap', kind: CFG.kind }, function (res) {
             if (!res || !res.ok) {
                 el('loading').textContent = (res && res.message) ? res.message : 'โหลดข้อมูลไม่สำเร็จ';
                 return;

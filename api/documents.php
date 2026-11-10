@@ -223,7 +223,7 @@ if ($action === 'list') {
         }
         $scope = array();
     } else {
-        $scope = doc_scope_for($actor, $actor_role);
+        $scope = doc_scope_for($actor, $actor_role, $doc_type);
     }
     foreach ($scope as $k => $v) {
         $options[$k] = $v;
@@ -314,12 +314,12 @@ if ($action === 'get') {
        ตารางอาจยังไม่มีในระบบเก่า — doc_history() คืน array() เปล่าเอง ไม่ error */
     $doc['history'] = doc_history($doc['doc_id']);
 
-    /* ใบเบิกที่ยังรออนุมัติ: แนบรายชื่อผู้อนุมัติของหน่วยงาน ให้กล่องรายละเอียด
-       บอกได้ว่า "ใบนี้รอใครพิจารณา" (backend/user.php มาแล้วผ่าน request.php) */
+    /* ใบเบิกที่ยังรออนุมัติ: แนบรายชื่อผู้อนุมัติใบเบิก (ตัดผู้ขอออก) ให้กล่องรายละเอียด
+       บอกได้ว่า "ใบนี้รอใครพิจารณา" — ชื่อคีย์ dept_approvers คงไว้ให้หน้าเว็บเดิม */
     $doc['dept_approvers'] = array();
     if ($doc['doc_type'] === 'request'
         && $doc['status'] === 'waiting' && $doc['approved_by'] === '') {
-        $doc['dept_approvers'] = user_approver_names_for_dept($doc['department_id']);
+        $doc['dept_approvers'] = doc_approver_names('request', $doc['requester']);
     }
 
     api_ok(array('doc' => $doc));
@@ -515,7 +515,7 @@ if ($action === 'export_lines') {
         }
         $scope = array();
     } else {
-        $scope = doc_scope_for($actor, $actor_role);
+        $scope = doc_scope_for($actor, $actor_role, $doc_type);
     }
     foreach ($scope as $k => $v) {
         $opts[$k] = $v;
@@ -660,12 +660,9 @@ if ($action === 'approve_link') {
 
     /* ใบปรับยอด: ผู้รับลิงก์ = คนในรายชื่อผู้อนุมัติ ถ้ายังว่างต้องบอกให้ชัดว่าต้องไปตั้งก่อน
        ไม่งั้นจะไปรวมกับกรณี site_url ไม่ได้ตั้ง ซึ่งคนละเรื่องกัน */
-    if ($doc['doc_type'] === 'adjust') {
-        require_once dirname(dirname(__FILE__)) . '/backend/adjust_approver.php';
-        if (count(adjust_approver_usernames()) === 0) {
-            api_fail('ยังไม่ได้ตั้งผู้อนุมัติใบปรับยอด — ไปที่เมนู "ตั้งค่าระบบ › ตั้งค่าอนุมัติ" '
-                   . 'แล้วเลือกผู้อนุมัติอย่างน้อย 1 คนก่อน');
-        }
+    if (count(doc_approver_usernames($doc['doc_type'])) === 0) {
+        api_fail('ยังไม่ได้ตั้งผู้อนุมัติ' . $doc['doc_type_label'] . ' — ไปที่เมนู "ตั้งค่าระบบ › ผู้อนุมัติ'
+               . doc_approver_label($doc['doc_type']) . '" แล้วเลือกผู้อนุมัติอย่างน้อย 1 คนก่อน');
     }
 
     $links = approve_link_all($doc['doc_id'], $actor);
@@ -702,6 +699,10 @@ if ($action === 'resend_mail') {
     if ($doc['doc_type'] === 'request') {
 
         if ($doc['status'] === 'waiting') {
+            if (count(doc_approver_usernames('request')) === 0) {
+                api_fail('ยังไม่ได้ตั้งผู้อนุมัติใบเบิก — ไปที่เมนู "ตั้งค่าระบบ › ผู้อนุมัติใบเบิก" '
+                       . 'แล้วเลือกผู้อนุมัติอย่างน้อย 1 คนก่อน');
+            }
             $sent = notify_event_request_submitted($doc['doc_id'], '');
             $what = 'แจ้งผู้อนุมัติว่ามีใบเบิกรอพิจารณา';
 
@@ -724,7 +725,7 @@ if ($action === 'resend_mail') {
         if ($doc['status'] === 'waiting') {
             require_once dirname(dirname(__FILE__)) . '/backend/adjust_approver.php';
             if (count(adjust_approver_usernames()) === 0) {
-                api_fail('ยังไม่ได้ตั้งผู้อนุมัติใบปรับยอด — ไปที่เมนู "ตั้งค่าระบบ › ตั้งค่าอนุมัติ" '
+                api_fail('ยังไม่ได้ตั้งผู้อนุมัติใบปรับยอด — ไปที่เมนู "ตั้งค่าระบบ › ผู้อนุมัติใบปรับยอด" '
                        . 'แล้วเลือกผู้อนุมัติอย่างน้อย 1 คนก่อน');
             }
             /* ส่งซ้ำ = ออกลิงก์อนุมัติชุดใหม่ให้ผู้อนุมัติทุกคน (ลิงก์เดิมถูกเขียนทับ) */

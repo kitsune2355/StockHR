@@ -144,23 +144,15 @@ function dashboard_my_tasks($username, $role, $limit = 6)
     $tasks = array();
 
     /* ---------- ใบเบิกที่รอเราอนุมัติ ---------- */
-    if (dashboard_is_staff($role)) {
+    /* เฉพาะคนในรายชื่อผู้อนุมัติใบเบิก (อนุมัติได้ทุกหน่วยงาน) — กฎเดียวกับ request_decide */
+    if (request_approver_can($username)) {
         $rows = doc_list(array('doc_type' => 'request', 'status' => 'waiting', 'limit' => 50));
-
-        $my_depts = array();
-        if ($role === 'approver') {
-            $me = user_find($username);
-            $my_depts = ($me === null) ? array() : $me['dept_ids'];
-        }
 
         for ($i = 0; $i < count($rows); $i++) {
             $r = $rows[$i];
 
             /* ใบของตัวเองอนุมัติไม่ได้ ไม่ต้องเอามาขึ้นรายการให้เก้อ */
             if ($r['requester'] === $username) { continue; }
-
-            /* ผู้อนุมัติเห็นเฉพาะหน่วยงานตัวเอง — กฎเดียวกับ request_decide */
-            if ($role === 'approver' && !in_array((int)$r['department_id'], $my_depts)) { continue; }
 
             $dept_name = $r['department_name'] !== '' ? $r['department_name'] : 'ไม่ระบุหน่วยงาน';
             $ns        = !empty($r['is_new_staff']);
@@ -630,7 +622,7 @@ function dashboard_new_staff($username, $role, $limit = 6)
     $review_days = 30;
 
     $opts = array('doc_type' => 'request', 'new_staff_only' => true, 'limit' => 500);
-    foreach (doc_scope_for($username, $role) as $k => $v) { $opts[$k] = $v; }
+    foreach (doc_scope_for($username, $role, 'request') as $k => $v) { $opts[$k] = $v; }
     $rows = doc_list($opts);
 
     $today       = date('Y-m-d');

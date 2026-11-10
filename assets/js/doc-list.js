@@ -102,6 +102,11 @@
   function isApprover() {
     return isManager() || ROLE === "approver";
   }
+  /* อนุมัติ/ไม่อนุมัติ/ส่งกลับใบเบิก — เฉพาะคนในรายชื่อผู้อนุมัติใบเบิก (ไม่ดู role)
+     ตรงกับ request_approver_can() ฝั่งเซิร์ฟเวอร์ */
+  function isRequestApprover() {
+    return CFG.requestApprover === true;
+  }
 
   function post(payload, done, fail) {
     var xhr = new XMLHttpRequest();
@@ -360,7 +365,7 @@
         });
       }
       /* อนุมัติได้เมื่อ: รออนุมัติ + เป็นผู้อนุมัติ + ไม่ใช่ใบของตัวเอง */
-      if (doc.status === "waiting" && isApprover() && doc.requester !== ME) {
+      if (doc.status === "waiting" && isRequestApprover() && doc.requester !== ME) {
         out.push({
           key: "approve",
           label: "อนุมัติ",
@@ -380,7 +385,7 @@
       /* ใบพนักงานใหม่ส่งกลับไม่ได้ — ผู้ทำเบิกแก้ใบประเภทนี้ไม่ได้ ใบจะค้างที่ "รออนุมัติ"
          ต้องยกเลิกแล้วทำใหม่แทน (backend บล็อกซ้ำใน request_return) */
       if ((doc.status === "approved" || demo) && !doc.is_new_staff && !doc.is_welfare
-          && isApprover() && doc.requester !== ME) {
+          && isRequestApprover() && doc.requester !== ME) {
         out.push({
           key: "sendback",
           label: "ส่งกลับแก้ไข",
@@ -1292,7 +1297,7 @@
     meta += line("ผู้บันทึก", doc.created_by);
     meta += line("เวลาบันทึก", dt(doc.created_at));
     /* ผู้อนุมัติ กับ เวลาอนุมัติ แยกกันคนละบรรทัด (เหมือนผู้ขอเบิก/เวลาบันทึก)
-       ใบเบิกโชว์ทุกสถานะ — ยังรออนุมัติก็บอกว่ารอใครของหน่วยงานพิจารณา */
+       ใบเบิกโชว์ทุกสถานะ — ยังรออนุมัติก็บอกว่ารอใครพิจารณา (รายชื่อผู้อนุมัติใบเบิก) */
     if (doc.doc_type === "request") {
       meta += line(
         "ผู้อนุมัติ",
@@ -1300,7 +1305,7 @@
           ? doc.approved_by_name || doc.approved_by
           : doc.dept_approvers && doc.dept_approvers.length
             ? doc.dept_approvers.join(", ")
-            : "— ยังไม่ได้กำหนดผู้อนุมัติของหน่วยงานนี้ —",
+            : "— ยังไม่ได้ตั้งผู้อนุมัติใบเบิก —",
       );
       meta += line("เวลาอนุมัติ", doc.approved_at ? dt(doc.approved_at) : "—");
     } else {
@@ -2477,7 +2482,7 @@
     return (
       doc.doc_type === "request" &&
       doc.status === "waiting" &&
-      isApprover() &&
+      isRequestApprover() &&
       doc.requester !== ME
     );
   }

@@ -103,7 +103,7 @@ $APP_NAV = array(
 
                บันทึกปรับยอด: สร้างใบได้เฉพาะ $ROLE_ADMIN (บังคับที่ api/adjust.php)
                ประวัติ/อนุมัติ: เปิดถึง approver ด้วย เพราะผู้อนุมัติที่ตั้งไว้ในหน้า
-                 "ตั้งค่าอนุมัติ" อาจเป็น role approver — ตัวกรองสิทธิ์จริงคือ
+                 "ผู้อนุมัติใบปรับยอด" อาจเป็น role approver — ตัวกรองสิทธิ์จริงคือ
                  adjust_approver_can() ที่ api/documents.php (ผู้อนุมัติที่เป็น role
                  general เข้าหน้านี้ผ่านลิงก์ในกระดิ่งแจ้งเตือน) */
             array('key' => 'stock_adjust', 'title' => 'ปรับยอดสินค้า', 'icon' => 'scale',
@@ -173,10 +173,13 @@ $APP_NAV = array(
                 array('key' => 'print_settings', 'title' => 'เอกสารพิมพ์', 'icon' => 'printer', 'roles' => $ROLE_SUPER, 'file' => 'pages/print_settings.php', 'full' => true),
             )),
 
-            /* กำหนดรายชื่อคนที่อนุมัติใบปรับยอดสินค้าได้ (นอกจาก super_admin/admin ที่อนุมัติได้เสมอ)
-               ตั้งได้หลายคน เก็บใน tb_adjust_approver — จำกัดที่ $ROLE_ADMIN ให้ตรงกับ
-               สิทธิ์ที่ api/approval_settings.php บังคับ */
-            array('key' => 'adjust_approval', 'title' => 'ตั้งค่าอนุมัติ', 'icon' => 'shield-check',
+            /* รายชื่อคนที่อนุมัติเอกสารได้ — หน้าเดียวกัน แยกประเภทด้วย $approval_kind
+               ใบเบิก -> tb_request_approver, ใบปรับยอด -> tb_adjust_approver (backend/doc_approver.php)
+               ใครอนุมัติได้ = เฉพาะคนในรายชื่อ ไม่ผูกกับ role/หน่วยงาน
+               จำกัดที่ $ROLE_ADMIN ให้ตรงกับสิทธิ์ที่ api/approval_settings.php บังคับ */
+            array('key' => 'request_approval', 'title' => 'ผู้อนุมัติใบเบิก', 'icon' => 'user-check',
+                  'roles' => $ROLE_ADMIN, 'file' => 'pages/request_approval.php', 'full' => true),
+            array('key' => 'adjust_approval', 'title' => 'ผู้อนุมัติใบปรับยอด', 'icon' => 'shield-check',
                   'roles' => $ROLE_ADMIN, 'file' => 'pages/approval_settings.php', 'full' => true),
 
             /* เมนู "อุปกรณ์พนักงานใหม่" (new_staff_kit) ถูกเอาออก — ตั้งค่าที่ระบบสวัสดิการแล้ว

@@ -378,15 +378,8 @@ function user_validate($data, $is_new)
         return 'กรุณาเลือกสิทธิ์การใช้งาน';
     }
 
-    /* ผู้อนุมัติต้องมีหน่วยงาน เพราะขอบเขตการอนุมัติผูกกับหน่วยงาน
-       ถ้าไม่มี จะกลายเป็นบัญชีที่กดอนุมัติอะไรไม่ได้เลยแต่ดูเหมือนมีสิทธิ์
-       (ผู้ดูแลระบบไม่ต้องมี เพราะอนุมัติข้ามหน่วยงานได้อยู่แล้ว) */
-    $dept_ids = isset($data['dept_ids']) && is_array($data['dept_ids']) ? $data['dept_ids'] : array();
-    $dept_id = isset($data['dept_id']) ? (int)$data['dept_id'] : 0;
-    if (count($dept_ids) === 0 && $dept_id > 0) { $dept_ids = array($dept_id); }
-    if ($role === 'approver' && count($dept_ids) === 0) {
-        return 'ผู้อนุมัติต้องระบุหน่วยงาน เพราะอนุมัติได้เฉพาะใบเบิกของหน่วยงานตัวเอง';
-    }
+    /* ไม่บังคับหน่วยงานของ role approver แล้ว — สิทธิ์อนุมัติใบเบิกย้ายไปเป็นรายชื่อเฉพาะ
+       (เมนู "ผู้อนุมัติใบเบิก", sql/088) หน่วยงานที่ดูแลเหลือไว้กำหนดว่าเห็นใบเบิกของหน่วยงานไหน */
 
     /* รหัสผ่านไม่บังคับกรอกแล้ว
        บัญชีใหม่ที่ไม่ได้ระบุมา จะได้รหัสผ่านตั้งต้น USER_DEFAULT_PASSWORD
@@ -752,87 +745,8 @@ function user_toggle($username, $actor, $actor_role)
  *  ใครควรได้รับแจ้งเตือน
  * ============================================================ */
 
-/* ---------- คนที่กดอนุมัติใบเบิกของหน่วยงานนี้ได้จริง ----------
- * ใช้ตอนมีใบเบิกใหม่เข้ามา เพื่อรู้ว่าต้องเตือนใครบ้าง
- *
- * ลำดับการหา:
- *   1. ผู้อนุมัติที่สังกัดหน่วยงานนั้น — คนกลุ่มนี้คือเจ้าของงานตัวจริง
- *   2. ไม่มีสักคน จึงถอยไปหาผู้ดูแลระบบ
- *
- * ข้อ 2 สำคัญ ไม่ใช่ของแถม: หน่วยงานที่ยังไม่ได้ตั้งผู้อนุมัติจะมีใบเบิก
- * ค้างอยู่โดยไม่มีใครรู้เลยว่ามีของค้าง ผู้ขอก็ได้แต่รอ ระบบต้องไม่เงียบ
- *
- * ไม่แจ้งคนที่ทำรายการเอง (ผู้อนุมัติทำใบเบิกของตัวเองได้ แต่อนุมัติเองไม่ได้)
- * คืนเฉพาะบัญชีที่ยังเปิดใช้งาน — คนที่ถูกปิดบัญชีเข้าระบบไม่ได้อยู่แล้ว
- */
-function user_approvers_for_dept($dept_id, $exclude = '')
-{
-    $dept_id = (int)$dept_id;
-    $connect = db_connect();
-
-    $rows = array();
-
-    if ($dept_id > 0) {
-        $stmt = mysqli_prepare($connect,
-            "SELECT u.`username`, u.`full_name`, u.`email`
-             FROM `tb_user` u
-             INNER JOIN `tb_user_department` ud ON ud.`username` = u.`username`
-             WHERE u.`role` = 'approver' AND u.`is_active` = 1 AND ud.`department_id` = ?
-             ORDER BY u.`username` ASC");
-        if ($stmt) {
-            mysqli_stmt_bind_param($stmt, 'i', $dept_id);
-            mysqli_stmt_execute($stmt);
-            mysqli_stmt_bind_result($stmt, $u, $fn, $em);
-            while (mysqli_stmt_fetch($stmt)) {
-                if ($u === $exclude) { continue; }
-                $rows[] = array('username' => $u, 'full_name' => $fn, 'email' => $em);
-            }
-            mysqli_stmt_close($stmt);
-        }
-    }
-
-    if (count($rows) > 0) {
-        return $rows;
-    }
-
-    return user_admins($exclude);
-}
-
-
-/* ---------- ชื่อผู้อนุมัติของหน่วยงาน (ไว้โชว์ในกล่องรายละเอียดใบเบิกที่ยังรออนุมัติ) ----------
- * เอาเฉพาะ role approver ที่ผูกกับหน่วยงานนี้และยังเปิดบัญชีอยู่ — ไม่ถอยไปหาผู้ดูแลระบบ
- * เพราะตรงนี้ใช้บอก "ใบนี้รอใครพิจารณา" ไม่ใช่ "แจ้งเตือนไปหาใคร"
- * คืนเป็นรายชื่อล้วน (ชื่อ-นามสกุล ถ้าไม่มีค่อยใช้ username)
- */
-function user_approver_names_for_dept($dept_id)
-{
-    $dept_id = (int)$dept_id;
-    if ($dept_id <= 0) { return array(); }
-
-    $connect = db_connect();
-    $out     = array();
-
-    $stmt = mysqli_prepare($connect,
-        "SELECT u.`username`, u.`full_name`
-         FROM `tb_user` u
-         INNER JOIN `tb_user_department` ud ON ud.`username` = u.`username`
-         WHERE u.`role` = 'approver' AND u.`is_active` = 1 AND ud.`department_id` = ?
-         ORDER BY u.`full_name` ASC, u.`username` ASC");
-    if ($stmt) {
-        mysqli_stmt_bind_param($stmt, 'i', $dept_id);
-        mysqli_stmt_execute($stmt);
-        mysqli_stmt_bind_result($stmt, $u, $fn);
-        while (mysqli_stmt_fetch($stmt)) {
-            $out[] = ($fn !== null && trim($fn) !== '') ? $fn : $u;
-        }
-        mysqli_stmt_close($stmt);
-    }
-    return $out;
-}
-
-
 /* ---------- ผู้ดูแลระบบทั้งหมดที่ยังใช้งานอยู่ ----------
- * ใช้เป็นปลายทางสำรองเมื่อไม่มีผู้อนุมัติของหน่วยงาน
+ * ใช้กับแจ้งเตือนที่ต้องถึงผู้ดูแลระบบ
  * และใช้กับแจ้งเตือนระดับระบบที่ไม่มีเจ้าของชัดเจน
  */
 function user_admins($exclude = '')

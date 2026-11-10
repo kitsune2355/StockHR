@@ -99,9 +99,13 @@ require_once dirname(__FILE__) . '/backend/issue.php';
 require_once dirname(__FILE__) . '/backend/adjust.php';
 
 if (in_array($sess_role, array('super_admin', 'admin', 'approver'))) {
-    /* "รายการใบเบิก" แสดงทุกใบ (รวมใบพนักงานใหม่) ตัวเลขจึงนับทุกใบด้วย */
-    app_set_badge('request_list', request_waiting_count($sess_username, $sess_role, ''), 'amber');
     app_set_badge('report_low',   stock_low_count(),       'red');
+}
+
+/* ใบเบิกที่รออนุมัติ — เฉพาะคนในรายชื่อผู้อนุมัติใบเบิก (ไม่ดู role)
+   "รายการใบเบิก" แสดงทุกใบ (รวมใบพนักงานใหม่) ตัวเลขจึงนับทุกใบด้วย */
+if (request_approver_can($sess_username)) {
+    app_set_badge('request_list', request_waiting_count($sess_username, $sess_role, ''), 'amber');
 }
 
 /* ใบปรับยอดที่รออนุมัติ — เห็นเฉพาะคนที่อนุมัติได้ (ผู้ดูแลระบบ หรือคนในรายชื่อผู้อนุมัติ) */

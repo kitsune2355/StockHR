@@ -1,19 +1,19 @@
 <?php
 /* ============================================================
- *  api/approval_settings.php — endpoint หน้า "ตั้งค่าอนุมัติ"
+ *  api/approval_settings.php — endpoint หน้า "ผู้อนุมัติใบเบิก" และ "ผู้อนุมัติใบปรับยอด"
  *
- *    { "action": "bootstrap" }
- *        รายชื่อผู้ใช้ที่เปิดใช้งานทั้งหมด + รายชื่อที่เป็นผู้อนุมัติใบปรับยอดอยู่ตอนนี้
+ *    { "action": "bootstrap", "kind": "request|adjust" }
+ *        รายชื่อผู้ใช้ที่เปิดใช้งานทั้งหมด + รายชื่อผู้อนุมัติของประเภทนั้นตอนนี้
  *
- *    { "action": "save", "csrf_token": "...", "usernames": ["a","b"] }
+ *    { "action": "save", "kind": "request|adjust", "csrf_token": "...", "usernames": ["a","b"] }
  *        แทนที่รายชื่อผู้อนุมัติทั้งชุด
  *
  *  เฉพาะ super_admin / admin
- *  ไม่มี SQL ในไฟล์นี้ — เรียกผ่าน backend/adjust_approver.php กับ backend/user.php
+ *  ไม่มี SQL ในไฟล์นี้ — เรียกผ่าน backend/doc_approver.php กับ backend/user.php
  * ============================================================ */
 
 require_once dirname(__FILE__) . '/_bootstrap.php';
-require_once dirname(dirname(__FILE__)) . '/backend/adjust_approver.php';
+require_once dirname(dirname(__FILE__)) . '/backend/doc_approver.php';
 require_once dirname(dirname(__FILE__)) . '/backend/user.php';
 
 api_require_post();
@@ -22,6 +22,9 @@ api_require_role(array('super_admin', 'admin'));
 
 $input  = api_input();
 $action = isset($input['action']) ? $input['action'] : '';
+
+/* ประเภทเอกสาร: 'request' = ผู้อนุมัติใบเบิก, 'adjust' = ผู้อนุมัติใบปรับยอด (ค่าเดิมของหน้านี้) */
+$kind = (isset($input['kind']) && $input['kind'] === 'request') ? 'request' : 'adjust';
 
 
 if ($action === 'bootstrap') {
@@ -42,7 +45,7 @@ if ($action === 'bootstrap') {
 
     api_ok(array(
         'users'   => $users,
-        'current' => adjust_approver_usernames()
+        'current' => doc_approver_usernames($kind)
     ));
 }
 
@@ -54,7 +57,7 @@ if ($action === 'save') {
     $usernames = isset($input['usernames']) && is_array($input['usernames'])
                  ? $input['usernames'] : array();
 
-    $res = adjust_approver_save($usernames, $actor);
+    $res = doc_approver_save($kind, $usernames, $actor);
     if (!$res['ok']) {
         api_fail($res['message']);
     }

@@ -357,7 +357,7 @@ function approve_link_all($doc_id, $actor = null)
             }
         }
     } elseif ($doc['doc_type'] === 'request') {
-        $people = user_approvers_for_dept($doc['department_id'], $doc['requester']);
+        $people = doc_approver_people('request', $doc['requester']);
     } else {
         return array();
     }

@@ -282,7 +282,7 @@ function notify_person($username)
 
 /* ============================================================
  *  เหตุการณ์ที่ 1 — ผู้ขอส่งใบเบิกเข้ามา
- *  ปลายทาง: ผู้อนุมัติของหน่วยงานนั้น (ไม่มีก็ถอยไปหาผู้ดูแลระบบ)
+ *  ปลายทาง: รายชื่อผู้อนุมัติใบเบิก (เมนู "ผู้อนุมัติใบเบิก") ตัดคนยื่นออก — ว่าง = ไม่ส่ง
  * ============================================================ */
 function notify_event_request_submitted($doc_id, $actor)
 {
@@ -294,7 +294,7 @@ function notify_event_request_submitted($doc_id, $actor)
     $doc = doc_find($doc_id);
     if ($doc === null || $doc['doc_type'] !== 'request') { return 0; }
 
-    $people = user_approvers_for_dept($doc['department_id'], $actor);
+    $people = doc_approver_people('request', $actor);
     if (count($people) === 0) { return 0; }
 
     $who     = ($doc['requester_name'] !== '') ? $doc['requester_name'] : $doc['requester'];
@@ -436,7 +436,7 @@ function notify_event_request_decided($doc_id, $decision, $reason, $actor)
 
 /* ============================================================
  *  เหตุการณ์ที่ 2ก — ผู้ทำเบิกแก้ไขใบที่ยัง "รออนุมัติ" แล้วยื่นใหม่
- *  ปลายทาง: ผู้อนุมัติของหน่วยงาน (มีกุญแจอนุมัติในเมลชุดใหม่ ของเดิมถูกเผาแล้ว)
+ *  ปลายทาง: รายชื่อผู้อนุมัติใบเบิก (มีกุญแจอนุมัติในเมลชุดใหม่ ของเดิมถูกเผาแล้ว)
  * ============================================================ */
 function notify_event_request_edited($doc_id, $actor)
 {
@@ -447,7 +447,7 @@ function notify_event_request_edited($doc_id, $actor)
     $doc = doc_find($doc_id);
     if ($doc === null || $doc['doc_type'] !== 'request') { return 0; }
 
-    $people = user_approvers_for_dept($doc['department_id'], $actor);
+    $people = doc_approver_people('request', $actor);
     if (count($people) === 0) { return 0; }
 
     $who     = ($doc['requester_name'] !== '') ? $doc['requester_name'] : $doc['requester'];
@@ -901,7 +901,7 @@ function notify_event_doc_cancelled($doc_id, $reason, $actor)
     $is_request = ($doc['doc_type'] === 'request');
 
     if ($is_request && $doc['requester'] === $actor) {
-        $people    = user_approvers_for_dept($doc['department_id'], $actor);
+        $people    = doc_approver_people('request', $actor);
         $link_page = notify_request_page($doc);
         $lead      = '<p>ผู้ขอเบิกยกเลิกใบนี้เอง ไม่ต้องพิจารณาแล้ว</p>';
     } else {

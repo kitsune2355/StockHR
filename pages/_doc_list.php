@@ -43,7 +43,10 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
 
 /* ผู้ใช้ทั่วไปเห็นได้เฉพาะใบของตัวเองอยู่แล้ว จึงไม่ต้องมีช่อง "เฉพาะของฉัน"
    ให้สับสน (api/documents.php บังคับเงื่อนไขนี้ ไม่ได้เชื่อค่าจากหน้าจอ) */
-$can_see_all = in_array($sess_role, array('super_admin', 'admin', 'approver'));
+/* คนในรายชื่อผู้อนุมัติใบเบิกเห็นใบเบิกทุกใบ (ดู doc_scope_for) แม้เป็น role general */
+$is_request_approver = request_approver_can($sess_username);
+$can_see_all = in_array($sess_role, array('super_admin', 'admin', 'approver'))
+               || ($doc_type === 'request' && $is_request_approver);
 
 $all_status = doc_statuses();
 
@@ -62,7 +65,8 @@ $filter_hint = 'กรองจากเอกสารทั้งหมดข�
    ตาราง + แผงรายละเอียดด้านขวา คลิกแถวแล้วดูรายละเอียดและอนุมัติได้ในหน้าเดียว
    ตัวกรองย่อเป็นปุ่มเปิดด้านข้าง เพราะสามคอลัมน์ ตารางจะเหลือที่ไม่พอ
    (จอแคบกว่า 1024px ไม่มีแผง ใช้กล่องรายละเอียดเดิม — ดู reviewOn() ใน doc-list.js) */
-$review_mode     = ($doc_type === 'request' && in_array($sess_role, array('super_admin', 'admin', 'approver')));
+$review_mode     = ($doc_type === 'request'
+                   && (in_array($sess_role, array('super_admin', 'admin', 'approver')) || $is_request_approver));
 $fp_layout_class = $review_mode ? 'is-review' : '';
 
 include dirname(__FILE__) . '/_filter_head.php';
@@ -276,6 +280,8 @@ window.DOCLIST = {
     role:       <?php echo dl_json($sess_role); ?>,
     /* ใช้เฉพาะ docType='adjust' — คนนี้กดอนุมัติ/ไม่อนุมัติใบปรับยอดได้ไหม */
     adjustApprover: <?php echo dl_json(adjust_approver_can($sess_username, $sess_role)); ?>,
+    /* ใช้เฉพาะ docType='request' — อยู่ในรายชื่อผู้อนุมัติใบเบิก (อนุมัติ/ไม่อนุมัติ/ส่งกลับได้) */
+    requestApprover: <?php echo dl_json($is_request_approver); ?>,
     exportName: <?php echo dl_json($export_name); ?>,
     /* 'new_staff' = เฉพาะใบพนักงานใหม่ (new_staff_list.php), 'general' = เฉพาะใบปกติ (request_list.php), '' = ทุกใบ */
     kind:       <?php echo dl_json(isset($list_kind) ? $list_kind : ''); ?>,
