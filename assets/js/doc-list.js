@@ -426,7 +426,7 @@
       if (doc.status === "issued" && (doc.requester === ME || isManager())) {
         out.push({
           key: "ack",
-          label: "เซ็นรับของ (เปิดหน้าเอกสาร)",
+          label: "เซ็นรับของ",
           icon: "pen-line",
           tone: "ok",
         });
@@ -2025,10 +2025,12 @@
         action: "sign_link",
         csrf_token: CFG.csrfToken,
         doc_id: doc.doc_id,
+        need_url: mode === "open" ? undefined : 1,   // คัดลอกส่งต่อต้องเป็นลิงก์เต็ม (site_url)
       },
       function (res) {
         if (mode === "open") {
-          window.open(res.url, "_blank", "noopener");
+          /* เปิดบนเครื่องเดียวกับที่ใช้อยู่ (path) — เข้าด้วย IP ก็เปิดได้ ไม่ขึ้นกับ site_url */
+          window.open(res.path || res.url, "_blank", "noopener");
           return;
         }
 
@@ -3171,15 +3173,33 @@
   }
 
   /* ---------- เซ็นรับของ ----------
-   * ไม่มีกล่องเซ็นในหน้านี้แล้ว — เปิดหน้าเอกสาร (print_doc.php) ในแท็บใหม่
-   * ผู้รับตรวจรายการบนตัวเอกสารจริง แล้วเซ็นในแผงด้านบนกระดาษ ลายเซ็นลงช่องผู้รับของทันที
-   * เซ็นเสร็จ หน้าเอกสารส่งข้อความ doc-signed กลับมา ตารางนี้โหลดใหม่ให้เอง (ดู init)
+   * ไอคอนปากกาพาไปหน้า sign.php — หน้าเดียวกับลิงก์เซ็นรับในอีเมล
+   * (รายการของ + เงื่อนไขเอกสารรับชุด + ผืนเซ็น) ทุกคนเซ็นที่เดียวกัน หน้าตาเหมือนกัน
+   * sign.php ต้องใช้กุญแจ จึงขอผ่าน action sign_link ก่อน (ผู้ขอเบิกของใบ / ผู้ดูแลระบบ)
+   * เปิดแท็บเปล่ารอไว้ก่อนยิงคำขอ — window.open หลังรอคำตอบจะโดนตัวกันป๊อปอัพบล็อก
+   * เซ็นเสร็จ sign.php แจ้งกลับ (postMessage doc-signed) ตารางนี้โหลดใหม่เอง (ดู init)
    */
   function acknowledge() {
     if (!openDoc || openDoc._demo) {
       return;
     }
-    window.open("print_doc.php?doc_id=" + openDoc.doc_id + "&sign=1", "_blank");   // sign=1 = กางแผงเซ็นให้เลย
+    var w = window.open("", "_blank");
+    post(
+      { action: "sign_link", csrf_token: CFG.csrfToken, doc_id: openDoc.doc_id },
+      function (res) {
+        if (w) {
+          w.location.href = res.path;
+        } else {
+          window.location.href = res.path;   // เบราว์เซอร์บล็อกแท็บใหม่ — เปิดในแท็บนี้แทน
+        }
+      },
+      function (message) {
+        if (w) {
+          w.close();
+        }
+        bad(message);
+      },
+    );
   }
 
   /* ---------- ยกเลิกเอกสาร ---------- */

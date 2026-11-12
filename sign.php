@@ -564,5 +564,16 @@ input[type=text]:focus {
 }());
 </script>
 <?php } ?>
+<?php if ($done && $doc !== null) { ?>
+<script>
+/* เปิดมาจากไอคอนปากกาในหน้าประวัติการจ่ายออก — บอกแท็บนั้นให้โหลดตารางใหม่
+   เปิดจากอีเมลไม่มี opener ก็ไม่ทำอะไร */
+try {
+    if (window.opener && window.opener.postMessage) {
+        window.opener.postMessage({ type: 'doc-signed', doc_id: <?php echo (int)$doc['doc_id']; ?> }, window.location.origin);
+    }
+} catch (e) {}
+</script>
+<?php } ?>
 </body>
 </html>

@@ -636,7 +636,6 @@ if ($action === 'export_lines') {
 if ($action === 'sign_link') {
 
     api_require_csrf($input);
-    api_require_role(array('super_admin', 'admin'));
 
     require_once dirname(dirname(__FILE__)) . '/backend/sign_link.php';
 
@@ -644,8 +643,22 @@ if ($action === 'sign_link') {
     if ($doc === null)                { api_fail('ไม่พบเอกสารที่ต้องการ'); }
     if ($doc['doc_type'] !== 'issue') { api_fail('ลิงก์เซ็นรับของมีเฉพาะใบจ่ายเท่านั้น'); }
 
-    $url = sign_link_for($doc['doc_id'], $actor);
-    if ($url === '') {
+    /* ผู้ดูแลระบบ: ขอลิงก์ได้ทุกใบ (คัดลอกส่งให้ผู้เบิก / เปิดดูหน้าเซ็น)
+       ผู้ขอเบิกของใบนั้น: ขอได้เฉพาะตอนใบยังรอเซ็น — ไอคอนปากกาในหน้าประวัติการจ่ายออก
+       พาไปเซ็นที่ sign.php (หน้าเดียวกับลิงก์ในอีเมล) ไม่ใช่ทางให้เอาลิงก์ไปแจกคนอื่น */
+    $is_manager = in_array($actor_role, array('super_admin', 'admin'));
+    $is_owner   = ($doc['requester'] !== '' && $doc['requester'] === $actor);
+    if (!$is_manager && !($is_owner && $doc['status'] === 'issued')) {
+        api_fail('คุณไม่มีสิทธิ์ขอลิงก์เซ็นรับของใบนี้', 403);
+    }
+
+    $token = sign_link_ensure($doc['doc_id'], $actor);
+    if ($token === '') { api_fail('สร้างลิงก์ไม่สำเร็จ กรุณาลองใหม่'); }
+
+    /* path = เปิดบนเครื่องเดียวกับที่ผู้ใช้เข้าอยู่ (เช่น เข้าด้วย IP ในบริษัท)
+       url  = ลิงก์เต็มจาก site_url สำหรับคัดลอกส่งต่อ — ว่างได้ถ้ายังไม่ตั้ง site_url */
+    $url = sign_link_url($token);
+    if ($url === '' && $is_manager && !$is_owner && isset($input['need_url'])) {
         api_fail('สร้างลิงก์ไม่สำเร็จ — ยังไม่ได้ตั้งค่า "ที่อยู่เว็บ" (site_url) '
                . 'ที่หน้าตั้งค่าระบบ ลิงก์ที่ไม่มีชื่อเครื่องส่งให้ใครก็กดไม่ได้');
     }
@@ -653,6 +666,7 @@ if ($action === 'sign_link') {
     api_ok(array(
         'message' => 'ลิงก์เซ็นรับของใบ ' . $doc['doc_no'],
         'url'     => $url,
+        'path'    => 'sign.php?t=' . urlencode($token),
         'days'    => SIGN_LINK_DAYS,
         'signed'  => ($doc['status'] === 'received')
     ));
