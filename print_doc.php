@@ -384,7 +384,7 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
 
 /* ---------- แผงเซ็นรับของ (จอเท่านั้น) ---------- */
 .signbox {
-    width: 210mm; margin: 0 auto 14px; padding: 16px 18px;
+    margin: 18px 0 0; padding: 16px 18px;
     background: #fff; border: 2px solid #0891b2; border-radius: 12px;
     box-shadow: 0 8px 24px rgba(8, 145, 178, .15);
 }
@@ -413,13 +413,28 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
     font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
 }
 .signbox-actions .primary:disabled { opacity: .6; cursor: wait; }
+.signbox[hidden] { display: none; }
+/* ปุ่มเปิดแผงเซ็น: บนแถบบน และไอคอนปากกาในช่องผู้รับของบนกระดาษ */
+.bar .sign-open {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #ecfeff; color: #0e7490; border: 1px solid #67e8f9;
+}
+.bar .sign-open:hover { background: #cffafe; }
+.sign-pen {
+    position: absolute; top: -10px; right: -4px; z-index: 1;
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 8px; border: 1px solid #0891b2; border-radius: 999px;
+    background: #0891b2; color: #fff; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 2px 6px rgba(8, 145, 178, .3);
+}
+.sign-pen:hover { background: #0e7490; }
 /* ช่องผู้รับของบนกระดาษที่ยังรอเซ็น — ไฮไลต์บนจอ ให้รู้ว่าลายเซ็นจะไปลงตรงไหน */
 .sign.is-pending { outline: 2px dashed #0891b2; outline-offset: 4px; border-radius: 4px; background: #ecfeff; }
 
 @media print {
     body   { background: #fff; padding: 0; }
     .bar   { display: none; }
-    .signbox { display: none; }
+    .signbox, .sign-pen { display: none !important; }
     .sign.is-pending { outline: 0; background: none; }
     .paper { width: auto; min-height: auto; margin: 0; padding: 0; box-shadow: none; }
 
@@ -431,7 +446,7 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
 }
 
 @media (max-width: 230mm) {
-    .paper, .bar, .deny, .signbox { width: 100%; }
+    .paper, .bar, .deny { width: 100%; }
 }
 </style>
 <?php
@@ -466,35 +481,15 @@ body.is-embed .bar { display: none; }
 <div class="bar">
   <button type="button" class="primary" onclick="window.print()">พิมพ์เอกสาร</button>
   <button type="button" class="ghost" onclick="window.close()">ปิดหน้าต่าง</button>
+  <?php if ($can_sign): ?>
+  <button type="button" class="sign-open" data-open-sign>
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+    เซ็นรับของ
+  </button>
+  <?php endif; ?>
   <span class="hint">เลือกปลายทางเป็น &ldquo;บันทึกเป็น PDF&rdquo; ในหน้าต่างพิมพ์ เพื่อส่งทางอีเมล</span>
 </div>
 
-<?php if ($can_sign): ?>
-<!-- ============ แผงเซ็นรับของ (ไม่ติดไปตอนพิมพ์) ============
-     ช่อง "ผู้รับของ" บนกระดาษเล็กเกินจะเซ็นสะดวก จึงเซ็นในผืนใหญ่ตรงนี้
-     บันทึกแล้วหน้าโหลดใหม่ ลายเซ็นไปขึ้นในช่องผู้รับของบนกระดาษ -->
-<div class="signbox" id="signBox">
-  <div class="signbox-head">
-    <b>เซ็นรับของ <?php echo pd_esc($doc['doc_no']); ?></b>
-    <span>ตรวจรายการบนเอกสารด้านล่างให้ครบก่อน แล้วเซ็นยืนยันว่าได้รับของครบตามใบจ่ายนี้</span>
-  </div>
-  <label class="signbox-label" for="signName">ชื่อผู้รับของ</label>
-  <input type="text" id="signName" class="signbox-input" maxlength="150"
-         value="<?php echo pd_esc($sign_suggest); ?>" placeholder="ชื่อ-นามสกุลผู้รับของ">
-  <div class="signbox-label-row">
-    <span class="signbox-label">ลายเซ็น</span>
-    <button type="button" class="signbox-clear" id="signClear">ล้างลายเซ็น</button>
-  </div>
-  <div class="signbox-pad">
-    <canvas id="signCanvas"></canvas>
-    <span class="signbox-ph" id="signPh">เซ็นตรงนี้ด้วยนิ้วหรือเมาส์</span>
-  </div>
-  <div class="signbox-msg" id="signMsg" hidden></div>
-  <div class="signbox-actions">
-    <button type="button" class="primary" id="signSave">ยืนยันรับของ</button>
-  </div>
-</div>
-<?php endif; ?>
 
 <div class="paper">
 
@@ -757,6 +752,12 @@ body.is-embed .bar { display: none; }
         ?>
         <div class="sign<?php echo $extra !== '' ? ' ' . pd_esc($extra) : ''; ?>">
           <div class="sign-line">
+            <?php if (strpos($extra, 'is-pending') !== false): ?>
+              <button type="button" class="sign-pen" data-open-sign title="เซ็นรับของ" aria-label="เซ็นรับของ">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                เซ็นรับ
+              </button>
+            <?php endif; ?>
             <?php if ($has_img): ?>
               <img src="<?php echo pd_esc($sign_img); ?>" alt="ลายเซ็น<?php echo pd_esc($caption); ?>" class="sign-img">
             <?php elseif ($name !== ''): ?>
@@ -809,6 +810,35 @@ body.is-embed .bar { display: none; }
     ?>
   </div>
 
+  <?php if ($can_sign): ?>
+  <!-- ============ แผงเซ็นรับของ (ไม่ติดไปตอนพิมพ์) ============
+       ซ่อนไว้ก่อน — กดปุ่ม "เซ็นรับของ" บนแถบบน หรือไอคอนปากกาในช่องผู้รับของ จึงกางออกตรงนี้
+       (เปิดมาจากไอคอนปากกาในหน้าประวัติการจ่ายออก = &sign=1 กางให้เลย)
+       ช่อง "ผู้รับของ" บนกระดาษเล็กเกินจะเซ็นสะดวก จึงเซ็นในผืนใหญ่ตรงนี้
+       บันทึกแล้วหน้าโหลดใหม่ ลายเซ็นไปขึ้นในช่องผู้รับของบนกระดาษ -->
+  <div class="signbox" id="signBox" hidden>
+    <div class="signbox-head">
+      <b>เซ็นรับของ <?php echo pd_esc($doc['doc_no']); ?></b>
+      <span>ตรวจรายการบนเอกสารด้านบนให้ครบก่อน แล้วเซ็นยืนยันว่าได้รับของครบตามใบจ่ายนี้</span>
+    </div>
+    <label class="signbox-label" for="signName">ชื่อผู้รับของ</label>
+    <input type="text" id="signName" class="signbox-input" maxlength="150"
+           value="<?php echo pd_esc($sign_suggest); ?>" placeholder="ชื่อ-นามสกุลผู้รับของ">
+    <div class="signbox-label-row">
+      <span class="signbox-label">ลายเซ็น</span>
+      <button type="button" class="signbox-clear" id="signClear">ล้างลายเซ็น</button>
+    </div>
+    <div class="signbox-pad">
+      <canvas id="signCanvas"></canvas>
+      <span class="signbox-ph" id="signPh">เซ็นตรงนี้ด้วยนิ้วหรือเมาส์</span>
+    </div>
+    <div class="signbox-msg" id="signMsg" hidden></div>
+    <div class="signbox-actions">
+      <button type="button" class="primary" id="signSave">ยืนยันรับของ</button>
+    </div>
+  </div>
+  <?php endif; ?>
+  
 
   <!-- ============ รหัสแบบฟอร์ม ============
        ระบบเอกสารควบคุมขององค์กร รหัสและรอบแก้ไขต่างกันในแต่ละบริษัท
@@ -841,7 +871,8 @@ body.is-embed .bar { display: none; }
 (function () {
     var CSRF   = <?php echo json_encode($_SESSION['csrf_token']); ?>;
     var DOC_ID = <?php echo (int)$doc['doc_id']; ?>;
-    var pad    = window.SignPad ? window.SignPad.create(document.getElementById('signCanvas')) : null;
+    var box    = document.getElementById('signBox');
+    var pad    = null;
     var ph     = document.getElementById('signPh');
     var msg    = document.getElementById('signMsg');
     var btn    = document.getElementById('signSave');
@@ -850,21 +881,37 @@ body.is-embed .bar { display: none; }
         msg.textContent = text;
         msg.hidden = (text === '');
     }
-    if (!pad) {
-        say('เบราว์เซอร์นี้ไม่รองรับการเซ็นบนจอ กรุณาเปิดด้วย Chrome / Edge / Safari รุ่นใหม่');
-        btn.disabled = true;
-        return;
+
+    /* แผงซ่อนไว้ก่อน — กดปุ่ม/ไอคอนปากกาจึงกางออกใต้ช่องลงนาม
+       สร้างผืนเซ็นตอนกางครั้งแรก เพราะ canvas ที่ซ่อนอยู่วัดขนาดได้ 0 (ผืนจะเบลอและพิกัดเพี้ยน) */
+    function openSign() {
+        box.hidden = false;
+        if (!pad) {
+            pad = window.SignPad ? window.SignPad.create(document.getElementById('signCanvas')) : null;
+            if (!pad) {
+                say('เบราว์เซอร์นี้ไม่รองรับการเซ็นบนจอ กรุณาเปิดด้วย Chrome / Edge / Safari รุ่นใหม่');
+                btn.disabled = true;
+            } else {
+                pad.onStart(function () { ph.style.display = 'none'; say(''); });
+            }
+        }
+        box.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-    pad.onStart(function () { ph.style.display = 'none'; say(''); });
+    var openers = document.querySelectorAll('[data-open-sign]');
+    for (var i = 0; i < openers.length; i++) { openers[i].addEventListener('click', openSign); }
+    if (/[?&]sign=1(&|$)/.test(window.location.search)) {
+        window.addEventListener('load', openSign);
+    }
+
     document.getElementById('signClear').addEventListener('click', function () {
-        pad.clear();
+        if (pad) { pad.clear(); }
         ph.style.display = '';
     });
 
     btn.addEventListener('click', function () {
         var name = document.getElementById('signName').value.replace(/^\s+|\s+$/g, '');
         if (name === '') { say('กรุณากรอกชื่อผู้รับของ'); return; }
-        if (pad.isEmpty()) { say('กรุณาเซ็นในช่องลายเซ็นก่อนยืนยัน'); return; }
+        if (!pad || pad.isEmpty()) { say('กรุณาเซ็นในช่องลายเซ็นก่อนยืนยัน'); return; }
         if (!window.confirm('ยืนยันว่า ' + name + ' ได้รับของครบตามใบจ่ายนี้แล้ว?')) { return; }
 
         btn.disabled = true;

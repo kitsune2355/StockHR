@@ -3179,7 +3179,7 @@
     if (!openDoc || openDoc._demo) {
       return;
     }
-    window.open("print_doc.php?doc_id=" + openDoc.doc_id, "_blank");
+    window.open("print_doc.php?doc_id=" + openDoc.doc_id + "&sign=1", "_blank");   // sign=1 = กางแผงเซ็นให้เลย
   }
 
   /* ---------- ยกเลิกเอกสาร ---------- */
