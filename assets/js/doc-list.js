@@ -1248,9 +1248,25 @@
         if (window.lucide) {
           window.lucide.createIcons();
         }
+        detailGuide(true);
       },
       bad,
     );
+  }
+
+  /* ---------- คู่มือของกล่องเทียบใบบิล (ใบรับเข้า) ----------
+   * กล่องนี้บังปุ่มคู่มือบนแถบบน จึงมีปุ่ม ? ของตัวเอง (#btnDocGuide)
+   * เปิดกล่องครั้งแรก = เปิดคู่มือให้เอง (ถ้ายังไม่เคยดู) หน่วงให้กล่องวาดเสร็จก่อน */
+  var DETAIL_GUIDE = "receive_detail";
+  function detailGuide(auto) {
+    if (!el("btnDocGuide") || !window.AppGuide || !window.AppGuide.openKey) {
+      return;
+    }
+    window.setTimeout(function () {
+      window.AppGuide.openKey(DETAIL_GUIDE, auto, function (has) {
+        setHidden(el("btnDocGuide"), !has);
+      });
+    }, auto ? 700 : 0);
   }
 
   function closeDetail() {
@@ -3470,12 +3486,24 @@
     }
 
     el("btnCloseDoc").addEventListener("click", closeDetail);
+    if (el("btnDocGuide")) {
+      el("btnDocGuide").addEventListener("click", function () {
+        detailGuide(false);
+      });
+    }
     el("docPanel").addEventListener("click", function (e) {
       if (e.target === el("docPanel")) {
         closeDetail();
       }
     });
     document.addEventListener("keydown", function (e) {
+      /* Esc ระหว่างเปิดคู่มือ = ปิดคู่มืออย่างเดียว ไม่ปิดกล่องรายละเอียดที่คู่มือกำลังอธิบายอยู่ */
+      if (window.AppGuide && window.AppGuide.active && window.AppGuide.active()) {
+        return;
+      }
+      if (document.body.classList.contains("driver-active")) {
+        return;
+      }
       if (
         e.key === "Escape" &&
         el("docPanel") &&
