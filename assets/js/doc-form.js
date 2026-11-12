@@ -1702,13 +1702,13 @@
             return;
           }
 
-          notifyReceiveApprovers(res);
           busy(false);
           if (typeof window.appSuccess === "function") {
             window.appSuccess(res.message);
           } else {
             alert(res.message);
           }
+          notifyReceiveApprovers(res);   // หลัง toast — ถ้ามีคำเตือนจะขึ้นกล่องทับ toast
 
           /* โหมดแก้ไข: กลับไปหน้ารายการใบเบิกเพื่อดูสถานะ/ไทม์ไลน์ที่อัปเดตแล้ว
                    ไม่ล้างฟอร์มไว้ทำใบใหม่แบบตอนสร้าง */
@@ -1859,6 +1859,11 @@
   function notifyReceiveApprovers(saveRes) {
     if (TYPE !== "receive" || EDIT_ID > 0 || !saveRes || !saveRes.doc_id) {
       return;
+    }
+    /* ไม่มีใครได้รับแจ้ง (ยังไม่ตั้งผู้อนุมัติ / มีแค่คนบันทึกเอง) — กล่องที่ต้องกดปิดเอง
+       ไม่ใช่ toast เพราะ toast หายใน 3 วินาที คนบันทึกจะไม่รู้ว่าใบค้างเงียบ ๆ */
+    if (saveRes.warning && typeof window.appWarning === "function") {
+      window.appWarning(saveRes.message + "\n\n" + saveRes.warning, "บันทึกแล้ว แต่ยังไม่มีใครได้รับแจ้ง");
     }
     post(
       { action: "receive_submitted", doc_id: saveRes.doc_id, csrf_token: CFG.csrfToken },

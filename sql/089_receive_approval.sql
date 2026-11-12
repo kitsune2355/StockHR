@@ -51,7 +51,9 @@ CREATE TABLE IF NOT EXISTS `tb_receive_approver` (
 INSERT IGNORE INTO `tb_receive_approver` (`username`, `created_at`, `created_by`)
 SELECT `username`, NOW(), NULL
 FROM `tb_user`
-WHERE `is_active` = 1 AND `role` IN ('super_admin', 'admin');
+WHERE `is_active` = 1 AND `role` IN ('super_admin', 'admin')
+  -- รันซ้ำได้: ใส่รายชื่อตั้งต้นเฉพาะตอนตารางยังว่าง
+  AND NOT EXISTS (SELECT 1 FROM `tb_receive_approver`);
 
 
 -- ------------------------------------------------------------

@@ -375,7 +375,8 @@ if ($action === 'save') {
     api_ok(array(
         'message' => $res['message'],
         'doc_id'  => $res['id'],
-        'doc_no'  => isset($res['doc_no']) ? $res['doc_no'] : ''
+        'doc_no'  => isset($res['doc_no']) ? $res['doc_no'] : '',
+        'warning' => isset($res['warning']) ? $res['warning'] : ''
     ));
 }
 

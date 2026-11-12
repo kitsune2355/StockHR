@@ -61,7 +61,9 @@ CREATE TABLE IF NOT EXISTS `tb_request_approver` (
 INSERT IGNORE INTO `tb_request_approver` (`username`, `created_at`, `created_by`)
 SELECT `username`, NOW(), NULL
 FROM `tb_user`
-WHERE `is_active` = 1 AND `role` IN ('super_admin', 'admin', 'approver');
+WHERE `is_active` = 1 AND `role` IN ('super_admin', 'admin', 'approver')
+  -- รันซ้ำได้: ใส่รายชื่อตั้งต้นเฉพาะตอนตารางยังว่าง ไม่เติมคนที่ผู้ดูแลเอาออกไปแล้วกลับเข้ามา
+  AND NOT EXISTS (SELECT 1 FROM `tb_request_approver`);
 
 
 -- ------------------------------------------------------------
