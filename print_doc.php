@@ -816,7 +816,7 @@ body.is-embed .bar { display: none; }
   <?php if ($can_sign): ?>
   <!-- ============ แผงเซ็นรับของ (ไม่ติดไปตอนพิมพ์) ============
        ซ่อนไว้ก่อน — กดปุ่ม "เซ็นรับของ" บนแถบบน หรือไอคอนปากกาในช่องผู้รับของ จึงกางออกตรงนี้
-       (เปิดมาจากไอคอนปากกาในหน้าประวัติการจ่ายออก = &sign=1 กางให้เลย)
+       ไม่กางให้เอง แม้เปิดมาจากไอคอนปากกา — ผู้รับต้องอ่านรายละเอียดบนเอกสารก่อนเซ็น
        ช่อง "ผู้รับของ" บนกระดาษเล็กเกินจะเซ็นสะดวก จึงเซ็นในผืนใหญ่ตรงนี้
        บันทึกแล้วหน้าโหลดใหม่ ลายเซ็นไปขึ้นในช่องผู้รับของบนกระดาษ -->
   <div class="signbox" id="signBox" hidden>
@@ -902,9 +902,6 @@ body.is-embed .bar { display: none; }
     }
     var openers = document.querySelectorAll('[data-open-sign]');
     for (var i = 0; i < openers.length; i++) { openers[i].addEventListener('click', openSign); }
-    if (/[?&]sign=1(&|$)/.test(window.location.search)) {
-        window.addEventListener('load', openSign);
-    }
 
     document.getElementById('signClear').addEventListener('click', function () {
         if (pad) { pad.clear(); }
