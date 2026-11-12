@@ -53,7 +53,7 @@
             ctx.lineWidth   = 2.2;
             ctx.lineCap     = 'round';
             ctx.lineJoin    = 'round';
-            ctx.strokeStyle = '#0f172a';
+            ctx.strokeStyle = '#1d4ed8';   // สีน้ำเงินแบบปากกาลูกลื่น — ลายเซ็นบนกระดาษแยกออกจากตัวพิมพ์สีดำได้ชัด
 
             if (backup) {
                 var img = new Image();

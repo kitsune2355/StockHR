@@ -517,7 +517,7 @@ input[type=text]:focus {
 </div>
 
 <?php if ($fatal === '' && $can_sign) { ?>
-<script src="assets/js/signpad.js"></script>
+<script src="assets/js/signpad.js?v=<?php echo (int)@filemtime(dirname(__FILE__) . '/assets/js/signpad.js'); ?>"></script>
 <script>
 (function () {
     'use strict';
