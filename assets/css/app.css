@@ -8294,3 +8294,18 @@ html.apv-open { overflow: hidden; }
 .dark .apk-tab.is-active { color: #67e8f9; border-bottom-color: #22d3ee; }
 .dark .apk-num { background: #1e293b; color: #94a3b8; }
 .dark .apk-tab.is-active .apk-num { background: rgba(34,211,238,.15); color: #67e8f9; }
+
+/* หน้าผู้ใช้งาน — "ทุกหน่วยงาน ทุกบริษัท" (users.js ALL_DEPTS) */
+.user-dept-all {
+    display: flex; align-items: flex-start; gap: .55rem;
+    margin-bottom: .5rem; padding: .6rem .7rem; border-radius: .6rem;
+    border: 1px solid #a5f3fc; background: #ecfeff; color: #155e75; cursor: pointer;
+}
+.user-dept-all input { margin-top: .2rem; }
+.user-dept-all b { display: block; font-size: .8125rem; }
+.user-dept-all small { display: block; font-size: .7rem; color: #0e7490; opacity: .85; }
+.user-dept-popup-list label.is-covered { opacity: .5; cursor: default; }
+.user-dept-chip-all { background: #0e7490; border-color: #0e7490; color: #fff; font-weight: 600; }
+.dark .user-dept-all { background: rgba(6, 182, 212, .12); border-color: rgba(45, 212, 191, .35); color: #a5f3fc; }
+.dark .user-dept-all small { color: #67e8f9; }
+.dark .user-dept-chip-all { background: #0891b2; border-color: #0891b2; color: #fff; }

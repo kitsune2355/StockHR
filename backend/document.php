@@ -510,6 +510,10 @@ function doc_scope_for($actor, $actor_role, $doc_type = '')
 
     if ($actor_role === 'approver') {
         $me   = user_find($actor);
+        /* ตั้งหน่วยงานที่ดูแลเป็น "ทุกหน่วยงาน ทุกบริษัท" (sql/090) = เห็นทุกใบ */
+        if ($me !== null && !empty($me['all_depts'])) {
+            return array();
+        }
         if ($me !== null && count($me['dept_ids']) > 0) {
             return array('department_ids' => $me['dept_ids']);
         }

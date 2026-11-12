@@ -158,15 +158,78 @@ function user_department_ids($username)
     return $ids;
 }
 
+/* ============================================================
+ *  "ทุกหน่วยงาน ทุกบริษัท" (tb_user.all_depts, sql/090)
+ *  หน้าเว็บส่งมาเป็นรหัส -1 ใน dept_ids (USER_ALL_DEPTS)
+ *  ยังไม่รัน sql/090 = ถือว่าไม่มีใครเป็นทุกหน่วยงาน (ไม่ error)
+ * ============================================================ */
+define('USER_ALL_DEPTS', -1);
+
+function user_all_depts_ready()
+{
+    static $ready = null;
+    if ($ready === null) {
+        $res   = @mysqli_query(db_connect(), "SHOW COLUMNS FROM `tb_user` LIKE 'all_depts'");
+        $ready = ($res && mysqli_num_rows($res) > 0);
+        if ($res) { mysqli_free_result($res); }
+    }
+    return $ready;
+}
+
+/* username => true ของทุกคนที่ตั้งเป็นทุกหน่วยงาน (อ่านครั้งเดียวต่อ request) */
+function user_all_depts_map($fresh = false)
+{
+    static $map = null;
+    if ($map !== null && !$fresh) { return $map; }
+    $map = array();
+    if (!user_all_depts_ready()) { return $map; }
+    $res = @mysqli_query(db_connect(), "SELECT `username` FROM `tb_user` WHERE `all_depts` = 1");
+    if ($res) {
+        while ($row = mysqli_fetch_row($res)) { $map[$row[0]] = true; }
+        mysqli_free_result($res);
+    }
+    return $map;
+}
+
+function user_is_all_depts($username)
+{
+    $map = user_all_depts_map();
+    return isset($map[$username]);
+}
+
+/* รหัสหน่วยงานจริงตัวแรก (ตัด -1 ออก) — ใช้เป็น dept_id ต้นสังกัดของบัญชี */
+function user_first_dept_id($dept_ids)
+{
+    for ($i = 0; $i < count($dept_ids); $i++) {
+        if ((int)$dept_ids[$i] > 0) { return (int)$dept_ids[$i]; }
+    }
+    return null;
+}
+
 function user_department_save($username, $department_ids, $actor)
 {
     $connect = db_connect();
     $ids = array();
+    $all = false;
     if (is_array($department_ids)) {
         for ($i = 0; $i < count($department_ids); $i++) {
             $id = (int)$department_ids[$i];
+            if ($id === USER_ALL_DEPTS) { $all = true; }
             if ($id > 0 && !in_array($id, $ids)) { $ids[] = $id; }
         }
+    }
+
+    /* ทุกหน่วยงาน = ตั้งธง แล้วไม่เก็บรายการหน่วยงานแยก (ล้างของเดิมทิ้ง) */
+    if (user_all_depts_ready()) {
+        $flag = $all ? 1 : 0;
+        $stmt = mysqli_prepare($connect, "UPDATE `tb_user` SET `all_depts` = ? WHERE `username` = ?");
+        if (!$stmt) { return false; }
+        mysqli_stmt_bind_param($stmt, 'is', $flag, $username);
+        $ok = mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+        if (!$ok) { return false; }
+        user_all_depts_map(true);
+        if ($all) { $ids = array(); }
     }
 
     $stmt = mysqli_prepare($connect, "DELETE FROM `tb_user_department` WHERE `username` = ?");
@@ -200,6 +263,7 @@ function user_has_department($username, $department_id)
 {
     $department_id = (int)$department_id;
     if ($department_id <= 0) { return false; }
+    if (user_is_all_depts($username)) { return true; }   // ทุกหน่วยงาน ทุกบริษัท
     return in_array($department_id, user_department_ids($username));
 }
 
@@ -285,6 +349,7 @@ function user_list($options = array())
        "All data must be fetched before a new statement prepare takes place" */
     for ($i = 0; $i < count($rows); $i++) {
         $rows[$i]['dept_ids'] = user_department_ids($rows[$i]['username']);
+        $rows[$i]['all_depts'] = user_is_all_depts($rows[$i]['username']) ? 1 : 0;
     }
 
     return $rows;
@@ -332,7 +397,8 @@ function user_find($username)
         'is_active'  => (int)$is_active,
         'dept_id'    => ($dept_id === null) ? 0 : (int)$dept_id,
         'department_name' => ($department_name === null) ? '' : $department_name,
-        'dept_ids'   => $dept_ids
+        'dept_ids'   => $dept_ids,
+        'all_depts'  => user_is_all_depts($u) ? 1 : 0
     );
 }
 
@@ -474,7 +540,7 @@ function user_create($data, $actor, $actor_role)
        แต่ผู้อนุมัติที่ไม่มีหน่วยงานจะอนุมัติใบเบิกไม่ได้เลย — ดู request_decide() */
     $dept_ids = isset($data['dept_ids']) && is_array($data['dept_ids']) ? $data['dept_ids'] : array();
     $dept_id = (isset($data['dept_id']) && (int)$data['dept_id'] > 0)
-               ? (int)$data['dept_id'] : ((count($dept_ids) > 0) ? (int)$dept_ids[0] : null);
+               ? (int)$data['dept_id'] : user_first_dept_id($dept_ids);
 
     $stmt = mysqli_prepare($connect,
         "INSERT INTO `tb_user`
@@ -531,7 +597,12 @@ function user_update($username, $data, $actor, $actor_role)
 
     $dept_ids = isset($data['dept_ids']) && is_array($data['dept_ids']) ? $data['dept_ids'] : array();
     $dept_id = (isset($data['dept_id']) && (int)$data['dept_id'] > 0)
-               ? (int)$data['dept_id'] : ((count($dept_ids) > 0) ? (int)$dept_ids[0] : null);
+               ? (int)$data['dept_id'] : user_first_dept_id($dept_ids);
+    /* เลือก "ทุกหน่วยงาน" ไม่มีรหัสหน่วยงานจริงส่งมา — คงหน่วยงานต้นสังกัดเดิมไว้ (ใช้เป็นค่าตั้งต้นของฟอร์มเบิก) */
+    if ($dept_id === null && in_array(USER_ALL_DEPTS, array_map('intval', $dept_ids))
+        && (int)$current['dept_id'] > 0) {
+        $dept_id = (int)$current['dept_id'];
+    }
 
     $stmt = mysqli_prepare($connect,
         "UPDATE `tb_user`

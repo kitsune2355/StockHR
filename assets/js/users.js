@@ -80,11 +80,19 @@
     return map;
   }
 
+  /* "ทุกหน่วยงาน ทุกบริษัท" ส่งเป็นรหัส -1 (backend: USER_ALL_DEPTS / tb_user.all_depts)
+     มี -1 อยู่ = ทุกหน่วยงาน ตัดรหัสอื่นทิ้ง เพราะสองอย่างนี้ใช้คู่กันไม่ได้ */
+  var ALL_DEPTS = -1;
+  var ALL_DEPTS_LABEL = "ทุกหน่วยงาน ทุกบริษัท";
+
   function normalizeDeptIds(ids, fallback) {
     var out = [];
     ids = Array.isArray(ids) ? ids : Number(fallback) > 0 ? [fallback] : [];
     for (var i = 0; i < ids.length; i++) {
       var id = Number(ids[i]);
+      if (id === ALL_DEPTS) {
+        return [ALL_DEPTS];
+      }
       if (id > 0 && out.indexOf(id) === -1) {
         out.push(id);
       }
@@ -167,7 +175,13 @@
         var input = document.createElement("input");
         input.type = "checkbox";
         input.value = id;
-        input.checked = current.indexOf(id) !== -1;
+        /* เลือก "ทุกหน่วยงาน" อยู่ = ทุกตัวถือว่าครอบคลุมแล้ว ติ๊กรายตัวไม่ได้ */
+        var isAll = current.indexOf(ALL_DEPTS) !== -1;
+        input.checked = isAll || current.indexOf(id) !== -1;
+        input.disabled = isAll;
+        if (isAll) {
+          label.className = "is-covered";
+        }
         input.addEventListener("change", function (event) {
           var value = Number(event.target.value);
           if (event.target.checked && current.indexOf(value) === -1) {
@@ -206,8 +220,25 @@
     });
     search.addEventListener("input", drawList);
 
+    /* ตัวเลือกบนสุด: ทุกหน่วยงาน ทุกบริษัท — สำหรับคนที่ดูแลทั้งองค์กร
+       ติ๊ก = แทนที่รายการที่เลือกไว้ทั้งหมด, เอาออก = กลับไปไม่ได้เลือกหน่วยงานไหน */
+    var allLabel = document.createElement("label");
+    var allInput = document.createElement("input");
+    allLabel.className = "user-dept-all";
+    allInput.type = "checkbox";
+    allInput.checked = current.indexOf(ALL_DEPTS) !== -1;
+    allInput.addEventListener("change", function () {
+      current = allInput.checked ? [ALL_DEPTS] : [];
+      drawList();
+    });
+    allLabel.appendChild(allInput);
+    var allText = document.createElement("span");
+    allText.innerHTML = "<b>" + ALL_DEPTS_LABEL + "</b><small>ดูแลได้ทั้งองค์กร รวมหน่วยงานที่เพิ่มใหม่ภายหลัง</small>";
+    allLabel.appendChild(allText);
+
     actions.appendChild(abort);
     actions.appendChild(done);
+    popup.appendChild(allLabel);
     popup.appendChild(search);
     popup.appendChild(list);
     popup.appendChild(actions);
@@ -234,7 +265,7 @@
         email: u.email,
         role: u.role,
         agency_id: Number(u.agency_id),
-        dept_ids: normalizeDeptIds(u.dept_ids, u.dept_id),
+        dept_ids: Number(u.all_depts) === 1 ? [ALL_DEPTS] : normalizeDeptIds(u.dept_ids, u.dept_id),
         is_active: Number(u.is_active),
       };
       rows.push(row);
@@ -529,6 +560,7 @@
         (function () {
           var names = function (v) {
             var ids = normalizeDeptIds(v), out = [];
+            if (ids[0] === ALL_DEPTS) { return [ALL_DEPTS_LABEL]; }
             for (var i = 0; i < ids.length; i++) {
               if (depts[ids[i]]) { out.push(depts[ids[i]]); }
             }
@@ -552,6 +584,10 @@
             if (Number(headerValue) === 0) {
               return ids.length === 0;
             }
+            /* คนที่ดูแลทุกหน่วยงาน ครอบคลุมหน่วยงานที่เลือกกรองด้วย */
+            if (ids[0] === ALL_DEPTS) {
+              return true;
+            }
             return ids.indexOf(Number(headerValue)) !== -1;
           },
         },
@@ -566,8 +602,11 @@
           editor: departmentEditor,
           editable: editableUnlessTop,
           formatter: function (cell) {
-            var row = cell.getRow().getData();
             var ids = normalizeDeptIds(cell.getValue());
+            if (ids[0] === ALL_DEPTS) {
+              return '<span class="user-dept-chips"><span class="user-dept-chip user-dept-chip-all">' +
+                escapeHtml(ALL_DEPTS_LABEL) + "</span></span>";
+            }
             var chips = [];
             for (var i = 0; i < ids.length; i++) {
               if (depts[ids[i]]) {
@@ -580,10 +619,9 @@
                 );
               }
             }
+            /* ไม่บังคับแล้ว (สิทธิ์อนุมัติย้ายไปเมนู "ผู้อนุมัติเอกสาร") — ไม่ต้องเตือน "ต้องระบุ" */
             if (chips.length === 0) {
-              return row.role === "approver"
-                ? '<span class="grid-warn">— ต้องระบุ —</span>'
-                : '<span class="grid-empty">— ไม่ระบุ —</span>';
+              return '<span class="grid-empty">— ไม่ระบุ —</span>';
             }
             return (
               '<span class="user-dept-chips">' + chips.join("") + "</span>"
