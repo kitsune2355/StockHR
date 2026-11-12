@@ -479,7 +479,10 @@ body.is-embed .bar { display: none; }
 <?php else: ?>
 
 <div class="bar">
+  <?php /* ใบจ่ายที่คนนี้ต้องเซ็นรับ: ยังไม่ให้พิมพ์จนกว่าจะเซ็น — ใบที่พิมพ์ออกไปจะได้มีลายเซ็นผู้รับเสมอ */ ?>
+  <?php if (!$can_sign): ?>
   <button type="button" class="primary" onclick="window.print()">พิมพ์เอกสาร</button>
+  <?php endif; ?>
   <button type="button" class="ghost" onclick="window.close()">ปิดหน้าต่าง</button>
   <?php if ($can_sign): ?>
   <button type="button" class="sign-open" data-open-sign>

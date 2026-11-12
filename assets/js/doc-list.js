@@ -518,6 +518,15 @@
    *  ปุ่มที่ทำไม่ได้ในสถานะนั้นถูกตัดออก ไม่ได้ทำเป็นสีจาง
    *  เพราะปุ่มจางที่กดไม่ได้ก็ยังชวนให้กด แล้วไม่มีอะไรบอกว่าทำไมกดไม่ได้
    * ============================================================ */
+  /* ใบจ่ายที่รอเซ็นรับ และคนนี้เป็นคนเซ็นได้ (ผู้ขอเบิก / ผู้ดูแลระบบ) — เงื่อนไขเดียวกับปุ่ม ack ใน actionsFor */
+  function needsSign(doc) {
+    return (
+      doc.doc_type === "issue" &&
+      doc.status === "issued" &&
+      (doc.requester === ME || isManager())
+    );
+  }
+
   function rowActions(doc) {
     var out = [];
 
@@ -527,12 +536,17 @@
       tone: "ghost",
       label: "ดูรายละเอียด",
     });
-    out.push({
-      key: "print",
-      icon: "printer",
-      tone: "ghost",
-      label: "พิมพ์เอกสาร",
-    });
+    /* ใบจ่ายที่ยังรอเซ็นรับ และคนนี้เซ็นได้: ซ่อนไอคอนพิมพ์ เหลือไอคอนปากกา
+       ไปเซ็นที่หน้าเอกสาร (print_doc.php) ก่อน — เซ็นแล้วไอคอนพิมพ์จึงขึ้น
+       ใบที่พิมพ์ออกไปจะได้มีลายเซ็นผู้รับติดไปเสมอ ไม่ใช่กระดาษเปล่าที่ยังไม่มีใครเซ็น */
+    if (!needsSign(doc)) {
+      out.push({
+        key: "print",
+        icon: "printer",
+        tone: "ghost",
+        label: "พิมพ์เอกสาร",
+      });
+    }
 
     /* ---------- ลิงก์เซ็นรับของ ----------
      * มีเฉพาะใบจ่ายที่ยังรอเซ็น และเฉพาะผู้ดูแลระบบ
@@ -1566,13 +1580,15 @@
      * ปุ่มพิมพ์อยู่นอกรายการ actionsFor() เพราะเปิดหน้าใหม่ ไม่ได้เปลี่ยนสถานะเอกสาร
      * และต้องมีให้กดได้เสมอทุกสถานะ รวมถึงใบที่ยกเลิกไปแล้ว (ยังต้องเก็บเป็นหลักฐาน) */
     var acts = actionsFor(doc);
-    var html =
-      '<a class="doc-act is-ghost" target="_blank" rel="noopener"' +
-      ' href="print_doc.php?doc_id=' +
-      doc.doc_id +
-      '">' +
-      '<i data-lucide="printer" class="h-4 w-4" aria-hidden="true"></i>' +
-      "พิมพ์เอกสาร</a>";
+    /* ใบจ่ายที่รอเซ็นรับ: ไม่มีปุ่มพิมพ์จนกว่าจะเซ็น (ดู needsSign) */
+    var html = needsSign(doc)
+      ? ""
+      : '<a class="doc-act is-ghost" target="_blank" rel="noopener"' +
+        ' href="print_doc.php?doc_id=' +
+        doc.doc_id +
+        '">' +
+        '<i data-lucide="printer" class="h-4 w-4" aria-hidden="true"></i>' +
+        "พิมพ์เอกสาร</a>";
     for (var j = 0; j < acts.length; j++) {
       html +=
         '<button type="button" class="doc-act is-' +
@@ -3173,34 +3189,18 @@
   }
 
   /* ---------- เซ็นรับของ ----------
-   * ไอคอนปากกาพาไปหน้า sign.php — หน้าเดียวกับลิงก์เซ็นรับในอีเมล
-   * (รายการของ + เงื่อนไขเอกสารรับชุด + ผืนเซ็น) ทุกคนเซ็นที่เดียวกัน หน้าตาเหมือนกัน
-   * sign.php ต้องใช้กุญแจ จึงขอผ่าน action sign_link ก่อน (ผู้ขอเบิกของใบ / ผู้ดูแลระบบ)
-   * เปิดแท็บเปล่ารอไว้ก่อนยิงคำขอ — window.open หลังรอคำตอบจะโดนตัวกันป๊อปอัพบล็อก
-   * เซ็นเสร็จ sign.php แจ้งกลับ (postMessage doc-signed) ตารางนี้โหลดใหม่เอง (ดู init)
+   * ไอคอนปากกาเปิดหน้าเอกสาร (print_doc.php) ในแท็บใหม่ พร้อมกางแผงเซ็นให้เลย (&sign=1)
+   * ผู้รับตรวจรายการบนตัวเอกสาร เซ็นแล้วลายเซ็นลงช่องผู้รับของ — จากนั้นพิมพ์ได้ทันที
+   * ระหว่างยังไม่เซ็น ไอคอนพิมพ์ในแถวถูกซ่อนไว้ (ดู needsSign)
+   * เซ็นเสร็จหน้าเอกสารแจ้งกลับ (postMessage doc-signed) ตารางนี้โหลดใหม่ ไอคอนพิมพ์จึงโผล่ (ดู init)
    */
   function acknowledge() {
     if (!openDoc || openDoc._demo) {
       return;
     }
-    var w = window.open("", "_blank");
-    post(
-      { action: "sign_link", csrf_token: CFG.csrfToken, doc_id: openDoc.doc_id },
-      function (res) {
-        if (w) {
-          w.location.href = res.path;
-        } else {
-          window.location.href = res.path;   // เบราว์เซอร์บล็อกแท็บใหม่ — เปิดในแท็บนี้แทน
-        }
-      },
-      function (message) {
-        if (w) {
-          w.close();
-        }
-        bad(message);
-      },
-    );
+    window.open("print_doc.php?doc_id=" + openDoc.doc_id + "&sign=1", "_blank");
   }
+
 
   /* ---------- ยกเลิกเอกสาร ---------- */
   function cancelDoc() {
