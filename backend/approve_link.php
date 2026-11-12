@@ -89,7 +89,7 @@ function approve_token_make($doc_id, $username)
 
 
 /* ---------- ใบนี้ยังออกลิงก์อนุมัติได้ไหม ----------
- * คืน true เฉพาะใบเบิก/ใบปรับยอดที่สถานะยังเป็น waiting
+ * คืน true เฉพาะใบเบิก/ใบปรับยอด/ใบรับเข้าที่สถานะยังเป็น waiting
  * ใบที่ตัดสินไปแล้วออกลิงก์ไม่ได้ เพราะลิงก์ที่กดแล้วไม่เกิดอะไรขึ้น
  * แย่กว่าไม่มีลิงก์ให้ — คนกดจะไม่รู้ว่าตกลงอนุมัติไปหรือยัง
  */
@@ -98,7 +98,7 @@ function approve_link_doc_ok($doc_id)
     $connect = db_connect();
     $stmt = approve_link_prepare($connect,
         "SELECT 1 FROM `tb_doc_header`
-          WHERE `doc_id` = ? AND `doc_type` IN ('request','adjust') AND `status` = 'waiting'
+          WHERE `doc_id` = ? AND `doc_type` IN ('request','adjust','receive') AND `status` = 'waiting'
           LIMIT 1");
     if (!$stmt) { return false; }
 
@@ -358,6 +358,8 @@ function approve_link_all($doc_id, $actor = null)
         }
     } elseif ($doc['doc_type'] === 'request') {
         $people = doc_approver_people('request', $doc['requester']);
+    } elseif ($doc['doc_type'] === 'receive') {
+        $people = doc_approver_people('receive', $doc['created_by']);   // คนบันทึกอนุมัติเองไม่ได้
     } else {
         return array();
     }

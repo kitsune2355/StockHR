@@ -53,7 +53,7 @@ $all_status = doc_statuses();
 /* แสดงเฉพาะสถานะที่เอกสารประเภทนี้เป็นไปได้จริง
    ไม่งั้นจะมีตัวเลือกที่เลือกแล้วได้ 0 แถวเสมอ */
 $status_of = array(
-    'receive' => array('received', 'cancelled'),
+    'receive' => array('waiting', 'received', 'rejected', 'cancelled'),
     'request' => array('waiting', 'approved', 'rejected', 'issued', 'cancelled'),
     'issue'   => array('issued', 'received', 'cancelled'),
     'adjust'  => array('waiting', 'approved', 'rejected', 'cancelled')
@@ -282,6 +282,8 @@ window.DOCLIST = {
     adjustApprover: <?php echo dl_json(adjust_approver_can($sess_username, $sess_role)); ?>,
     /* ใช้เฉพาะ docType='request' — อยู่ในรายชื่อผู้อนุมัติใบเบิก (อนุมัติ/ไม่อนุมัติ/ส่งกลับได้) */
     requestApprover: <?php echo dl_json($is_request_approver); ?>,
+    /* ใช้เฉพาะ docType='receive' — อยู่ในรายชื่อผู้อนุมัติใบรับเข้า (ตรวจเทียบบิลแล้วอนุมัติได้) */
+    receiveApprover: <?php echo dl_json(doc_approver_can('receive', $sess_username)); ?>,
     exportName: <?php echo dl_json($export_name); ?>,
     /* 'new_staff' = เฉพาะใบพนักงานใหม่ (new_staff_list.php), 'general' = เฉพาะใบปกติ (request_list.php), '' = ทุกใบ */
     kind:       <?php echo dl_json(isset($list_kind) ? $list_kind : ''); ?>,

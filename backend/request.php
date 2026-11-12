@@ -124,7 +124,7 @@ function request_decide($doc_id, $decision, $reason, $actor, $actor_role)
        ไม่ดู role ไม่ดูหน่วยงาน — อนุมัติได้ทุกหน่วยงาน */
     if (!request_approver_can($actor)) {
         return db_fail('คุณไม่ได้อยู่ในรายชื่อผู้อนุมัติใบเบิก — ให้ผู้ดูแลระบบเพิ่มชื่อที่เมนู '
-                     . '"ตั้งค่าระบบ › ผู้อนุมัติใบเบิก" ก่อน');
+                     . '"ตั้งค่าระบบ › ผู้อนุมัติเอกสาร" ก่อน');
     }
 
     $doc = doc_find($doc_id);

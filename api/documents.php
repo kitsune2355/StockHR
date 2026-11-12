@@ -66,6 +66,16 @@ function doc_read_roles_for($doc_type)
     return array('super_admin', 'admin', 'approver');
 }
 
+/* role ที่อ่านได้ + ผู้อนุมัติใบรับเข้า (รายชื่อเฉพาะ อาจเป็น role ใดก็ได้) ต้องเปิดใบรับเข้าได้ */
+function doc_read_roles_for_actor($doc_type, $actor, $actor_role)
+{
+    $roles = doc_read_roles_for($doc_type);
+    if ($doc_type === 'receive' && doc_approver_can('receive', $actor) && !in_array($actor_role, $roles)) {
+        $roles[] = $actor_role;
+    }
+    return $roles;
+}
+
 function doc_write_roles_for($doc_type)
 {
     if ($doc_type === 'request') {
@@ -197,7 +207,7 @@ if ($action === 'bootstrap') {
  * ============================================================ */
 if ($action === 'list') {
 
-    api_require_role(doc_read_roles_for($doc_type));
+    api_require_role(doc_read_roles_for_actor($doc_type, $actor, $actor_role));
 
     $options = array(
         'doc_type'  => $doc_type,
@@ -285,7 +295,7 @@ if ($action === 'get') {
         api_fail('ไม่พบเอกสารที่ต้องการ');
     }
 
-    api_require_role(doc_read_roles_for($doc['doc_type']));
+    api_require_role(doc_read_roles_for_actor($doc['doc_type'], $actor, $actor_role));
 
     /* เปิดใบเดียวก็ต้องคุมขอบเขตเดียวกับตอนแสดงรายการ
        ใช้ฟังก์ชันตัวเดียวกับที่ print_doc.php ใช้ กติกาจึงตรงกันเสมอ */
@@ -320,6 +330,9 @@ if ($action === 'get') {
     if ($doc['doc_type'] === 'request'
         && $doc['status'] === 'waiting' && $doc['approved_by'] === '') {
         $doc['dept_approvers'] = doc_approver_names('request', $doc['requester']);
+    }
+    if ($doc['doc_type'] === 'receive' && $doc['status'] === 'waiting') {
+        $doc['dept_approvers'] = doc_approver_names('receive', $doc['created_by']);
     }
 
     api_ok(array('doc' => $doc));
@@ -439,12 +452,28 @@ if ($action === 'decide') {
     $decide_doc = doc_find($decide_id);
     if ($decide_doc !== null && $decide_doc['doc_type'] === 'adjust') {
         $res = adjust_decide($decide_id, $decision, $reason, $actor, $actor_role);
+    } elseif ($decide_doc !== null && $decide_doc['doc_type'] === 'receive') {
+        $res = receive_decide($decide_id, $decision, $reason, $actor);
     } else {
         $res = request_decide($decide_id, $decision, $reason, $actor, $actor_role);
     }
 
     if (!$res['ok']) { api_fail($res['message']); }
     api_ok(array('message' => $res['message']));
+}
+
+
+/* ============================================================
+ *  ใบรับเข้า: แจ้งผู้อนุมัติหลังหน้าเว็บอัปโหลดไฟล์ใบบิลเสร็จ
+ *  { "action": "receive_submitted", "doc_id": 5 }
+ *  ส่งได้ครั้งเดียวต่อใบ และเฉพาะคนที่บันทึกใบนั้น (receive_notify_submitted บังคับเอง)
+ * ============================================================ */
+if ($action === 'receive_submitted') {
+
+    api_require_csrf($input);
+
+    $sent = receive_notify_submitted(isset($input['doc_id']) ? (int)$input['doc_id'] : 0, $actor);
+    api_ok(array('sent' => (int)$sent));
 }
 
 
@@ -650,8 +679,8 @@ if ($action === 'approve_link') {
 
     $doc = doc_find(isset($input['doc_id']) ? (int)$input['doc_id'] : 0);
     if ($doc === null) { api_fail('ไม่พบเอกสารที่ต้องการ'); }
-    if (!in_array($doc['doc_type'], array('request', 'adjust'))) {
-        api_fail('ลิงก์อนุมัติมีเฉพาะใบเบิกและใบปรับยอดเท่านั้น');
+    if (!in_array($doc['doc_type'], array('request', 'adjust', 'receive'))) {
+        api_fail('ลิงก์อนุมัติมีเฉพาะใบเบิก ใบปรับยอด และใบรับเข้าเท่านั้น');
     }
     if ($doc['status'] !== 'waiting')   {
         api_fail($doc['doc_type_label'] . 'นี้ถูกตัดสินไปแล้ว (สถานะปัจจุบัน: ' . $doc['status_label'] . ') '
@@ -661,8 +690,8 @@ if ($action === 'approve_link') {
     /* ใบปรับยอด: ผู้รับลิงก์ = คนในรายชื่อผู้อนุมัติ ถ้ายังว่างต้องบอกให้ชัดว่าต้องไปตั้งก่อน
        ไม่งั้นจะไปรวมกับกรณี site_url ไม่ได้ตั้ง ซึ่งคนละเรื่องกัน */
     if (count(doc_approver_usernames($doc['doc_type'])) === 0) {
-        api_fail('ยังไม่ได้ตั้งผู้อนุมัติ' . $doc['doc_type_label'] . ' — ไปที่เมนู "ตั้งค่าระบบ › ผู้อนุมัติ'
-               . doc_approver_label($doc['doc_type']) . '" แล้วเลือกผู้อนุมัติอย่างน้อย 1 คนก่อน');
+        api_fail('ยังไม่ได้ตั้งผู้อนุมัติ' . $doc['doc_type_label'] . ' — ไปที่เมนู "ตั้งค่าระบบ › ผู้อนุมัติเอกสาร" '
+               . 'แท็บ ' . doc_approver_label($doc['doc_type']) . ' แล้วเลือกผู้อนุมัติอย่างน้อย 1 คนก่อน');
     }
 
     $links = approve_link_all($doc['doc_id'], $actor);
@@ -700,7 +729,7 @@ if ($action === 'resend_mail') {
 
         if ($doc['status'] === 'waiting') {
             if (count(doc_approver_usernames('request')) === 0) {
-                api_fail('ยังไม่ได้ตั้งผู้อนุมัติใบเบิก — ไปที่เมนู "ตั้งค่าระบบ › ผู้อนุมัติใบเบิก" '
+                api_fail('ยังไม่ได้ตั้งผู้อนุมัติใบเบิก — ไปที่เมนู "ตั้งค่าระบบ › ผู้อนุมัติเอกสาร" '
                        . 'แล้วเลือกผู้อนุมัติอย่างน้อย 1 คนก่อน');
             }
             $sent = notify_event_request_submitted($doc['doc_id'], '');
@@ -725,7 +754,7 @@ if ($action === 'resend_mail') {
         if ($doc['status'] === 'waiting') {
             require_once dirname(dirname(__FILE__)) . '/backend/adjust_approver.php';
             if (count(adjust_approver_usernames()) === 0) {
-                api_fail('ยังไม่ได้ตั้งผู้อนุมัติใบปรับยอด — ไปที่เมนู "ตั้งค่าระบบ › ผู้อนุมัติใบปรับยอด" '
+                api_fail('ยังไม่ได้ตั้งผู้อนุมัติใบปรับยอด — ไปที่เมนู "ตั้งค่าระบบ › ผู้อนุมัติเอกสาร" '
                        . 'แล้วเลือกผู้อนุมัติอย่างน้อย 1 คนก่อน');
             }
             /* ส่งซ้ำ = ออกลิงก์อนุมัติชุดใหม่ให้ผู้อนุมัติทุกคน (ลิงก์เดิมถูกเขียนทับ) */
@@ -740,6 +769,25 @@ if ($action === 'resend_mail') {
         } elseif ($doc['status'] === 'cancelled') {
             $sent = notify_event_doc_cancelled($doc['doc_id'], $doc['cancel_note'], '');
             $what = 'แจ้งเรื่องการยกเลิก';
+
+        } else {
+            api_fail('เอกสารสถานะนี้ยังไม่มีเมลที่ต้องส่ง');
+        }
+
+    } elseif ($doc['doc_type'] === 'receive') {
+
+        if ($doc['status'] === 'waiting') {
+            if (count(doc_approver_usernames('receive')) === 0) {
+                api_fail('ยังไม่ได้ตั้งผู้อนุมัติใบรับเข้า — ไปที่เมนู "ตั้งค่าระบบ › ผู้อนุมัติเอกสาร" '
+                       . 'แล้วเลือกผู้อนุมัติอย่างน้อย 1 คนก่อน');
+            }
+            $sent = notify_event_receive_submitted($doc['doc_id'], $doc['created_by']);
+            $what = 'แจ้งผู้อนุมัติว่ามีใบรับเข้ารอตรวจสอบ';
+
+        } elseif ($doc['status'] === 'received' || $doc['status'] === 'rejected') {
+            $sent = notify_event_receive_decided($doc['doc_id'],
+                        $doc['status'] === 'received' ? 'approved' : 'rejected', $doc['approve_note'], '');
+            $what = 'แจ้งผู้บันทึกว่าใบถูกตัดสินแล้ว';
 
         } else {
             api_fail('เอกสารสถานะนี้ยังไม่มีเมลที่ต้องส่ง');

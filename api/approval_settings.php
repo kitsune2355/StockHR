@@ -24,7 +24,8 @@ $input  = api_input();
 $action = isset($input['action']) ? $input['action'] : '';
 
 /* ประเภทเอกสาร: 'request' = ผู้อนุมัติใบเบิก, 'adjust' = ผู้อนุมัติใบปรับยอด (ค่าเดิมของหน้านี้) */
-$kind = (isset($input['kind']) && $input['kind'] === 'request') ? 'request' : 'adjust';
+$kind = (isset($input['kind']) && in_array($input['kind'], array('request', 'receive', 'adjust'), true))
+        ? $input['kind'] : 'adjust';
 
 
 if ($action === 'bootstrap') {

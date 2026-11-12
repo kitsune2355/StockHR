@@ -1,6 +1,6 @@
 <?php
 /* ============================================================
- *  pages/approval_settings.php — ผู้อนุมัติใบปรับยอด และ ผู้อนุมัติใบเบิก (ผ่าน pages/request_approval.php)
+ *  pages/approval_settings.php — ผู้อนุมัติเอกสาร (แท็บ ใบเบิก / ใบรับเข้า / ใบปรับยอด)
  *
  *  กำหนดว่า "ใครกดอนุมัติเอกสารได้บ้าง" — ใบปรับยอด: tb_adjust_approver, ใบเบิก: tb_request_approver
  *  ใครอนุมัติได้ = เฉพาะคนในรายชื่อนี้เท่านั้น ไม่ผูกกับ role
@@ -24,14 +24,26 @@
 
 if (!isset($sess_username)) { exit('ไม่มีสิทธิ์เข้าถึง'); }
 
-/* หน้าเดียวใช้สองรายชื่อ: pages/request_approval.php ตั้ง $approval_kind = 'request' ก่อน include
-   เปิดตรง (เมนู adjust_approval) = ผู้อนุมัติใบปรับยอดตามเดิม */
-if (!isset($approval_kind) || $approval_kind !== 'request') { $approval_kind = 'adjust'; }
-$ap_doc   = ($approval_kind === 'request') ? 'ใบเบิก' : 'ใบปรับยอด';
-$ap_title = ($approval_kind === 'request') ? 'ผู้อนุมัติใบเบิก' : 'ผู้อนุมัติใบปรับยอดสินค้า';
-$ap_scope = ($approval_kind === 'request')
-          ? 'อนุมัติ / ไม่อนุมัติ / ส่งกลับแก้ไขใบเบิกได้ทุกหน่วยงาน'
-          : 'อนุมัติใบปรับยอดได้';
+require_once dirname(dirname(__FILE__)) . '/backend/doc_approver.php';
+
+/* ---------- แท็บประเภทเอกสาร (เมนูเดียว "ผู้อนุมัติเอกสาร") ----------
+ * ?tab=request|receive|adjust — URL เดิม request_approval/adjust_approval ส่งมาทาง $APPROVAL_TAB (main.php)
+ * สลับแท็บ = โหลดหน้าใหม่ (approval-settings.js เตือนก่อนถ้ามีที่ยังไม่บันทึก) */
+$ap_tabs = array(
+    'request' => array('label' => 'ใบเบิก',     'icon' => 'clipboard-list',
+                       'scope' => 'อนุมัติ / ไม่อนุมัติ / ส่งกลับแก้ไขใบเบิกได้ทุกหน่วยงาน',
+                       'note'  => 'ไม่ขึ้นกับ "หน่วยงานที่ดูแล" ในหน้าผู้ใช้งาน — คนในรายชื่ออนุมัติได้ทุกหน่วยงาน'),
+    'receive' => array('label' => 'ใบรับเข้า',   'icon' => 'package-plus',
+                       'scope' => 'ตรวจใบรับเข้าเทียบกับใบบิล แล้วอนุมัติให้สินค้าเข้าคลังได้',
+                       'note'  => 'สินค้าเข้าคลังเมื่อผู้ตรวจอนุมัติเท่านั้น — คนบันทึกใบอนุมัติใบของตัวเองไม่ได้'),
+    'adjust'  => array('label' => 'ใบปรับยอด',  'icon' => 'scale',
+                       'scope' => 'อนุมัติใบปรับยอดได้',
+                       'note'  => 'ยอดคงเหลือเปลี่ยนเมื่ออนุมัติเท่านั้น — คนสร้างใบอนุมัติใบของตัวเองไม่ได้')
+);
+$approval_kind = isset($_GET['tab']) ? (string)$_GET['tab'] : (isset($APPROVAL_TAB) ? $APPROVAL_TAB : '');
+if (!isset($ap_tabs[$approval_kind])) { $approval_kind = 'request'; }
+$ap_doc   = $ap_tabs[$approval_kind]['label'];
+$ap_scope = $ap_tabs[$approval_kind]['scope'];
 
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = md5(uniqid(mt_rand(), true));
@@ -53,7 +65,7 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
       <i data-lucide="user-check" class="h-5 w-5" aria-hidden="true"></i>
     </span>
     <div class="min-w-0 flex-1">
-      <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100"><?php echo $ap_title; ?></h2>
+      <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">ผู้อนุมัติ<?php echo $ap_doc; ?></h2>
       <!-- จอเล็กซ่อนคำอธิบาย เหลือที่ให้รายชื่อ (ใจความเดียวกันอยู่ในแถบคำแนะนำท้ายหน้าแล้ว) -->
       <p class="mt-0.5 hidden text-sm text-slate-500 sm:block dark:text-slate-400">
         ติ๊กชื่อทางซ้ายเพื่อเพิ่ม ตรวจรายชื่อทางขวา แล้วกดบันทึก — เฉพาะคนในรายชื่อเท่านั้นที่<?php echo $ap_scope; ?>
@@ -61,6 +73,18 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
       </p>
     </div>
   </div>
+
+  <!-- ===== แท็บประเภทเอกสาร ===== -->
+  <nav id="apKindTabs" class="apk-tabs" aria-label="ประเภทเอกสาร">
+    <?php foreach ($ap_tabs as $k => $t) { $on = ($k === $approval_kind); ?>
+    <a href="main.php?page=doc_approval&amp;tab=<?php echo $k; ?>" data-kind="<?php echo $k; ?>"
+       class="apk-tab<?php echo $on ? ' is-active' : ''; ?>"<?php echo $on ? ' aria-current="page"' : ''; ?>>
+      <i data-lucide="<?php echo $t['icon']; ?>" class="h-4 w-4" aria-hidden="true"></i>
+      <span><?php echo $t['label']; ?></span>
+      <b class="apk-num" data-kind-num="<?php echo $k; ?>"><?php echo count(doc_approver_usernames($k)); ?></b>
+    </a>
+    <?php } ?>
+  </nav>
 
   <div id="loading" class="flex flex-1 items-center justify-center gap-3 p-10 text-sm text-slate-500 dark:text-slate-400">
     <i data-lucide="loader-circle" class="h-5 w-5 animate-spin" aria-hidden="true"></i>
@@ -168,9 +192,7 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
   <div class="grid-hints">
     <span><i data-lucide="users" class="h-3.5 w-3.5" aria-hidden="true"></i> ตั้งได้หลายคน — ใครก็ได้ในรายชื่อกดอนุมัติได้ ไม่ต้องครบทุกคน</span>
     <span><i data-lucide="bell" class="h-3.5 w-3.5" aria-hidden="true"></i> คนที่เลือกไว้จะได้อีเมลพร้อมลิงก์กดอนุมัติทุกครั้งที่มี<?php echo $ap_doc; ?>ใหม่</span>
-    <?php if ($approval_kind === 'request') { ?>
-    <span><i data-lucide="building-2" class="h-3.5 w-3.5" aria-hidden="true"></i> ไม่ขึ้นกับ "หน่วยงานที่ดูแล" ในหน้าผู้ใช้งาน — คนในรายชื่ออนุมัติได้ทุกหน่วยงาน</span>
-    <?php } ?>
+    <span><i data-lucide="info" class="h-3.5 w-3.5" aria-hidden="true"></i> <?php echo $ap_tabs[$approval_kind]['note']; ?></span>
   </div>
 </div>
 

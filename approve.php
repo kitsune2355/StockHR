@@ -56,6 +56,7 @@ require_once dirname(__FILE__) . '/backend/approve_link.php';
 require_once dirname(__FILE__) . '/backend/document.php';
 require_once dirname(__FILE__) . '/backend/request.php';
 require_once dirname(__FILE__) . '/backend/adjust.php';   // ลิงก์อนุมัติใช้กับใบปรับยอดด้วย
+require_once dirname(__FILE__) . '/backend/receive.php';  // และใบรับเข้า (ผู้ตรวจเทียบกับใบบิล)
 
 function ap_esc($text)
 {
@@ -97,7 +98,7 @@ if (!$check['ok']) {
 } else {
 
     $doc = doc_find($check['doc_id']);
-    if ($doc === null || !in_array($doc['doc_type'], array('request', 'adjust'))) {
+    if ($doc === null || !in_array($doc['doc_type'], array('request', 'adjust', 'receive'))) {
         $fatal = 'ไม่พบเอกสารที่ลิงก์นี้อ้างถึง';
     } else {
         $approver = user_find($check['username']);
@@ -110,6 +111,26 @@ if (!$check['ok']) {
             $fatal = 'บัญชีผู้อนุมัติที่ลิงก์นี้ออกให้ถูกปิดใช้งานแล้ว จึงอนุมัติผ่านลิงก์ไม่ได้';
         }
     }
+}
+
+
+/* ============================================================
+ *  เปิดไฟล์ใบบิลของใบรับเข้า ผ่านกุญแจเดียวกัน (?t=...&att=ID)
+ *  ใช้ได้เฉพาะกุญแจที่ยังใช้ได้ และไฟล์ต้องเป็นของใบที่กุญแจนี้ออกให้เท่านั้น
+ *  ไม่งั้นใครถือลิงก์ใบหนึ่งจะไล่เลข att เปิดบิลของใบอื่นได้
+ * ============================================================ */
+if ($fatal === '' && isset($_GET['att']) && $doc !== null && $doc['doc_type'] === 'receive') {
+    require_once dirname(__FILE__) . '/backend/doc_attachment.php';
+    $att = doc_attachment_find((int)$_GET['att']);
+    while (ob_get_level() > 0) { ob_end_clean(); }
+    if ($att === null || (int)$att['doc_id'] !== (int)$doc['doc_id']) {
+        header('HTTP/1.1 404 Not Found');
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'ไม่พบไฟล์';
+        exit;
+    }
+    doc_attachment_send($att, !empty($_GET['dl']));
+    exit;
 }
 
 
@@ -130,9 +151,13 @@ if ($fatal === '' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         /* ตัดสินใน "นาม" ของผู้อนุมัติที่กุญแจออกให้
            ฟังก์ชัน *_decide จะบังคับกฎที่เหลือเองทั้งหมด ทั้งเรื่องสิทธิ์
            ห้ามอนุมัติใบตัวเอง และกันสองคนกดพร้อมกัน หน้านี้จึงไม่ต้องทำซ้ำ */
-        $res = ($doc['doc_type'] === 'adjust')
-             ? adjust_decide($doc['doc_id'], $decision, $reason, $approver['username'], $approver['role'])
-             : request_decide($doc['doc_id'], $decision, $reason, $approver['username'], $approver['role']);
+        if ($doc['doc_type'] === 'adjust') {
+            $res = adjust_decide($doc['doc_id'], $decision, $reason, $approver['username'], $approver['role']);
+        } elseif ($doc['doc_type'] === 'receive') {
+            $res = receive_decide($doc['doc_id'], $decision, $reason, $approver['username']);
+        } else {
+            $res = request_decide($doc['doc_id'], $decision, $reason, $approver['username'], $approver['role']);
+        }
 
         if ($res['ok']) {
             /* เผากุญแจทุกดอกของใบนี้ รวมของผู้อนุมัติคนอื่นด้วย
@@ -168,8 +193,12 @@ if (isset($_GET['ok']) && ($_GET['ok'] === 'approved' || $_GET['ok'] === 'reject
 
     if ($doc === null) { $doc = doc_find($check['doc_id']); }
 
-    if ($doc !== null && in_array($doc['doc_type'], array('request', 'adjust'))
-        && $doc['status'] === $_GET['ok']) {
+    /* ใบรับเข้าที่อนุมัติแล้วมีสถานะ received (เข้าคลังแล้ว) ไม่ใช่ approved */
+    $expect = $_GET['ok'];
+    if ($doc !== null && $doc['doc_type'] === 'receive' && $expect === 'approved') { $expect = 'received'; }
+
+    if ($doc !== null && in_array($doc['doc_type'], array('request', 'adjust', 'receive'))
+        && $doc['status'] === $expect) {
         $done  = $_GET['ok'];
         $fatal = '';
     }
@@ -183,10 +212,18 @@ if ($fatal === '' && $doc === null) {
 
 $can_decide = ($fatal === '' && $done === '' && $doc['status'] === 'waiting');
 
-/* ข้อความให้เปลี่ยนตามชนิดเอกสาร — ใบเบิก vs ใบปรับยอด */
+/* ข้อความให้เปลี่ยนตามชนิดเอกสาร — ใบเบิก / ใบปรับยอด / ใบรับเข้า */
 $is_adjust  = ($doc !== null && $doc['doc_type'] === 'adjust');
-$doc_noun   = $is_adjust ? 'ใบปรับยอด' : 'ใบเบิก';
+$is_receive = ($doc !== null && $doc['doc_type'] === 'receive');
+$doc_noun   = $is_adjust ? 'ใบปรับยอด' : ($is_receive ? 'ใบรับเข้า' : 'ใบเบิก');
 $adj_lines  = $is_adjust ? adjust_doc_lines($doc) : array();
+
+/* ไฟล์ใบบิลของใบรับเข้า — ผู้ตรวจต้องเห็นบิลจริงเพื่อเทียบ ทั้งที่เปิดจากเมลโดยไม่ล็อกอิน */
+$receive_files = array();
+if ($is_receive) {
+    require_once dirname(__FILE__) . '/backend/doc_attachment.php';
+    if (doc_attachment_ready()) { $receive_files = doc_attachment_list($doc['doc_id']); }
+}
 
 $page_title = ($doc !== null) ? ('อนุมัติ' . $doc_noun . ' ' . $doc['doc_no']) : ('อนุมัติ' . $doc_noun);
 ?>
@@ -316,6 +353,11 @@ textarea {
 textarea:focus { outline: none; border-color: #0891b2; box-shadow: 0 0 0 4px #cffafe; }
 
 .hint { margin: 6px 0 0; font-size: 12.5px; color: #94a3b8; }
+/* ไฟล์ใบบิลของใบรับเข้า (เปิดผ่านกุญแจของลิงก์นี้) */
+.files { list-style: none; margin: 0 0 18px; padding: 0; }
+.files li { display: flex; gap: 10px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+.files a { color: #0e7490; font-weight: 600; text-decoration: none; word-break: break-all; }
+.files a:hover { text-decoration: underline; }
 
 .btn {
     display: block;
@@ -349,6 +391,9 @@ textarea:focus { outline: none; border-color: #0891b2; box-shadow: 0 0 0 4px #cf
 @media (max-width: 420px) {
     .pairs th { width: 44%; }
     .items th:nth-child(2), .items td:nth-child(2) { display: none; }
+    /* ใบรับเข้า: คอลัมน์ 2 คือจำนวน ต้องเห็นเสมอ — ซ่อนราคา/หน่วยแทน */
+    .items.rc th:nth-child(2), .items.rc td:nth-child(2) { display: table-cell; }
+    .items.rc th:nth-child(3), .items.rc td:nth-child(3) { display: none; }
 }
 </style>
 </head>
@@ -386,14 +431,16 @@ textarea:focus { outline: none; border-color: #0891b2; box-shadow: 0 0 0 4px #cf
 <?php if ($done === 'approved') { ?>
       <div class="note note-ok">
         <span><b>อนุมัติเรียบร้อยแล้ว</b>
-        <?php echo $is_adjust
+        <?php echo $is_receive
+            ? 'สินค้าถูกรับเข้าคลังและเพิ่มยอดคงเหลือแล้ว ระบบแจ้งผู้บันทึกให้ทราบแล้ว'
+            : ($is_adjust
             ? 'ยอดคงเหลือถูกปรับให้ตรงกับที่นับไว้เรียบร้อย ระบบแจ้งผู้บันทึกให้ทราบแล้ว'
-            : 'ระบบแจ้งผู้ขอเบิกให้ทราบแล้ว ขั้นต่อไปคลังจะจัดของและบันทึกจ่ายออก'; ?></span>
+            : 'ระบบแจ้งผู้ขอเบิกให้ทราบแล้ว ขั้นต่อไปคลังจะจัดของและบันทึกจ่ายออก'); ?></span>
       </div>
 <?php } elseif ($done === 'rejected') { ?>
       <div class="note note-warn">
         <span><b>บันทึกว่าไม่อนุมัติแล้ว</b>
-        <?php echo $is_adjust
+        <?php echo ($is_adjust || $is_receive)
             ? 'ยอดคงเหลือไม่เปลี่ยน ระบบส่งเหตุผลไปให้ผู้บันทึกแล้ว'
             : 'ระบบส่งเหตุผลไปให้ผู้ขอเบิกแล้ว เขาจะได้รู้ว่าต้องแก้อะไรก่อนทำใบใหม่'; ?></span>
       </div>
@@ -407,21 +454,24 @@ textarea:focus { outline: none; border-color: #0891b2; box-shadow: 0 0 0 4px #cf
 <?php } else { ?>
       <div class="note note-info">
         <span>กรุณาตรวจรายการด้านล่างให้ครบก่อนตัดสินใจ
-        <?php echo $is_adjust
+        <?php echo $is_receive
+            ? 'เทียบรายการและจำนวนกับไฟล์ใบบิลด้านล่าง ถ้าตรงกันจึงกดอนุมัติ — อนุมัติแล้วสินค้าจะเข้าคลังทันที'
+            : ($is_adjust
             ? 'อนุมัติแล้วยอดคงเหลือจะถูกปรับให้ตรงกับ "นับได้จริง" ทันที'
-            : 'การอนุมัติคือการยืนยันว่าของทั้งใบสมเหตุสมผล'; ?></span>
+            : 'การอนุมัติคือการยืนยันว่าของทั้งใบสมเหตุสมผล'); ?></span>
       </div>
 <?php } ?>
 
       <!-- ---------- หัวเอกสาร ---------- -->
       <table class="pairs">
         <tr><th>เลขที่เอกสาร</th><td><?php echo ap_esc($doc['doc_no']); ?></td></tr>
-        <tr><th><?php echo $is_adjust ? 'วันที่ตรวจนับ' : 'วันที่ขอเบิก'; ?></th><td><?php echo ap_esc(thai_date_long($doc['doc_date'])); ?></td></tr>
-<?php   if (!$is_adjust && $doc['department_name'] !== '') { ?>
+        <tr><th><?php echo $is_adjust ? 'วันที่ตรวจนับ' : ($is_receive ? 'วันที่รับเข้า' : 'วันที่ขอเบิก'); ?></th><td><?php echo ap_esc(thai_date_long($doc['doc_date'])); ?></td></tr>
+<?php   if (!$is_adjust && !$is_receive && $doc['department_name'] !== '') { ?>
         <tr><th>หน่วยงาน</th><td><?php echo ap_esc($doc['department_name']); ?></td></tr>
 <?php   } ?>
-<?php   if ($is_adjust && $doc['created_by'] !== '') { ?>
-        <tr><th>ผู้บันทึก</th><td><?php echo ap_esc($doc['created_by']); ?></td></tr>
+<?php   if (($is_adjust || $is_receive) && $doc['created_by'] !== '') { ?>
+        <tr><th>ผู้บันทึก</th><td><?php
+            echo ap_esc($doc['created_by_name'] !== '' ? $doc['created_by_name'] : $doc['created_by']); ?></td></tr>
 <?php   } elseif (!$is_adjust && ($doc['requester_name'] !== '' || $doc['requester'] !== '')) { ?>
         <tr><th>ผู้ขอเบิก</th><td><?php
             echo ap_esc($doc['requester_name'] !== '' ? $doc['requester_name'] : $doc['requester']); ?></td></tr>
@@ -458,6 +508,50 @@ textarea:focus { outline: none; border-color: #0891b2; box-shadow: 0 0 0 4px #cf
                 <b><?php echo ($dv > 0 ? '+' : '') . ap_qty($dv); ?></b></td>
           </tr>
 <?php   } ?>
+        </tbody>
+      </table>
+
+<?php } elseif ($is_receive) { ?>
+
+      <!-- ---------- ไฟล์ใบบิล ---------- -->
+      <h2>ไฟล์ใบบิล</h2>
+<?php   if (count($receive_files) === 0) { ?>
+      <p class="hint">ผู้บันทึกไม่ได้แนบไฟล์ใบบิลมา — ตรวจกับบิลตัวจริง หรือไม่อนุมัติพร้อมขอให้แนบบิล</p>
+<?php   } else { ?>
+      <ul class="files">
+<?php     for ($i = 0; $i < count($receive_files); $i++) { $fl = $receive_files[$i];
+              $furl = 'approve.php?t=' . urlencode($token) . '&att=' . (int)$fl['attach_id']; ?>
+        <li><a href="<?php echo ap_esc($furl); ?>" target="_blank" rel="noopener"><?php echo ap_esc($fl['orig_name']); ?></a>
+            <span class="code"><?php echo ap_esc(number_format($fl['file_size'] / 1024, 0)); ?> KB</span></li>
+<?php     } ?>
+      </ul>
+<?php   } ?>
+
+      <!-- ---------- รายการที่รับเข้า ---------- -->
+      <h2>รายการที่รับเข้า</h2>
+      <table class="items rc">
+        <thead>
+          <tr><th>สินค้า</th><th class="num">จำนวน</th><th class="num">ราคา/หน่วย</th><th class="num">รวม</th></tr>
+        </thead>
+        <tbody>
+<?php   $rc_total = 0;
+        for ($i = 0; $i < count($doc['items']); $i++) {
+            $it = $doc['items'][$i];
+            $line_total = (float)$it['qty'] * (float)$it['unit_cost'];
+            $rc_total  += $line_total; ?>
+          <tr>
+            <td><?php echo ap_esc($it['product_name']); ?>
+                <div class="code"><?php echo ap_esc($it['product_code']); ?></div>
+<?php           if ($it['note'] !== '') { ?>
+                <div class="hint"><?php echo ap_esc($it['note']); ?></div>
+<?php           } ?>
+            </td>
+            <td class="num"><b><?php echo ap_qty($it['qty']); ?></b> <?php echo ap_esc($it['unit_name']); ?></td>
+            <td class="num"><?php echo number_format((float)$it['unit_cost'], 2); ?></td>
+            <td class="num"><?php echo number_format($line_total, 2); ?></td>
+          </tr>
+<?php   } ?>
+          <tr><td colspan="3" class="num"><b>รวมทั้งใบ</b></td><td class="num"><b><?php echo number_format($rc_total, 2); ?></b></td></tr>
         </tbody>
       </table>
 
@@ -505,7 +599,7 @@ textarea:focus { outline: none; border-color: #0891b2; box-shadow: 0 0 0 4px #cf
 
         <label for="reason">เหตุผลหรือหมายเหตุ</label>
         <textarea id="reason" name="reason" maxlength="500"
-                  placeholder="<?php echo $is_adjust
+                  placeholder="<?php echo ($is_adjust || $is_receive)
                       ? 'ถ้าไม่อนุมัติ ต้องระบุเหตุผลเสมอ เพราะผู้บันทึกจะได้รู้ว่าต้องแก้อะไร'
                       : 'ถ้าไม่อนุมัติ ต้องระบุเหตุผลเสมอ เพราะผู้ขอเบิกจะได้รู้ว่าต้องแก้อะไร'; ?>"><?php
             echo ap_esc(isset($_POST['reason']) ? $_POST['reason'] : ''); ?></textarea>

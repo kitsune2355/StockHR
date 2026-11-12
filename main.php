@@ -54,6 +54,13 @@ $ACTIVE_PAGE   = '';
 $ACTIVE_PARENT = '';
 $PAGE_FULL     = false;   // หน้าคุมพื้นที่เลื่อนเองหรือไม่ (ดู 'full' ใน includes/menu.php)
 
+/* เมนูผู้อนุมัติเดิมสองตัวรวมเป็น "ผู้อนุมัติเอกสาร" แล้ว — URL/บุ๊กมาร์กเดิมพาไปแท็บที่ตรงกัน */
+$APPROVAL_TAB = '';
+if ($requested === 'request_approval' || $requested === 'adjust_approval') {
+    $APPROVAL_TAB = ($requested === 'adjust_approval') ? 'adjust' : 'request';
+    $requested    = 'doc_approval';
+}
+
 if (!isset($routes[$requested]) && isset($APP_MOVED_PAGES[$requested])) {
     /* หน้าที่ย้ายไปตั้งที่ระบบอื่นแล้ว (ดู includes/menu.php) */
     $state      = 'moved';
@@ -97,6 +104,7 @@ if (!isset($routes[$requested]) && isset($APP_MOVED_PAGES[$requested])) {
 require_once dirname(__FILE__) . '/backend/request.php';
 require_once dirname(__FILE__) . '/backend/issue.php';
 require_once dirname(__FILE__) . '/backend/adjust.php';
+require_once dirname(__FILE__) . '/backend/receive.php';
 
 if (in_array($sess_role, array('super_admin', 'admin', 'approver'))) {
     app_set_badge('report_low',   stock_low_count(),       'red');
@@ -112,6 +120,9 @@ if (request_approver_can($sess_username)) {
 if (adjust_approver_can($sess_username, $sess_role)) {
     app_set_badge('adjust_history', adjust_waiting_count(), 'amber');
 }
+
+/* ใบรับเข้าที่รอตรวจ — เฉพาะคนในรายชื่อผู้อนุมัติใบรับเข้า (ไม่นับใบที่ตัวเองบันทึก) */
+app_set_badge('receive_history', receive_waiting_count($sess_username), 'amber');
 
 /* ใบจ่ายที่รอเซ็นรับ นับเฉพาะของตัวเอง — เป็นงานที่คนอื่นทำแทนไม่ได้ */
 app_set_badge('issue_history', issue_pending_ack_count($sess_username), 'brand');

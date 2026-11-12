@@ -1,22 +1,29 @@
 <?php
 /* ============================================================
- *  backend/receive.php — รับสินค้าเข้าคลัง
+ *  backend/receive.php — รับสินค้าเข้าคลัง (มีขั้นอนุมัติ)
  *
- *  บันทึกแล้วบวกสต๊อกทันที ไม่มีขั้นอนุมัติ
- *  เพราะของเข้าคลังจริงไปแล้วตอนที่คนบันทึก ถ้าให้รออนุมัติ
- *  ยอดในระบบจะต่ำกว่าของจริงระหว่างนั้น แล้วคนเบิกจะเบิกไม่ได้ทั้งที่มีของ
+ *  เส้นทาง:
+ *      บันทึก -> waiting -> received (อนุมัติ = เพิ่มสต๊อก) | rejected
+ *      ยอดคงเหลือเพิ่ม "ตอนอนุมัติ" เท่านั้น ไม่ใช่ตอนบันทึก
+ *
+ *  ทำไมต้องรออนุมัติ: มีผู้ตรวจสอบเทียบรายการในใบบิล (ไฟล์แนบ) กับที่ผู้ทำรายการ
+ *  คีย์เข้ามา ถ้าบวกสต๊อกไปก่อนแล้วตรวจเจอว่าผิด ของอาจถูกเบิกออกไปแล้วจนถอยกลับไม่ได้
+ *  สถานะหลังอนุมัติใช้ 'received' (รับของแล้ว) เหมือนใบเดิมทั้งหมด รายงานจึงไม่ต้องแก้
+ *
+ *  ผู้อนุมัติ = คนในรายชื่อ "ผู้อนุมัติใบรับเข้า" (tb_receive_approver, backend/doc_approver.php)
+ *              ไม่ผูกกับ role และต้องไม่ใช่คนที่บันทึกใบเอง
  *
  *  ไม่ระบุผู้ขาย ตามที่ตกลงไว้ — ที่มาของของบันทึกไว้ในช่องหมายเหตุแทน
  *
- *  ยกเลิกเอกสารได้ แต่ไม่ลบประวัติ ระบบจะบันทึกรายการกลับทิศทางแทน
+ *  ยกเลิกเอกสารได้ แต่ไม่ลบประวัติ ใบที่รับเข้าแล้ว ระบบจะบันทึกรายการกลับทิศทางแทน
  *  (move_type = cancel_receive) จะได้ตอบได้ว่ายอดเคยขึ้นแล้วถูกดึงกลับเมื่อไร
  * ============================================================ */
 
 require_once dirname(__FILE__) . '/document.php';
 
 
-/* ---------- บันทึกใบรับเข้า ----------
- * $data = array('doc_date', 'note', 'items' => array(array('product_id','qty','note')))
+/* ---------- บันทึกใบรับเข้า (รออนุมัติ ยังไม่แตะสต๊อก) ----------
+ * $data = array('doc_date', 'note', 'items' => array(array('product_id','qty','note','unit_cost')))
  */
 function receive_save($data, $actor)
 {
@@ -25,52 +32,198 @@ function receive_save($data, $actor)
 
     db_begin();
 
-    $res = doc_insert('receive', $data, 'received', $actor);
+    $res = doc_insert('receive', $data, 'waiting', $actor);
     if (!$res['ok']) {
         db_rollback();
         return $res;
     }
 
+    db_commit();
+
     $doc_id = $res['id'];
     $doc_no = $res['doc_no'];
 
+    doc_history_add($doc_id, 'submitted', $actor, isset($data['note']) ? trim($data['note']) : '');
+
+    /* ไม่แจ้งผู้อนุมัติตรงนี้ — ไฟล์ใบบิลยังไม่ถูกอัปโหลด (หน้าเว็บอัปโหลดต่อหลังบันทึก)
+       หน้าเว็บเรียก action 'receive_submitted' เมื่ออัปโหลดเสร็จ จะได้เมลที่มีไฟล์ครบ
+       ดู receive_notify_submitted() */
+
+    $msg = 'บันทึกใบรับเข้า ' . $doc_no . ' เรียบร้อย — รอผู้ตรวจสอบอนุมัติก่อนจึงเพิ่มสต๊อก';
+    if (count(doc_approver_usernames('receive')) === 0) {
+        $msg .= ' (ยังไม่ได้ตั้งผู้อนุมัติใบรับเข้า แจ้งผู้ดูแลระบบให้ตั้งที่เมนู "ผู้อนุมัติเอกสาร")';
+    }
+
+    $out = db_ok($msg, $doc_id);
+    $out['doc_no'] = $doc_no;
+    return $out;
+}
+
+
+/* ---------- แจ้งผู้อนุมัติว่ามีใบรับเข้ารอตรวจ ----------
+ * เรียกหลังหน้าเว็บอัปโหลดไฟล์ใบบิลเสร็จ (หรือไม่มีไฟล์) — ส่งได้ครั้งเดียวต่อใบ
+ * กันกดซ้ำ: ส่งเฉพาะใบ waiting ที่ยังไม่เคยมีแจ้งเตือน receive_waiting
+ */
+function receive_notify_submitted($doc_id, $actor)
+{
+    $doc = doc_find($doc_id);
+    if ($doc === null || $doc['doc_type'] !== 'receive' || $doc['status'] !== 'waiting') { return 0; }
+    if ($doc['created_by'] !== $actor) { return 0; }
+
+    $connect = db_connect();
+    $id  = (int)$doc['doc_id'];
+    $res = @mysqli_query($connect,
+        "SELECT COUNT(*) FROM `tb_notification` WHERE `link_doc_id` = " . $id . " AND `noti_type` = 'receive_waiting'");
+    if ($res) {
+        $row = mysqli_fetch_row($res);
+        mysqli_free_result($res);
+        if ((int)$row[0] > 0) { return 0; }
+    }
+
+    require_once dirname(__FILE__) . '/notify_events.php';
+    return notify_event_receive_submitted($id, $actor);
+}
+
+
+/* ---------- บวกสต๊อกตามบรรทัดของใบ (เรียกใน transaction ตอนอนุมัติ) ---------- */
+function receive_apply_stock($doc, $actor)
+{
     /* เวลาที่บันทึกลงประวัติใช้ "วันที่เอกสาร + เวลาปัจจุบัน"
        วันที่ต้องตรงกับเอกสารเพื่อให้รายงานตามช่วงวันที่ถูกต้อง
        ส่วนเวลาใช้ของจริง เพื่อให้เรียงลำดับรายการในวันเดียวกันได้ถูก */
-    $move_date = $data['doc_date'] . ' ' . date('H:i:s');
+    $move_date = $doc['doc_date'] . ' ' . date('H:i:s');
 
-    $items = $data['items'];
+    $items = $doc['items'];
     for ($i = 0; $i < count($items); $i++) {
+        $it = $items[$i];
 
-        /* ราคาที่กรอกมาคือราคาซื้อจริงของครั้งนี้ ส่งเข้าไปให้บันทึกคู่กับรายการ */
+        /* ราคาที่กรอกตอนบันทึกคือราคาซื้อจริงของครั้งนี้ ส่งเข้าไปให้บันทึกคู่กับรายการ */
         $applied = stock_apply(
-            (int)$items[$i]['product_id'],
-            (float)$items[$i]['qty'],
+            (int)$it['product_id'],
+            (float)$it['qty'],
             'receive',
-            array('doc_id' => $doc_id, 'doc_no' => $doc_no, 'move_date' => $move_date),
+            array('doc_id' => $doc['doc_id'], 'doc_no' => $doc['doc_no'], 'move_date' => $move_date),
             $actor,
-            isset($items[$i]['note']) ? $items[$i]['note'] : '',
-            isset($items[$i]['unit_cost']) ? (float)$items[$i]['unit_cost'] : 0
+            $it['note'],
+            (float)$it['unit_cost']
         );
-
         if (!$applied['ok']) {
-            db_rollback();
             return db_fail('บรรทัดที่ ' . ($i + 1) . ': ' . $applied['message']);
         }
 
         /* ซื้อมาราคาใหม่ ก็ให้ราคาในทะเบียนสินค้าตามไปด้วย
            ครั้งหน้าฟอร์มจะได้เติมราคาล่าสุดให้ ไม่ใช่ราคาเมื่อปีที่แล้ว */
-        if (!receive_reprice((int)$items[$i]['product_id'], $actor)) {
-            db_rollback();
+        if (!receive_reprice((int)$it['product_id'], $actor)) {
             return db_fail('บรรทัดที่ ' . ($i + 1) . ': ปรับราคาในทะเบียนสินค้าไม่สำเร็จ');
         }
+    }
+    return db_ok('');
+}
+
+
+/* ============================================================
+ *  ผู้ตรวจสอบตัดสินใบรับเข้า
+ *  $decision = 'approved' -> สถานะ received + เพิ่มสต๊อก
+ *              'rejected' -> สถานะ rejected ไม่แตะสต๊อก (ต้องมีเหตุผล)
+ * ============================================================ */
+function receive_decide($doc_id, $decision, $reason, $actor)
+{
+    if ($decision !== 'approved' && $decision !== 'rejected') {
+        return db_fail('คำสั่งไม่ถูกต้อง');
+    }
+
+    $doc = doc_find($doc_id);
+    if ($doc === null)                  { return db_fail('ไม่พบใบรับเข้าที่ต้องการ'); }
+    if ($doc['doc_type'] !== 'receive') { return db_fail('เอกสารนี้ไม่ใช่ใบรับเข้า'); }
+    if ($doc['status'] !== 'waiting') {
+        return db_fail('ใบนี้ถูกตัดสินไปแล้ว (สถานะ: ' . $doc['status_label'] . ')');
+    }
+
+    if (!doc_approver_can('receive', $actor)) {
+        return db_fail('คุณไม่ได้อยู่ในรายชื่อผู้อนุมัติใบรับเข้า — ให้ผู้ดูแลระบบเพิ่มชื่อที่เมนู "ผู้อนุมัติเอกสาร" ก่อน');
+    }
+
+    /* คนบันทึกตรวจของตัวเองไม่ได้ — ขั้นตรวจจะไม่มีความหมาย */
+    if ($doc['created_by'] !== '' && $doc['created_by'] === $actor) {
+        return db_fail('อนุมัติใบรับเข้าที่ตัวเองบันทึกไม่ได้ ต้องให้ผู้ตรวจสอบคนอื่นตัดสิน');
+    }
+
+    $reason = trim($reason);
+    if ($decision === 'rejected' && $reason === '') {
+        return db_fail('กรุณาระบุเหตุผลที่ไม่อนุมัติ — ผู้บันทึกต้องรู้ว่ารายการไหนไม่ตรงกับบิล');
+    }
+
+    $connect    = db_connect();
+    $id         = (int)$doc['doc_id'];
+    $actor_name = doc_user_name($actor);    // แช่แข็งชื่อผู้อนุมัติ — ดู doc_user_name()
+    $new_status = ($decision === 'approved') ? 'received' : 'rejected';
+
+    db_begin();
+
+    /* WHERE status = 'waiting' กันสองคนกดพร้อมกันแล้วบวกสต๊อกซ้ำ */
+    $stmt = mysqli_prepare($connect,
+        "UPDATE `tb_doc_header`
+         SET `status` = ?, `approved_by` = ?, `approved_by_name` = ?, `approved_at` = NOW(),
+             `approve_note` = ?, `updated_by` = ?
+         WHERE `doc_id` = ? AND `status` = 'waiting'");
+    if (!$stmt) { db_rollback(); return db_fail('บันทึกผลไม่สำเร็จ'); }
+
+    mysqli_stmt_bind_param($stmt, 'sssssi', $new_status, $actor, $actor_name, $reason, $actor, $id);
+    if (!mysqli_stmt_execute($stmt)) {
+        $errno = mysqli_stmt_errno($stmt);
+        mysqli_stmt_close($stmt);
+        db_rollback();
+        return db_fail(db_error_message($errno), $errno);
+    }
+    $affected = mysqli_stmt_affected_rows($stmt);
+    mysqli_stmt_close($stmt);
+
+    if ($affected < 1) {
+        db_rollback();
+        return db_fail('มีคนตัดสินใบนี้ไปแล้ว กรุณารีเฟรชหน้าแล้วลองใหม่');
+    }
+
+    if ($decision === 'approved') {
+        $applied = receive_apply_stock($doc, $actor);
+        if (!$applied['ok']) { db_rollback(); return $applied; }
     }
 
     db_commit();
 
-    $out = db_ok('บันทึกใบรับเข้า ' . $doc_no . ' เรียบร้อย — เพิ่มสต๊อกแล้ว', $doc_id);
-    $out['doc_no'] = $doc_no;
-    return $out;
+    /* เผากุญแจอนุมัติทางอีเมลของใบนี้ — เรื่องจบแล้ว */
+    require_once dirname(__FILE__) . '/approve_link.php';
+    approve_link_close_doc($id, $actor);
+
+    doc_history_add($id, $decision, $actor, $reason);
+
+    require_once dirname(__FILE__) . '/notify_events.php';
+    notify_event_receive_decided($id, $decision, $reason, $actor);
+
+    return db_ok(($decision === 'approved')
+        ? 'อนุมัติใบรับเข้า ' . $doc['doc_no'] . ' เรียบร้อย — เพิ่มสต๊อกแล้ว'
+        : 'ไม่อนุมัติใบรับเข้า ' . $doc['doc_no'] . ' เรียบร้อย — สต๊อกไม่เปลี่ยน', $id);
+}
+
+
+/* ---------- จำนวนใบรับเข้าที่รอคนนี้อนุมัติ — badge บนเมนู ----------
+ * คนที่ไม่อยู่ในรายชื่อได้ 0 เสมอ และไม่นับใบที่ตัวเองบันทึก (อนุมัติเองไม่ได้)
+ */
+function receive_waiting_count($actor)
+{
+    if (!doc_approver_can('receive', $actor)) { return 0; }
+
+    $connect = db_connect();
+    $stmt = mysqli_prepare($connect,
+        "SELECT COUNT(*) FROM `tb_doc_header`
+         WHERE `doc_type` = 'receive' AND `status` = 'waiting'
+           AND (`created_by` IS NULL OR `created_by` <> ?)");
+    if (!$stmt) { return 0; }
+    mysqli_stmt_bind_param($stmt, 's', $actor);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_bind_result($stmt, $n);
+    mysqli_stmt_fetch($stmt);
+    mysqli_stmt_close($stmt);
+    return (int)$n;
 }
 
 
@@ -111,8 +264,9 @@ function receive_reprice($product_id, $actor, $skip_doc_id = 0)
             JOIN `tb_doc_header` h ON h.`doc_id` = i.`doc_id`
             WHERE i.`product_id` = ?
               AND h.`doc_type` = 'receive'
-              AND h.`status` <> 'cancelled'
+              AND h.`status` = 'received'
               AND i.`unit_cost` > 0";
+    /* เฉพาะใบที่อนุมัติแล้ว (received) — ใบที่ยังรอ/ไม่อนุมัติยังไม่ใช่ราคาที่ซื้อเข้าจริง */
 
     if ((int)$skip_doc_id > 0) { $sql .= " AND h.`doc_id` <> ?"; }
 
@@ -159,6 +313,7 @@ function receive_cancel($doc_id, $reason, $actor)
     if ($doc === null)                { return db_fail('ไม่พบเอกสารที่ต้องการยกเลิก'); }
     if ($doc['doc_type'] !== 'receive') { return db_fail('เอกสารนี้ไม่ใช่ใบรับเข้า'); }
     if ($doc['status'] === 'cancelled') { return db_fail('เอกสารนี้ถูกยกเลิกไปแล้ว'); }
+    if ($doc['status'] === 'rejected')  { return db_fail('ใบที่ไม่อนุมัติแล้ว ไม่ต้องยกเลิก — สต๊อกไม่เคยเพิ่ม'); }
 
     $reason = trim($reason);
     if ($reason === '') {
@@ -167,8 +322,11 @@ function receive_cancel($doc_id, $reason, $actor)
 
     db_begin();
 
+    /* ใบที่ยังรออนุมัติ ยังไม่เคยบวกสต๊อก — เปลี่ยนสถานะอย่างเดียว ไม่มีอะไรให้ดึงคืน */
+    $was_in_stock = ($doc['status'] === 'received');
+
     $move_date = date('Y-m-d H:i:s');
-    for ($i = 0; $i < count($doc['items']); $i++) {
+    for ($i = 0; $was_in_stock && $i < count($doc['items']); $i++) {
         $item = $doc['items'][$i];
 
         /* ถอนมูลค่าออกด้วย "ราคาที่รับเข้ามาตอนนั้น" ไม่ใช่ราคาซื้อล่าสุดวันนี้
@@ -204,20 +362,37 @@ function receive_cancel($doc_id, $reason, $actor)
         "UPDATE `tb_doc_header`
          SET `status` = 'cancelled', `cancelled_by` = ?, `cancelled_at` = NOW(),
              `cancel_note` = ?, `updated_by` = ?
-         WHERE `doc_id` = ?");
+         WHERE `doc_id` = ? AND `status` = ?");
     if (!$stmt) { db_rollback(); return db_fail('ยกเลิกเอกสารไม่สำเร็จ'); }
 
-    $id = (int)$doc['doc_id'];
-    mysqli_stmt_bind_param($stmt, 'sssi', $actor, $reason, $actor, $id);
+    /* AND status = สถานะที่อ่านมา — กันผู้อนุมัติกดอนุมัติแทรกเข้ามาระหว่างนี้
+       (ไม่งั้นใบที่เพิ่งบวกสต๊อกจะถูกยกเลิกโดยไม่ดึงยอดคืน) */
+    $id  = (int)$doc['doc_id'];
+    $was = $doc['status'];
+    mysqli_stmt_bind_param($stmt, 'sssis', $actor, $reason, $actor, $id, $was);
     if (!mysqli_stmt_execute($stmt)) {
         $errno = mysqli_stmt_errno($stmt);
         mysqli_stmt_close($stmt);
         db_rollback();
         return db_fail(db_error_message($errno), $errno);
     }
+    $affected = mysqli_stmt_affected_rows($stmt);
     mysqli_stmt_close($stmt);
+
+    if ($affected < 1) {
+        db_rollback();
+        return db_fail('สถานะใบเปลี่ยนไประหว่างทาง กรุณารีเฟรชหน้าแล้วลองใหม่');
+    }
 
     db_commit();
 
-    return db_ok('ยกเลิกใบรับเข้า ' . $doc['doc_no'] . ' เรียบร้อย — ดึงยอดออกจากสต๊อกแล้ว', $id);
+    doc_history_add($id, 'cancelled', $actor, $reason);
+
+    if (!$was_in_stock) {
+        require_once dirname(__FILE__) . '/approve_link.php';
+        approve_link_close_doc($id, $actor);
+    }
+
+    return db_ok('ยกเลิกใบรับเข้า ' . $doc['doc_no'] . ' เรียบร้อย'
+               . ($was_in_stock ? ' — ดึงยอดออกจากสต๊อกแล้ว' : ''), $id);
 }

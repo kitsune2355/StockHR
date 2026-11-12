@@ -4,6 +4,7 @@
  *
  *    'request'  ใบเบิก       -> tb_request_approver (sql/088)
  *    'adjust'   ใบปรับยอด    -> tb_adjust_approver  (sql/056)
+ *    'receive'  ใบรับเข้า    -> tb_receive_approver (sql/089)
  *
  *  ใครอนุมัติได้ = "เฉพาะคนที่อยู่ในรายชื่อของประเภทนั้น" — ไม่ผูกกับ role ไม่ผูกกับหน่วยงาน
  *  คนในรายชื่ออนุมัติได้ทุกใบของประเภทนั้น (ยกเว้นใบที่ตัวเองยื่น — เช็คที่ฟังก์ชันตัดสินแต่ละตัว)
@@ -28,13 +29,16 @@ function doc_approver_table($kind)
 {
     if ($kind === 'request') { return 'tb_request_approver'; }
     if ($kind === 'adjust')  { return 'tb_adjust_approver'; }
+    if ($kind === 'receive') { return 'tb_receive_approver'; }
     return '';
 }
 
 /* ชื่อเรียกบนหน้าจอ/ข้อความแจ้ง */
 function doc_approver_label($kind)
 {
-    return ($kind === 'adjust') ? 'ใบปรับยอด' : 'ใบเบิก';
+    if ($kind === 'adjust')  { return 'ใบปรับยอด'; }
+    if ($kind === 'receive') { return 'ใบรับเข้า'; }
+    return 'ใบเบิก';
 }
 
 

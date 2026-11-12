@@ -397,7 +397,7 @@ function notify_event_request_decided($doc_id, $decision, $reason, $actor)
 
     $approved = ($decision === 'approved');
 
-    $extra = array(array('ผู้ตัดสิน', $by));
+    $extra = array(array('ผู้อนุมัติ', $by));
     if (trim($reason) !== '') {
         $extra[] = array($approved ? 'หมายเหตุจากผู้อนุมัติ' : 'เหตุผลที่ไม่อนุมัติ', $reason);
     }
@@ -651,7 +651,7 @@ function notify_event_adjust_decided($doc_id, $decision, $reason, $actor)
     $by       = ($approver !== null && $approver['full_name'] !== '') ? $approver['full_name'] : $actor;
     $approved = ($decision === 'approved');
 
-    $extra = array(array('ผู้ตัดสิน', $by));
+    $extra = array(array('ผู้อนุมัติ', $by));
     if (trim($reason) !== '') {
         $extra[] = array($approved ? 'หมายเหตุจากผู้อนุมัติ' : 'เหตุผลที่ไม่อนุมัติ', $reason);
     }
@@ -675,6 +675,120 @@ function notify_event_adjust_decided($doc_id, $decision, $reason, $actor)
         'ref_type'  => $approved ? 'adjust_approved' : 'adjust_rejected',
         'body_html' => $body
                      . mail_detail_table(notify_adjust_pairs($doc, $extra))
+                     . notify_items_html($doc['items'])
+    ));
+}
+
+
+/* ---------- หัวเอกสารใบรับเข้าสำหรับเนื้อเมล ---------- */
+function notify_receive_pairs($doc, $extra = array())
+{
+    $total = 0;
+    for ($i = 0; $i < count($doc['items']); $i++) {
+        $total += (float)$doc['items'][$i]['qty'] * (float)$doc['items'][$i]['unit_cost'];
+    }
+    $pairs = array(
+        array('เลขที่เอกสาร',  $doc['doc_no']),
+        array('วันที่รับเข้า', thai_date_long($doc['doc_date'])),
+        array('ผู้บันทึก',     $doc['created_by_name'] !== '' ? $doc['created_by_name'] : $doc['created_by']),
+        array('มูลค่ารวม',     number_format($total, 2) . ' บาท')
+    );
+    for ($i = 0; $i < count($extra); $i++) { $pairs[] = $extra[$i]; }
+    if (trim($doc['note']) !== '') {
+        $pairs[] = array('หมายเหตุ', $doc['note']);
+    }
+    return $pairs;
+}
+
+
+/* ============================================================
+ *  ใบรับเข้า — บันทึกเข้ามารอตรวจ
+ *  ปลายทาง: รายชื่อผู้อนุมัติใบรับเข้า (ตัดคนบันทึกออก) มีลิงก์อนุมัติในเมล
+ *  ลิงก์เปิดไฟล์ใบบิลได้โดยไม่ต้องล็อกอิน (ดู approve.php ?att=)
+ *  ยังไม่ได้ตั้งผู้อนุมัติ -> ไม่ส่ง ใบค้างเป็น "รออนุมัติ" ในหน้าประวัติรับเข้า
+ * ============================================================ */
+function notify_event_receive_submitted($doc_id, $actor)
+{
+    require_once dirname(__FILE__) . '/approve_link.php';   // APPROVE_LINK_DAYS ในเนื้อเมล
+    require_once dirname(__FILE__) . '/doc_attachment.php';
+
+    $doc = doc_find($doc_id);
+    if ($doc === null || $doc['doc_type'] !== 'receive') { return 0; }
+
+    $people = doc_approver_people('receive', $doc['created_by']);
+    if (count($people) === 0) { return 0; }
+
+    $who     = ($doc['created_by_name'] !== '') ? $doc['created_by_name'] : $doc['created_by'];
+    $summary = notify_items_summary($doc['items']);
+    $files   = doc_attachment_ready() ? count(doc_attachment_list($doc['doc_id'])) : 0;
+
+    return notify_deliver($people, array(
+        'type'      => 'receive_waiting',
+        'title'     => 'ใบรับเข้า ' . $doc['doc_no'] . ' รอคุณตรวจสอบ',
+        'message'   => $who . ' บันทึกรับเข้า ' . $summary,
+        'link_page' => 'receive_history',
+        'doc_id'    => $doc['doc_id'],
+        'actor'     => $actor,
+        'subject'   => '[รออนุมัติ] ใบรับเข้า ' . $doc['doc_no'] . ' จาก ' . $who,
+        'heading'   => 'มีใบรับเข้ารอการตรวจสอบ',
+        'button'    => 'เปิดหน้าตรวจและอนุมัติ',
+        'ref_type'  => 'receive_waiting',
+        'approve_link' => true,
+        'body_html' =>
+              '<p>' . htmlspecialchars($who, ENT_QUOTES, 'UTF-8')
+            . ' บันทึกรับสินค้าเข้าคลัง กรุณาเทียบรายการกับใบบิล'
+            . ($files > 0 ? ' (แนบไว้ ' . $files . ' ไฟล์ เปิดดูได้ในหน้าอนุมัติ)' : ' (ผู้บันทึกไม่ได้แนบไฟล์ใบบิล)')
+            . ' แล้วกดอนุมัติหรือไม่อนุมัติได้เลย ไม่ต้องเข้าสู่ระบบ '
+            . 'สินค้าจะเข้าคลังก็ต่อเมื่อได้รับอนุมัติ</p>'
+            . mail_detail_table(notify_receive_pairs($doc))
+            . notify_items_html($doc['items'])
+            . '<p style="font-size:13px;color:#94a3b8;margin-top:16px">'
+            . 'ลิงก์นี้ใช้ได้ครั้งเดียวและหมดอายุใน ' . (int)APPROVE_LINK_DAYS . ' วัน '
+            . 'กรุณาอย่าส่งต่อให้ผู้อื่น เพราะผู้ที่ถือลิงก์จะตัดสินใบนี้ในนามของคุณได้</p>'
+    ));
+}
+
+
+/* ============================================================
+ *  ใบรับเข้า — ผู้ตรวจสอบตัดสิน
+ *  ปลายทาง: ผู้บันทึกใบ
+ * ============================================================ */
+function notify_event_receive_decided($doc_id, $decision, $reason, $actor)
+{
+    $doc = doc_find($doc_id);
+    if ($doc === null || $doc['doc_type'] !== 'receive') { return 0; }
+
+    $people = notify_person($doc['created_by']);
+    if (count($people) === 0) { return 0; }
+
+    $approver = user_find($actor);
+    $by       = ($approver !== null && $approver['full_name'] !== '') ? $approver['full_name'] : $actor;
+    $approved = ($decision === 'approved');
+
+    $extra = array(array('ผู้อนุมัติ', $by));
+    if (trim($reason) !== '') {
+        $extra[] = array($approved ? 'หมายเหตุจากผู้อนุมัติ' : 'เหตุผลที่ไม่อนุมัติ', $reason);
+    }
+
+    $body = $approved
+          ? '<p>ใบรับเข้าของคุณผ่านการตรวจสอบแล้ว สินค้าเข้าคลังและเพิ่มยอดคงเหลือเรียบร้อย</p>'
+          : '<p>ใบรับเข้าของคุณไม่ผ่านการตรวจสอบ สินค้ายังไม่เข้าคลัง กรุณาดูเหตุผลด้านล่าง แล้วบันทึกใบใหม่ให้ตรงกับใบบิล</p>';
+
+    return notify_deliver($people, array(
+        'type'      => $approved ? 'receive_approved' : 'receive_rejected',
+        'title'     => ($approved ? 'อนุมัติใบรับเข้า ' : 'ไม่อนุมัติใบรับเข้า ') . $doc['doc_no'],
+        'message'   => $approved
+                       ? 'ผ่านการตรวจสอบ สินค้าเข้าคลังแล้ว'
+                       : 'เหตุผล: ' . ($reason !== '' ? $reason : 'ไม่ได้ระบุ'),
+        'link_page' => 'receive_history',
+        'doc_id'    => $doc['doc_id'],
+        'actor'     => $actor,
+        'subject'   => ($approved ? '[อนุมัติแล้ว] ' : '[ไม่อนุมัติ] ') . 'ใบรับเข้า ' . $doc['doc_no'],
+        'heading'   => $approved ? 'ใบรับเข้าได้รับการอนุมัติ' : 'ใบรับเข้าไม่ได้รับการอนุมัติ',
+        'button'    => 'เปิดใบรับเข้า',
+        'ref_type'  => $approved ? 'receive_approved' : 'receive_rejected',
+        'body_html' => $body
+                     . mail_detail_table(notify_receive_pairs($doc, $extra))
                      . notify_items_html($doc['items'])
     ));
 }

@@ -38,6 +38,9 @@ function notify_types()
         'adjust_waiting'     => array('label' => 'ใบปรับยอดรออนุมัติ', 'icon' => 'scale',          'tone' => 'amber'),
         'adjust_approved'    => array('label' => 'อนุมัติใบปรับยอดแล้ว', 'icon' => 'circle-check',  'tone' => 'green'),
         'adjust_rejected'    => array('label' => 'ไม่อนุมัติใบปรับยอด', 'icon' => 'circle-x',       'tone' => 'red'),
+        'receive_waiting'    => array('label' => 'ใบรับเข้ารอตรวจสอบ', 'icon' => 'package-plus',   'tone' => 'amber'),
+        'receive_approved'   => array('label' => 'อนุมัติใบรับเข้าแล้ว', 'icon' => 'circle-check',  'tone' => 'green'),
+        'receive_rejected'   => array('label' => 'ไม่อนุมัติใบรับเข้า', 'icon' => 'circle-x',       'tone' => 'red'),
         'stock_low'          => array('label' => 'ของใกล้หมด',        'icon' => 'triangle-alert', 'tone' => 'red'),
         'system'             => array('label' => 'ระบบ',              'icon' => 'bell',           'tone' => 'slate')
     );

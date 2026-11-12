@@ -1695,12 +1695,14 @@
              ปุ่มยังหมุนอยู่ระหว่างอัปโหลด กันกดบันทึกซ้ำ */
           if (EDIT_ID <= 0 && attachStaged.length && res.doc_id) {
             uploadStaged(res, function () {
+              notifyReceiveApprovers(res);
               busy(false);
               resetForm();
             });
             return;
           }
 
+          notifyReceiveApprovers(res);
           busy(false);
           if (typeof window.appSuccess === "function") {
             window.appSuccess(res.message);
@@ -1852,6 +1854,19 @@
     });
   }
 
+  /* ใบรับเข้า: แจ้งผู้ตรวจหลังไฟล์ใบบิลขึ้นครบแล้ว — เมลจะได้บอกจำนวนไฟล์ถูก
+     ยิงแล้วไม่รอผล ส่งไม่ออกก็ไม่กระทบการบันทึก (ผู้ดูแลกด "ส่งอีเมลซ้ำ" ได้ภายหลัง) */
+  function notifyReceiveApprovers(saveRes) {
+    if (TYPE !== "receive" || EDIT_ID > 0 || !saveRes || !saveRes.doc_id) {
+      return;
+    }
+    post(
+      { action: "receive_submitted", doc_id: saveRes.doc_id, csrf_token: CFG.csrfToken },
+      function () {},
+      function () {},
+    );
+  }
+
   function uploadStaged(saveRes, done) {
     var files = [];
     for (var i = 0; i < attachStaged.length; i++) {
@@ -1873,7 +1888,7 @@
             window.appSuccess(msg);
           }
         } else {
-          /* ใบบันทึกแล้ว (สต๊อกเปลี่ยนแล้ว) แค่ไฟล์ไม่ขึ้น — ห้ามให้เข้าใจว่าบันทึกใบไม่สำเร็จ */
+          /* ใบบันทึกแล้ว แค่ไฟล์ไม่ขึ้น — ห้ามให้เข้าใจว่าบันทึกใบไม่สำเร็จ */
           var text =
             "บันทึกใบรับเข้า " +
             (saveRes.doc_no || "") +

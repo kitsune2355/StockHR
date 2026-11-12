@@ -390,6 +390,9 @@ function welfare_submit($p)
         'doc_date'      => date('Y-m-d'),
         'department_id' => $dept['department_id'],
         'requester'     => WELFARE_ACTOR,
+        /* ชื่อคนที่กดเบิกในระบบสวัสดิการ — แสดงเป็น "ผู้ขอเบิก" แทนชื่อบัญชีกลาง
+           ไม่มีชื่อมา (ระบบสวัสดิการรุ่นเก่า) = doc_insert ใช้ชื่อบัญชีกลางตามเดิม */
+        'requester_name' => $by_name,
         /* ชุดเลขของ backend เท่านั้น (ดู doc_insert) — NRQ ตรงกับใบที่ทำจากหน้าพนักงานใหม่ */
         'doc_prefix'    => $new_staff ? 'NRQ' : 'WRQ',
         'note'          => welfare_doc_note($event, $ent_key, $name, $note),

@@ -442,7 +442,18 @@
     }
 
     if (doc.doc_type === "receive") {
-      if (doc.status === "received" && isManager()) {
+      /* ตรวจเทียบบิลแล้วอนุมัติ: รออนุมัติ + อยู่ในรายชื่อผู้อนุมัติใบรับเข้า + ไม่ใช่ใบที่ตัวเองบันทึก
+         (กติกาเดียวกับ receive_decide() ฝั่งเซิร์ฟเวอร์) */
+      if (
+        doc.status === "waiting" &&
+        CFG.receiveApprover === true &&
+        doc.created_by !== ME
+      ) {
+        out.push({ key: "approve", label: "อนุมัติ", icon: "check", tone: "ok" });
+        out.push({ key: "reject", label: "ไม่อนุมัติ", icon: "x", tone: "bad" });
+      }
+      /* ยกเลิก: ใบที่ยังรอ (ไม่มีอะไรให้ถอน) หรือใบที่เข้าคลังแล้ว (ดึงยอดคืน) */
+      if ((doc.status === "received" || doc.status === "waiting") && isManager()) {
         out.push({
           key: "cancel",
           label: "ยกเลิกใบรับเข้า",
@@ -475,12 +486,12 @@
 
     /* ---------- ส่งอีเมลซ้ำ ----------
      * เฉพาะผู้ดูแลระบบ และเฉพาะเอกสารที่มีปลายทางให้ส่งจริง
-     * ใบรับเข้าไม่มีใครต้องรับแจ้งเตือน จึงไม่มีปุ่มนี้
+     * ใบรับเข้า: เฉพาะใบที่ยังรอตรวจ (ส่งลิงก์อนุมัติชุดใหม่ให้ผู้ตรวจ)
      * ใบเบิกที่จ่ายครบแล้วก็ไม่มี เพราะเรื่องย้ายไปอยู่ที่ใบจ่ายแล้ว
      * ใบปรับยอดที่ยังรออนุมัติ = ส่งลิงก์อนุมัติชุดใหม่ให้ผู้อนุมัติ */
     if (
       isManager() &&
-      doc.doc_type !== "receive" &&
+      (doc.doc_type !== "receive" || doc.status === "waiting") &&
       !(doc.doc_type === "request" && doc.status === "issued")
     ) {
       out.push({
@@ -549,7 +560,7 @@
      * ส่วนลิงก์เซ็นรับมีอันเดียวต่อใบ แต่ใช้กล่องหน้าตาเดียวกัน
      */
     if (
-      (doc.doc_type === "request" || doc.doc_type === "adjust") &&
+      (doc.doc_type === "request" || doc.doc_type === "adjust" || doc.doc_type === "receive") &&
       doc.status === "waiting" &&
       isManager()
     ) {
@@ -1298,14 +1309,14 @@
     meta += line("เวลาบันทึก", dt(doc.created_at));
     /* ผู้อนุมัติ กับ เวลาอนุมัติ แยกกันคนละบรรทัด (เหมือนผู้ขอเบิก/เวลาบันทึก)
        ใบเบิกโชว์ทุกสถานะ — ยังรออนุมัติก็บอกว่ารอใครพิจารณา (รายชื่อผู้อนุมัติใบเบิก) */
-    if (doc.doc_type === "request") {
+    if (doc.doc_type === "request" || (doc.doc_type === "receive" && doc.status === "waiting")) {
       meta += line(
         "ผู้อนุมัติ",
         doc.approved_by
           ? doc.approved_by_name || doc.approved_by
           : doc.dept_approvers && doc.dept_approvers.length
             ? doc.dept_approvers.join(", ")
-            : "— ยังไม่ได้ตั้งผู้อนุมัติใบเบิก —",
+            : "— ยังไม่ได้ตั้งผู้อนุมัติ" + (doc.doc_type === "receive" ? "ใบรับเข้า" : "ใบเบิก") + " —",
       );
       meta += line("เวลาอนุมัติ", doc.approved_at ? dt(doc.approved_at) : "—");
     } else {
@@ -2234,7 +2245,8 @@
   function decide(decision) {
     var isNo = decision === "rejected";
     var isAdjust = openDoc.doc_type === "adjust";
-    var noun = isAdjust ? "ใบปรับยอด" : "ใบเบิก";
+    var isReceive = openDoc.doc_type === "receive";
+    var noun = isAdjust ? "ใบปรับยอด" : isReceive ? "ใบรับเข้า" : "ใบเบิก";
 
     askReason(
       {
@@ -2243,10 +2255,14 @@
         text: isNo
           ? isAdjust
             ? "ระบุเหตุผลที่ไม่อนุมัติ ยอดคงเหลือจะไม่เปลี่ยน"
-            : "ระบุเหตุผล เพื่อให้ผู้ขอเบิกรู้ว่าต้องแก้อะไร"
+            : isReceive
+              ? "ระบุว่ารายการไหนไม่ตรงกับใบบิล สินค้าจะยังไม่เข้าคลัง"
+              : "ระบุเหตุผล เพื่อให้ผู้ขอเบิกรู้ว่าต้องแก้อะไร"
           : isAdjust
             ? "อนุมัติแล้วยอดคงเหลือจะถูกปรับให้ตรงกับที่นับทันที และย้อนกลับได้ด้วยการยกเลิกใบเท่านั้น"
-            : "อนุมัติแล้วคลังจะทำใบจ่ายตามใบนี้ได้ (ยังไม่ตัดสต๊อกตอนนี้)",
+            : isReceive
+              ? "ยืนยันว่ารายการ จำนวน และราคาตรงกับใบบิลแล้ว — อนุมัติแล้วสินค้าจะเข้าคลังทันที"
+              : "อนุมัติแล้วคลังจะทำใบจ่ายตามใบนี้ได้ (ยังไม่ตัดสต๊อกตอนนี้)",
         required: isNo,
         danger: isNo,
         confirm: isNo ? "ยืนยันไม่อนุมัติ" : "ยืนยันอนุมัติ",

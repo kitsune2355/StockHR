@@ -206,6 +206,30 @@ function dashboard_my_tasks($username, $role, $limit = 6)
         }
     }
 
+    /* ---------- ใบรับเข้าที่รอเราตรวจ (รายชื่อผู้อนุมัติใบรับเข้า) ---------- */
+    if (doc_approver_can('receive', $username)) {
+        $rows = doc_list(array('doc_type' => 'receive', 'status' => 'waiting', 'limit' => 50));
+
+        for ($i = 0; $i < count($rows); $i++) {
+            $r = $rows[$i];
+            if ($r['created_by'] === $username) { continue; }   // กฎเดียวกับ receive_decide()
+
+            $tasks[] = array(
+                'kind'   => 'receive',
+                'label'  => 'รอตรวจรับเข้า',
+                'icon'   => 'package-plus',
+                'tone'   => 'amber',
+                'doc_no' => $r['doc_no'],
+                'title'  => 'ใบรับสินค้าเข้า',
+                'sub'    => 'ผู้บันทึก ' . ($r['created_by_name'] !== '' ? $r['created_by_name'] : $r['created_by'])
+                          . ' · ' . (int)$r['line_count'] . ' รายการ',
+                'date'   => $r['doc_date'],
+                'page'   => 'receive_history'
+            );
+            if (count($tasks) >= $limit) { return $tasks; }
+        }
+    }
+
     /* ---------- ใบจ่ายที่รอเราเซ็นรับของ ---------- */
     $rows = doc_list(array('doc_type' => 'issue', 'status' => 'issued',
                            'requester' => $username, 'limit' => 20));

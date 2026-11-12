@@ -503,7 +503,8 @@ function doc_scope_for($actor, $actor_role, $doc_type = '')
 
     /* ผู้อนุมัติใบเบิก (รายชื่อที่ตั้งในเมนู "ผู้อนุมัติใบเบิก") อนุมัติได้ทุกหน่วยงาน
        จึงต้องเห็นใบเบิกทุกใบด้วย ไม่งั้นจะมีใบที่อนุมัติได้แต่หาไม่เจอ */
-    if ($doc_type === 'request' && request_approver_can($actor)) {
+    if (($doc_type === 'request' && request_approver_can($actor))
+        || ($doc_type === 'receive' && doc_approver_can('receive', $actor))) {
         return array();
     }
 
@@ -543,7 +544,8 @@ function doc_can_read($doc, $actor, $actor_role)
     }
 
     /* ผู้อนุมัติใบเบิกเปิดใบเบิกได้ทุกใบ — คู่กับ doc_scope_for() */
-    if ($doc['doc_type'] === 'request' && request_approver_can($actor)) {
+    if (($doc['doc_type'] === 'request' && request_approver_can($actor))
+        || ($doc['doc_type'] === 'receive' && doc_approver_can('receive', $actor))) {
         return true;
     }
 
@@ -733,6 +735,12 @@ function doc_insert($doc_type, $data, $status, $actor)
 
     /* แช่แข็งชื่อผู้ขอ/ผู้บันทึกไว้ตั้งแต่ตอนสร้าง — ดูเหตุผลที่ doc_user_name() */
     $requester_name = ($requester !== null) ? doc_user_name($requester) : '';
+    /* ผู้เรียกระบุชื่อผู้ขอมาเองได้ — ใช้กับใบจากระบบสวัสดิการ ที่ requester เป็นบัญชีกลาง (hl-welfare)
+       แต่คนที่กดเบิกจริงเป็นเจ้าหน้าที่ฝั่งสวัสดิการ ซึ่งไม่มีบัญชีในระบบนี้ */
+    if (isset($data['requester_name']) && trim($data['requester_name']) !== '') {
+        $requester_name = function_exists('mb_substr')
+            ? mb_substr(trim($data['requester_name']), 0, 150, 'UTF-8') : trim($data['requester_name']);
+    }
     $created_by_name = doc_user_name($actor);
 
     $stmt = mysqli_prepare($connect,

@@ -30,6 +30,8 @@ $actor_role = isset($_SESSION['sess_role']) ? $_SESSION['sess_role'] : '';
 function att_can_access($doc, $actor, $actor_role)
 {
     if ($doc === null) { return false; }
+    /* ผู้อนุมัติใบรับเข้าต้องเห็นใบบิลเพื่อเทียบ แม้เป็น role ผู้ใช้ทั่วไป */
+    if ($doc['doc_type'] === 'receive' && doc_approver_can('receive', $actor)) { return true; }
     if (!in_array($actor_role, array('super_admin', 'admin', 'approver'))) { return false; }
     if ($doc['created_by'] !== '' && $doc['created_by'] === $actor) { return true; }
     return doc_can_read($doc, $actor, $actor_role);

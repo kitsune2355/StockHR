@@ -8263,3 +8263,34 @@ html.apv-open { overflow: hidden; }
     .apv-stage { padding: 0 .5rem .5rem; }
     .apv-nav { top: auto; bottom: 1rem; transform: none; }
 }
+
+/* ============================================================
+   หน้า "ผู้อนุมัติเอกสาร" — แท็บประเภทเอกสาร (ใบเบิก / ใบรับเข้า / ใบปรับยอด)
+   ============================================================ */
+.apk-tabs {
+    display: flex; gap: .25rem; flex: none;
+    padding: 0 1rem; border-bottom: 1px solid #e2e8f0;
+    overflow-x: auto; scrollbar-width: none;
+}
+.apk-tabs::-webkit-scrollbar { display: none; }
+.apk-tab {
+    display: inline-flex; align-items: center; gap: .45rem; white-space: nowrap;
+    padding: .7rem .85rem; margin-bottom: -1px;
+    font-size: .875rem; font-weight: 500; color: #64748b;
+    border-bottom: 2px solid transparent; transition: color .15s, border-color .15s;
+}
+.apk-tab:hover { color: #0f172a; }
+.apk-tab.is-active { color: #0e7490; font-weight: 600; border-bottom-color: #0e7490; }
+.apk-num {
+    min-width: 1.35rem; padding: 0 .4rem; border-radius: 999px; text-align: center;
+    font-size: .72rem; line-height: 1.25rem; font-weight: 600;
+    background: #f1f5f9; color: #64748b;
+}
+.apk-tab.is-active .apk-num { background: #cffafe; color: #0e7490; }
+@media (max-width: 640px) { .apk-tabs { padding: 0 .5rem; } }
+.dark .apk-tabs { border-bottom-color: #1e293b; }
+.dark .apk-tab { color: #94a3b8; }
+.dark .apk-tab:hover { color: #e2e8f0; }
+.dark .apk-tab.is-active { color: #67e8f9; border-bottom-color: #22d3ee; }
+.dark .apk-num { background: #1e293b; color: #94a3b8; }
+.dark .apk-tab.is-active .apk-num { background: rgba(34,211,238,.15); color: #67e8f9; }

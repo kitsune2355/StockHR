@@ -173,15 +173,14 @@ $APP_NAV = array(
                 array('key' => 'print_settings', 'title' => 'เอกสารพิมพ์', 'icon' => 'printer', 'roles' => $ROLE_SUPER, 'file' => 'pages/print_settings.php', 'full' => true),
             )),
 
-            /* รายชื่อคนที่อนุมัติเอกสารได้ — หน้าเดียวกัน แยกประเภทด้วย $approval_kind
-               ใบเบิก -> tb_request_approver, ใบปรับยอด -> tb_adjust_approver (backend/doc_approver.php)
+            /* รายชื่อคนที่อนุมัติเอกสารได้ — เมนูเดียว แบ่งแท็บ ใบเบิก / ใบรับเข้า / ใบปรับยอด
+               ใบเบิก -> tb_request_approver, ใบรับเข้า -> tb_receive_approver,
+               ใบปรับยอด -> tb_adjust_approver (backend/doc_approver.php)
                ใครอนุมัติได้ = เฉพาะคนในรายชื่อ ไม่ผูกกับ role/หน่วยงาน
-               จำกัดที่ $ROLE_ADMIN ให้ตรงกับสิทธิ์ที่ api/approval_settings.php บังคับ */
-            array('key' => 'request_approval', 'title' => 'ผู้อนุมัติใบเบิก', 'icon' => 'user-check',
-                  'roles' => $ROLE_ADMIN, 'file' => 'pages/request_approval.php', 'full' => true),
-            array('key' => 'adjust_approval', 'title' => 'ผู้อนุมัติใบปรับยอด', 'icon' => 'shield-check',
+               จำกัดที่ $ROLE_ADMIN ให้ตรงกับสิทธิ์ที่ api/approval_settings.php บังคับ
+               URL เดิม (request_approval / adjust_approval) ส่งต่อมาที่นี่ — ดู main.php */
+            array('key' => 'doc_approval', 'title' => 'ผู้อนุมัติเอกสาร', 'icon' => 'user-check',
                   'roles' => $ROLE_ADMIN, 'file' => 'pages/approval_settings.php', 'full' => true),
-
             /* เมนู "อุปกรณ์พนักงานใหม่" (new_staff_kit) ถูกเอาออก — ตั้งค่าที่ระบบสวัสดิการแล้ว
                เปิด URL เดิมจะเจอหน้าแจ้งย้าย (ดู $APP_MOVED_PAGES ด้านล่าง)
                ตัวหน้า pages/new_staff_kit.php และ api kit_get/kit_save ยังอยู่ ไม่มีทางเข้าจากเมนู */
