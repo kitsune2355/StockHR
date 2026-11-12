@@ -182,7 +182,7 @@ include dirname(__FILE__) . '/_filter_head.php';
     <?php if ($review_mode) { ?>
     <span class="rv-hint-wide"><i data-lucide="mouse-pointer-click" class="h-3.5 w-3.5" aria-hidden="true"></i> คลิกแถวเพื่อดูรายละเอียดและอนุมัติในแผงด้านขวา</span>
     <?php } ?>
-    <span<?php echo $review_mode ? ' class="rv-hint-narrow"' : ''; ?>><i data-lucide="eye" class="h-3.5 w-3.5" aria-hidden="true"></i> กด "ดูรายละเอียด" เพื่อดูรายการสินค้าและทำงานกับเอกสาร</span>
+    <span<?php echo $review_mode ? ' class="rv-hint-narrow"' : ''; ?>><i data-lucide="mouse-pointer-click" class="h-3.5 w-3.5" aria-hidden="true"></i> คลิกแถวเพื่อดูรายละเอียด รายการสินค้า และทำงานกับเอกสาร</span>
     <span><i data-lucide="circle-dot" class="h-3.5 w-3.5" aria-hidden="true"></i> จุดสีข้างปุ่ม = ใบนั้นมีงานรอคุณอยู่</span>
     <span><i data-lucide="table-properties" class="h-3.5 w-3.5" aria-hidden="true"></i> ลากคลุมแล้ว Ctrl+C คัดลอกไปวางใน Excel ได้</span>
   </div>
@@ -236,7 +236,7 @@ include dirname(__FILE__) . '/_filter_head.php';
 
 <!-- ===== กล่องรายละเอียดเอกสาร ===== -->
 <div id="docPanel" hidden class="doc-overlay">
-  <div class="doc-sheet" role="dialog" aria-modal="true" aria-labelledby="docTitle">
+  <div class="doc-sheet<?php echo ($doc_type === 'receive') ? ' is-compare' : ''; ?>" role="dialog" aria-modal="true" aria-labelledby="docTitle">
 
     <div class="doc-sheet-head">
       <div class="min-w-0">
@@ -248,6 +248,33 @@ include dirname(__FILE__) . '/_filter_head.php';
       </button>
     </div>
 
+    <?php if ($doc_type === 'receive') { ?>
+    <!-- ใบรับเข้า: วางใบบิลคู่กับรายการ ให้ผู้ตรวจเทียบได้โดยไม่ต้องสลับหน้าต่าง
+         ซ้าย = ไฟล์ใบบิล (ซูม/หมุน/สลับไฟล์)  ขวา = หัวเอกสาร + รายการ (คลิกแถวเพื่อติ๊กว่าตรงบิลแล้ว)
+         จอแคบกว่า 1024px วางซ้อนบน-ล่าง (ดู renderViewer ใน doc-list.js และ .bv-* ใน app.css) -->
+    <div class="doc-sheet-body bv-body">
+      <aside class="bv-viewer" aria-label="ไฟล์ใบบิล">
+        <div id="rcStage" class="bv-stage"></div>
+        <!-- รายการไฟล์ + แนบเพิ่ม/ลบ (renderAttach) — คลิกไฟล์ = แสดงในช่องด้านบน -->
+        <div id="docAttach" hidden class="att-box bv-files"></div>
+      </aside>
+      <div class="bv-main">
+        <dl id="docMeta" class="doc-meta"></dl>
+        <p id="rcCheckHint" class="bv-check-hint">
+          <i data-lucide="mouse-pointer-click" class="h-3.5 w-3.5" aria-hidden="true"></i>
+          คลิกแถว (หรือกด Space) เพื่อติ๊กว่าตรงกับใบบิลแล้ว แล้วเลื่อนไปแถวถัดไปให้เอง — ช่วยจำระหว่างตรวจ ไม่ได้บันทึก
+        </p>
+        <div class="doc-table-wrap">
+          <table id="docItems" class="doc-table bv-items"></table>
+        </div>
+        <div class="doc-sum">
+          <span id="rcCheckCount" class="bv-check-count"></span>
+          <label class="bv-hide-checked"><input type="checkbox" id="rcHideChecked" class="grid-check-native"> ซ่อนที่ตรวจแล้ว</label>
+          <b id="docTotal" class="num" hidden>0</b><!-- ยอดรวมอยู่ในแถวท้ายตารางแล้ว -->
+        </div>
+      </div>
+    </div>
+    <?php } else { ?>
     <div class="doc-sheet-body">
       <dl id="docMeta" class="doc-meta"></dl>
 
@@ -258,13 +285,9 @@ include dirname(__FILE__) . '/_filter_head.php';
       <div class="doc-sum">
         จำนวนรวม <b id="docTotal" class="num">0</b>
       </div>
-
-      <?php if ($doc_type === 'receive') { ?>
-      <!-- ไฟล์แนบ (รูป/ไฟล์ใบบิล) — ฝ่ายบัญชีเปิดดู/ดาวน์โหลดจากตรงนี้ (renderAttach ใน doc-list.js) -->
-      <div id="docAttach" hidden class="att-box mt-4"></div>
-      <?php } ?>
       <!-- ประวัติเอกสารย้ายไปเปิดเป็น modal จากเมนู ⋮ (ดู showHistory ใน doc-list.js) -->
     </div>
+    <?php } ?>
 
     <div id="docActions" hidden class="doc-sheet-foot"></div>
   </div>

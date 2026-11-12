@@ -2649,8 +2649,7 @@ input[type="date"].input-control { min-height: 2.75rem; }
    อยู่ใน <main> เดียวกับเนื้อหา ไม่ใช่ overlay ของทั้งหน้าต่าง
    จึงไม่ทับแถบเมนูข้างและแถบบน และเลื่อนไปพร้อมกรอบเนื้อหา
 
-   >= 1280px  กางค้างไว้ทางขวาตลอด ไม่ต้องกดเปิด
-   <  1280px  ซ่อนนอกจอ เปิดด้วยปุ่ม "ตัวกรอง" บนแถบเครื่องมือ
+   ทุกขนาดจอ  ซ่อนนอกจอ เปิดด้วยปุ่ม "ตัวกรอง" บนแถบเครื่องมือ (ดู "แถบตัวกรองแบบลิ้นชัก" ด้านล่าง)
    จุดตัดอยู่ที่ 1280 เพราะต่ำกว่านั้นเนื้อหาหลัก (ตารางหลายคอลัมน์)
    จะเหลือความกว้างไม่พอถ้าโดนแถบ 18rem กินไป */
 
@@ -2771,26 +2770,26 @@ button.fp-toggle { display: none; }
 }
 
 
-/* ---------- จอที่แถบต้องพับเก็บ ---------- */
-@media (max-width: 1279px) {
+/* ---------- แถบตัวกรองแบบลิ้นชัก (ทุกขนาดจอ) ----------
+   เดิมจอ >= 1280px กางแถบค้างไว้ทางขวาตลอด กินที่ตาราง 18rem
+   ตอนนี้ทุกหน้าใช้แบบเดียวกับหน้ารายการใบเบิก: ซ่อนไว้ เปิดด้วยปุ่ม "ตัวกรอง"
+   บนแถบเครื่องมือ (ตัวเลขบนปุ่ม = จำนวนตัวกรองที่ตั้งอยู่) ตารางได้ความกว้างเต็ม */
+.fp-layout { display: block; }
+.fp-main   { display: flex; height: 100%; }
 
-    .fp-layout { display: block; }
-    .fp-main   { display: flex; height: 100%; }
+button.fp-toggle { display: inline-flex; }
+.fp-close        { display: inline-flex; }
 
-    button.fp-toggle { display: inline-flex; }
-    .fp-close        { display: inline-flex; }
-
-    .fp-side {
-        position: fixed; top: 4rem; right: 0; bottom: 0; z-index: 60;
-        width: min(20rem, 88vw);
-        border-radius: 1rem 0 0 0;
-        border-right: 0;
-        transform: translateX(100%);
-        transition: transform .2s ease;
-        box-shadow: -12px 0 30px rgba(15, 23, 42, .18);
-    }
-    .fp-side.is-open { transform: translateX(0); }
+.fp-side {
+    position: fixed; top: 4rem; right: 0; bottom: 0; z-index: 60;
+    width: min(20rem, 88vw);
+    border-radius: 1rem 0 0 0;
+    border-right: 0;
+    transform: translateX(100%);
+    transition: transform .2s ease;
+    box-shadow: -12px 0 30px rgba(15, 23, 42, .18);
 }
+.fp-side.is-open { transform: translateX(0); }
 
 /* จอเล็กมาก ให้แถบเต็มความกว้าง อ่านชื่อช่องได้ครบ */
 @media (max-width: 419px) {
@@ -8006,23 +8005,6 @@ a.bn-ns-row:hover { background: #f8fafc; }
  *  pages/_doc_list.php ($review_mode) + doc-list.js (review*)
  * ============================================================ */
 
-/* ตัวกรองไม่กางค้างในโหมดนี้แม้จอกว้าง — สามคอลัมน์ตารางเหลือที่ไม่พอ
-   ใช้ลิ้นชักเดียวกับจอแคบ (ปุ่ม "ตัวกรอง" บนแถบเครื่องมือ) */
-@media (min-width: 1280px) {
-    .fp-layout.is-review { display: block; }
-    .fp-layout.is-review .fp-main { display: flex; height: 100%; }
-    .fp-layout.is-review button.fp-toggle { display: inline-flex; }
-    .fp-layout.is-review .fp-close { display: inline-flex; }
-    .fp-layout.is-review .fp-side {
-        position: fixed; top: 4rem; right: 0; bottom: 0; z-index: 60;
-        width: min(20rem, 88vw);
-        border-radius: 1rem 0 0 0; border-right: 0;
-        transform: translateX(100%);
-        transition: transform .2s ease;
-        box-shadow: -12px 0 30px rgba(15, 23, 42, .18);
-    }
-    .fp-layout.is-review .fp-side.is-open { transform: translateX(0); }
-}
 
 .rv-body { flex-direction: column; }
 .rv-pane { display: none; }
@@ -8295,6 +8277,129 @@ html.apv-open { overflow: hidden; }
 .dark .apk-num { background: #1e293b; color: #94a3b8; }
 .dark .apk-tab.is-active .apk-num { background: rgba(34,211,238,.15); color: #67e8f9; }
 
+/* ============================================================
+   ประวัติรับเข้า — กล่องรายละเอียดแบบเทียบใบบิล (.doc-sheet.is-compare)
+   ซ้าย: ไฟล์ใบบิล (#rcStage + รายการไฟล์)   ขวา: หัวเอกสาร + รายการสินค้า
+   จอ < 1024px วางซ้อนบน-ล่าง ทั้งกล่องเลื่อนทีเดียว
+   ============================================================ */
+.doc-sheet.is-compare { max-width: 84rem; }
+@media (min-width: 1024px) {
+    .doc-sheet.is-compare { height: 90vh; max-height: 90vh; }
+}
+.bv-body { padding: 0; display: flex; flex-direction: column; }
+@media (min-width: 1024px) {
+    .bv-body {
+        display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+        overflow: hidden;
+    }
+}
+
+.bv-viewer {
+    display: flex; flex-direction: column; min-height: 0;
+    background: #f1f5f9; border-bottom: 1px solid #e2e8f0;
+}
+@media (min-width: 1024px) { .bv-viewer { border-bottom: 0; border-right: 1px solid #e2e8f0; } }
+.bv-stage { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; height: 58vh; }
+@media (min-width: 1024px) { .bv-stage { height: auto; } }
+
+.bv-bar {
+    flex: none; display: flex; align-items: center; gap: .25rem;
+    padding: .375rem .5rem .375rem .875rem;
+    background: #fff; border-bottom: 1px solid #e2e8f0;
+}
+.bv-name { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+           font-size: .8125rem; font-weight: 600; color: #334155; }
+.bv-count, .bv-zoom { flex: none; font-size: .75rem; color: #64748b; font-variant-numeric: tabular-nums; }
+.bv-zoom { min-width: 2.6rem; text-align: center; }
+.bv-sep { flex: none; width: 1px; height: 1.1rem; margin: 0 .25rem; background: #e2e8f0; }
+.bv-tool {
+    flex: none; display: inline-flex; align-items: center; justify-content: center;
+    width: 2rem; height: 2rem; border-radius: .5rem; color: #475569;
+    transition: background .15s, color .15s;
+}
+.bv-tool:hover:not([disabled]) { background: #f1f5f9; color: #0e7490; }
+.bv-tool[disabled] { opacity: .35; cursor: default; }
+
+.bv-canvas {
+    flex: 1 1 auto; min-height: 0; overflow: auto;
+    display: flex; align-items: center; justify-content: center; padding: .75rem;
+}
+.bv-canvas.is-zoomed { align-items: flex-start; justify-content: flex-start; }
+.bv-img {
+    display: block; max-width: 100%; max-height: 100%; object-fit: contain;
+    background: #fff; box-shadow: 0 2px 10px rgba(15, 23, 42, .12);
+    user-select: none;
+}
+.bv-pdf { flex: 1 1 auto; width: 100%; min-height: 0; border: 0; background: #fff; }
+
+.bv-empty {
+    flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: .375rem; padding: 2rem 1.5rem; text-align: center; color: #94a3b8; font-size: .8125rem;
+}
+.bv-empty b { color: #475569; font-size: .875rem; }
+
+/* รายการไฟล์ใต้ช่องดูบิล */
+.bv-files {
+    flex: none; max-height: 34%; overflow-y: auto;
+    margin: 0; padding: .625rem .875rem; background: #fff; border-top: 1px solid #e2e8f0;
+}
+@media (max-width: 1023px) { .bv-files { max-height: none; } }
+.bv-files .att-item.is-active { background: #ecfeff; box-shadow: inset 3px 0 0 #0e7490; border-radius: .5rem; }
+
+.bv-main { min-height: 0; padding: 1rem 1.25rem; }
+@media (min-width: 1024px) { .bv-main { overflow-y: auto; } }
+
+/* ติ๊กแถวที่ตรงกับบิลแล้ว */
+.bv-check-hint {
+    display: flex; align-items: center; gap: .375rem;
+    margin: -.25rem 0 .5rem; font-size: .75rem; color: #94a3b8;
+}
+.bv-items tbody tr.bv-row { cursor: pointer; transition: background .12s; }
+.bv-items tbody tr.bv-row:hover { background: #f8fafc; }
+.bv-items tbody tr.bv-row:focus-visible { outline: 2px solid #0e7490; outline-offset: -2px; }
+.bv-items tbody tr.bv-row.is-checked { background: #ecfdf5; }
+.bv-items tbody tr.bv-row.is-checked td { color: #64748b; }
+.bv-items tbody tr.bv-row td:first-child { position: relative; }
+.bv-items tbody tr.bv-row.is-checked td:first-child { color: transparent; }
+.bv-items tbody tr.bv-row.is-checked td:first-child::after {
+    content: "✓"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end;
+    padding-right: .5rem; color: #059669; font-weight: 700;
+}
+.bv-check-count { display: inline-flex; align-items: center; gap: .3rem; margin-right: auto; color: #64748b; }
+.bv-check-count.is-done { color: #059669; }
+.bv-all { padding: 0 .4rem; border-radius: 999px; background: #d1fae5; color: #047857; font-size: .7rem; font-weight: 600; }
+
+.dark .bv-viewer { background: #020617; border-color: #1e293b; }
+.dark .bv-bar, .dark .bv-files { background: #0f172a; border-color: #1e293b; }
+.dark .bv-name { color: #e2e8f0; }
+.dark .bv-sep { background: #1e293b; }
+.dark .bv-tool { color: #94a3b8; }
+.dark .bv-tool:hover:not([disabled]) { background: #1e293b; color: #67e8f9; }
+.dark .bv-empty b { color: #cbd5e1; }
+.dark .bv-files .att-item.is-active { background: rgba(14, 116, 144, .18); box-shadow: inset 3px 0 0 #22d3ee; }
+.dark .bv-items tbody tr.bv-row:hover { background: rgba(30, 41, 59, .6); }
+.dark .bv-items tbody tr.bv-row.is-checked { background: rgba(16, 185, 129, .12); }
+.dark .bv-items tbody tr.bv-row.is-checked td { color: #94a3b8; }
+.dark .bv-all { background: rgba(16, 185, 129, .2); color: #6ee7b7; }
+.bv-main .doc-sum { display: flex; align-items: center; justify-content: flex-end; gap: .35rem; }
+/* จอแคบ: ช่องบิลกับรายการวางซ้อนกัน ห้ามให้ flex บีบช่องบิลจนเหลือนิดเดียว */
+@media (max-width: 1023px) {
+    .bv-viewer, .bv-main { flex: none; }
+    .bv-bar { padding-left: .625rem; }
+    .bv-zoom { display: none; }
+}
+
+/* ปุ่มอนุมัติ/ไม่อนุมัติของใบที่ผู้อนุมัติบันทึกเอง — เห็นแต่กดอนุมัติไม่ได้ (กดแล้วบอกเหตุผล) */
+.rowact.is-blocked { opacity: .35; cursor: help; }
+.rowact.is-blocked:hover { opacity: .55; background: transparent; }
+.doc-act.is-blocked {
+    background: #f1f5f9; color: #94a3b8; border: 1px dashed #cbd5e1; cursor: help;
+}
+.dark .doc-act.is-blocked { background: #1e293b; color: #64748b; border-color: #334155; }
+
+/* หน้ารายการเอกสาร: คลิกแถวเปิดรายละเอียด (doc-list.js — rowClick) */
+#grid.is-row-open .tabulator-row { cursor: pointer; }
+
 /* หน้าผู้ใช้งาน — "ทุกหน่วยงาน ทุกบริษัท" (users.js ALL_DEPTS) */
 .user-dept-all {
     display: flex; align-items: flex-start; gap: .55rem;
@@ -8309,3 +8414,32 @@ html.apv-open { overflow: hidden; }
 .dark .user-dept-all { background: rgba(6, 182, 212, .12); border-color: rgba(45, 212, 191, .35); color: #a5f3fc; }
 .dark .user-dept-all small { color: #67e8f9; }
 .dark .user-dept-chip-all { background: #0891b2; border-color: #0891b2; color: #fff; }
+
+/* ---------- กล่องเทียบบิล: ใบที่มีรายการเยอะ ----------
+   จอกว้าง: หัวเอกสารอยู่บน ตารางเลื่อนในกรอบของตัวเอง หัวตารางติดบน แถวรวมติดล่าง
+   ผู้ตรวจไล่ลงไปกี่สิบบรรทัดก็ยังเห็นชื่อคอลัมน์และยอดรวมตลอด */
+@media (min-width: 1024px) {
+    .rc-body, .bv-body { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .bv-main { display: flex; flex-direction: column; overflow: hidden; padding-bottom: .75rem; }
+    .bv-main .doc-meta { flex: none; }
+    .bv-main .doc-table-wrap { flex: 1 1 auto; min-height: 8rem; overflow: auto; }
+    .bv-main .doc-sum { flex: none; }
+}
+.bv-items thead th { position: sticky; top: 0; z-index: 1; }
+.bv-items tfoot td {
+    position: sticky; bottom: 0; z-index: 1;
+    background: #f8fafc; border-top: 1px solid #e2e8f0;
+}
+.bv-items td, .bv-items th { padding-top: .45rem; padding-bottom: .45rem; }
+.bv-items td:nth-child(3), .bv-items td:nth-child(4), .bv-items td:nth-child(5) { white-space: nowrap; }
+.bv-items .doc-pname { font-size: .8125rem; }
+.bv-note { display: block; margin-top: .1rem; font-size: .72rem; color: #b45309; }
+.bv-items.is-hide-checked tbody tr.is-checked { display: none; }
+
+.bv-hide-checked {
+    display: inline-flex; align-items: center; gap: .35rem;
+    font-size: .75rem; color: #64748b; cursor: pointer; user-select: none;
+}
+.dark .bv-items tfoot td { background: #0f172a; border-color: #1e293b; }
+.dark .bv-note { color: #fbbf24; }
+.dark .bv-hide-checked { color: #94a3b8; }

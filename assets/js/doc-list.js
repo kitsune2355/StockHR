@@ -34,7 +34,7 @@
    * ลำดับของไอคอนที่โชว์ยังคงที่เสมอ (กรองจาก rowActions ตามลำดับเดิม)
    * เพื่อไม่ให้ปุ่มขยับตำแหน่งตามสถานะ — เหตุผลเดียวกับคอมเมนต์ rowActions()
    */
-  var INLINE_ROW_ACTS = { open: 1, print: 1, approve: 1, reject: 1, ack: 1 };
+  var INLINE_ROW_ACTS = { open: 1, print: 1, approve: 1, reject: 1, ack: 1, selfapprove: 1 };
 
   /* แถวสาธิตของคู่มือใช้เมนู ⋮ เหมือนแถวจริง (ทุกหน้า) แล้วคู่มือกางเมนูค้างไว้
      (openRowMenu แบบ pinned) เพื่อให้ชี้แต่ละคำสั่งในเมนูได้ */
@@ -444,13 +444,16 @@
     if (doc.doc_type === "receive") {
       /* ตรวจเทียบบิลแล้วอนุมัติ: รออนุมัติ + อยู่ในรายชื่อผู้อนุมัติใบรับเข้า + ไม่ใช่ใบที่ตัวเองบันทึก
          (กติกาเดียวกับ receive_decide() ฝั่งเซิร์ฟเวอร์) */
-      if (
-        doc.status === "waiting" &&
-        CFG.receiveApprover === true &&
-        doc.created_by !== ME
-      ) {
-        out.push({ key: "approve", label: "อนุมัติ", icon: "check", tone: "ok" });
-        out.push({ key: "reject", label: "ไม่อนุมัติ", icon: "x", tone: "bad" });
+      if (doc.status === "waiting" && CFG.receiveApprover === true) {
+        if (doc.created_by !== ME) {
+          out.push({ key: "approve", label: "อนุมัติ", icon: "check", tone: "ok" });
+          out.push({ key: "reject", label: "ไม่อนุมัติ", icon: "x", tone: "bad" });
+        } else {
+          /* ผู้อนุมัติที่บันทึกใบนี้เอง: แสดงไอคอนแบบจาง กดแล้วบอกเหตุผล
+             ไม่ซ่อนทิ้ง เพราะผู้อนุมัติจะงงว่าทำไมใบนี้ไม่มีปุ่มอนุมัติ ทั้งที่ใบอื่นมี */
+          out.push({ key: "selfapprove", label: "อนุมัติไม่ได้ — คุณเป็นคนบันทึกใบนี้", icon: "check", tone: "blocked" });
+          out.push({ key: "selfapprove", label: "ไม่อนุมัติไม่ได้ — คุณเป็นคนบันทึกใบนี้", icon: "x", tone: "blocked" });
+        }
       }
       /* ยกเลิก: ใบที่ยังรอ (ไม่มีอะไรให้ถอน) หรือใบที่เข้าคลังแล้ว (ดึงยอดคืน) */
       if ((doc.status === "received" || doc.status === "waiting") && isManager()) {
@@ -592,13 +595,13 @@
        ที่เหลือยุบเข้าเมนู จึงไม่ต้องเผื่อความกว้างให้ครบทุกปุ่ม
        แถวสาธิตของคู่มือก็ใช้ค่าเดียวกัน (มี ⋮ เหมือนแถวจริง) */
   function rowActionWidth() {
-    if (TYPE === "request" || TYPE === "adjust") {
+    if (TYPE === "request" || TYPE === "adjust" || TYPE === "receive") {
       return 184;
-    } // ดู · พิมพ์ · อนุมัติ · ไม่อนุมัติ · ⋮
+    } // ดู · พิมพ์ · อนุมัติ · ไม่อนุมัติ · ⋮ (ใบรับเข้าก็มีขั้นอนุมัติแล้ว)
     if (TYPE === "issue") {
       return 152;
     } // ดู · พิมพ์ · เซ็นรับ · ⋮
-    return 120; // ใบรับเข้า: ดู · พิมพ์ · ยกเลิก
+    return 120;
   }
 
   /* ปุ่มไอคอนเดี่ยว — พิมพ์เป็น <a> เพราะเปิดแท็บใหม่ (ทำเป็นปุ่มแล้ว window.open
@@ -715,20 +718,31 @@
         window.lucide.createIcons();
       }
     });
-    /* แผงด้านขวา: คลิกที่ใดก็ได้ในแถว (ยกเว้นปุ่มในคอลัมน์จัดการ) = เปิดใบนั้นในแผง */
+    /* คลิกที่ใดก็ได้ในแถว = เปิดรายละเอียดใบนั้น
+       ยกเว้น: ปุ่มในคอลัมน์จัดการ, ปุ่ม + กางคอลัมน์ที่ซ่อน, และตอนลากคลุมข้อความ/เซลล์เพื่อคัดลอก
+       หน้ารายการใบเบิก (จอกว้าง) เปิดในแผงด้านขวา หน้าอื่นเปิดกล่องรายละเอียด */
+    el("grid").classList.add("is-row-open");
     table.on("rowClick", function (e, row) {
-      if (!reviewOn()) {
+      var t = e.target;
+      if (t && t.closest && t.closest("[data-row-act],[data-row-more],button,a,input,.tabulator-responsive-collapse-toggle")) {
         return;
       }
-      var t = e.target;
-      if (t && t.closest && t.closest("[data-row-act],[data-row-more],button,a,input")) {
+      if (e.shiftKey || e.ctrlKey || e.metaKey) {
+        return;   // คลุมช่วงเซลล์เพื่อคัดลอก (Shift/Ctrl-คลิก)
+      }
+      var sel = window.getSelection ? String(window.getSelection()) : "";
+      if (sel.trim() !== "") {
         return;
       }
       var d = row.getData();
       if (d._demo) {
         return;
       }
-      reviewSelect(d.doc_id);
+      if (reviewOn()) {
+        reviewSelect(d.doc_id);
+      } else {
+        openDetail(d.doc_id);
+      }
     });
     table.on("dataFiltered", function (filters) {
       syncQuickStatusFromTable(filters || []);
@@ -1105,6 +1119,34 @@
      * นี่คือ "ทั้งใบเป็นเงินเท่าไร" ส่วนราคาต่อหน่วยของแต่ละบรรทัด
      * ดูได้ในกล่องรายละเอียด และในไฟล์ Excel ที่ส่งออก
      */
+    /* ---------- ผู้ทำรายการ : ใบรับเข้า ----------
+     * ใบรับเข้าไม่มีผู้ขอเบิก คนที่ต้องรู้คือใครคีย์ใบนี้ — ผู้ตรวจใช้ตามถามเวลาบิลไม่ตรง
+     * ชื่อแช่แข็งไว้ตอนบันทึก (created_by_name) ไม่มีค่อยใช้ username */
+    if (TYPE === "receive") {
+      cols.push(
+        G.col(G.filterText("ค้นผู้ทำรายการ"), {
+          title: "ผู้ทำรายการ",
+          field: "created_by_name",
+          minWidth: 130,
+          responsive: 4,
+          download: true,
+          clipboard: true,
+          formatter: function (cell) {
+            var d = cell.getRow().getData();
+            var name = cell.getValue() || d.created_by;
+            if (!name) {
+              return '<span class="grid-empty">—</span>';
+            }
+            var html = escapeHtml(name);
+            if (d.created_by === ME) {
+              html += ' <span class="grid-tag grid-tag-self">คุณ</span>';
+            }
+            return html;
+          },
+        }),
+      );
+    }
+
     if (TYPE === "receive") {
       cols.push({
         title: "มูลค่ารวม",
@@ -1232,6 +1274,51 @@
 
   /* ตารางรายการของใบปรับยอด — ยอดเดิม / นับได้จริง / ส่วนต่าง
      ใบที่อนุมัติแล้วใช้ค่าที่แช่แข็งไว้ตอนอนุมัติ ใบที่ยังรอใช้ยอดคงเหลือปัจจุบัน */
+  /* ตารางรายการของใบรับเข้าในกล่องเทียบบิล — บีบให้พอดีครึ่งจอโดยไม่ต้องเลื่อนข้าง
+     เหลือเฉพาะสิ่งที่ต้องเทียบกับบิล: สินค้า / จำนวน (+หน่วย) / ราคาต่อหน่วย / เป็นเงิน
+     ตัด "คงเหลือ" (ไม่เกี่ยวกับบิล) และย้ายหมายเหตุไปไว้ใต้ชื่อสินค้า
+     หัวตารางติดบน และแถวรวมเงินติดล่างของกรอบเลื่อน (ดู .bv-items ใน app.css) */
+  function renderReceiveItems(doc) {
+    var rows = "";
+    var total = 0;
+    var baht = 0;
+    var missing = 0;
+    for (var i = 0; i < doc.items.length; i++) {
+      var it = doc.items[i];
+      var cost = Number(it.unit_cost) || 0;
+      var amt = Number(it.qty) * cost;
+      total += Number(it.qty);
+      baht += amt;
+      if (!(cost > 0)) {
+        missing++;
+      }
+      rows +=
+        "<tr>" +
+        '<td class="num">' + (i + 1) + "</td>" +
+        '<td><span class="grid-user">' + escapeHtml(it.product_code) + "</span> " +
+        '<span class="doc-pname">' + escapeHtml(it.product_name) + "</span>" +
+        (it.note ? '<span class="bv-note">' + escapeHtml(it.note) + "</span>" : "") +
+        "</td>" +
+        '<td class="num"><b>' + fmt(it.qty) + "</b>" +
+        (it.unit_name ? ' <span class="doc-unit">' + escapeHtml(it.unit_name) + "</span>" : "") +
+        "</td>" +
+        '<td class="num">' + (cost > 0 ? '<span class="doc-money">' + money(cost) + "</span>" : '<span class="grid-empty">—</span>') + "</td>" +
+        '<td class="num">' + (amt > 0 ? '<b class="doc-money">' + money(amt) + "</b>" : '<span class="grid-empty">—</span>') + "</td>" +
+        "</tr>";
+    }
+    var head =
+      '<tr><th class="num">#</th><th>สินค้า</th><th class="num">จำนวน</th>' +
+      '<th class="num">ราคา/หน่วย</th><th class="num">เป็นเงิน</th></tr>';
+    var foot =
+      '<tfoot><tr><td colspan="2" class="doc-foot-label">รวม ' + doc.items.length + " รายการ" +
+      (missing > 0 ? ' <span class="grid-empty">(ไม่มีราคา ' + missing + " บรรทัด)</span>" : "") +
+      '</td><td class="num"><b>' + fmt(total) + '</b></td><td></td>' +
+      '<td class="num"><b class="doc-money">' + money(baht) + "</b></td></tr></tfoot>";
+
+    el("docItems").innerHTML = "<thead>" + head + "</thead><tbody>" + rows + "</tbody>" + foot;
+    el("docTotal").textContent = fmt(total);
+  }
+
   function renderAdjustItems(doc) {
     var lines = doc.adjust_lines || [];
     var rows = "";
@@ -1305,7 +1392,7 @@
     }
     meta += line("ผู้ขอเบิก", doc.requester_name || doc.requester);
     meta += line("อ้างใบเบิก", doc.ref_doc_no);
-    meta += line("ผู้บันทึก", doc.created_by);
+    meta += line("ผู้บันทึก", doc.created_by_name || doc.created_by);
     meta += line("เวลาบันทึก", dt(doc.created_at));
     /* ผู้อนุมัติ กับ เวลาอนุมัติ แยกกันคนละบรรทัด (เหมือนผู้ขอเบิก/เวลาบันทึก)
        ใบเบิกโชว์ทุกสถานะ — ยังรออนุมัติก็บอกว่ารอใครพิจารณา (รายชื่อผู้อนุมัติใบเบิก) */
@@ -1350,6 +1437,8 @@
      */
     if (doc.doc_type === "adjust" && doc.adjust_lines) {
       renderAdjustItems(doc);
+    } else if (doc.doc_type === "receive" && el("rcStage")) {
+      renderReceiveItems(doc);
     } else {
 
     var slim = doc.doc_type === "request";
@@ -1470,6 +1559,8 @@
     } /* /else (ไม่ใช่ใบปรับยอด) */
 
     renderAttach(doc);
+    renderViewer(doc);   // ใบรับเข้า: ช่องดูบิล (ทำงานแม้ไม่มีข้อมูลไฟล์แนบ)
+    rcCheckSync();
 
     /* ---------- ปุ่มทำงาน ----------
      * ปุ่มพิมพ์อยู่นอกรายการ actionsFor() เพราะเปิดหน้าใหม่ ไม่ได้เปลี่ยนสถานะเอกสาร
@@ -1622,6 +1713,16 @@
       return;
     }
 
+    if (key === "selfapprove") {
+      if (typeof window.appInfo === "function") {
+        window.appInfo(
+          "คุณเป็นคนบันทึกใบนี้ จึงอนุมัติหรือไม่อนุมัติเองไม่ได้ ต้องให้ผู้อนุมัติใบรับเข้าคนอื่นตรวจเทียบกับบิล\n\n" +
+            'ถ้ายังไม่มีคนอื่นในรายชื่อ ให้ผู้ดูแลระบบเพิ่มที่เมนู "ผู้อนุมัติเอกสาร" แท็บใบรับเข้า',
+          "อนุมัติใบของตัวเองไม่ได้",
+        );
+      }
+      return;
+    }
     if (key === "approve") {
       decide("approved");
       return;
@@ -2334,6 +2435,8 @@
 
     box.innerHTML = h;
     setHidden(box, false);
+    renderViewer(doc);
+    setHidden(box, false);
     if (window.lucide) {
       window.lucide.createIcons();
     }
@@ -2341,6 +2444,269 @@
 
   function dateTime(v) {
     return window.ThaiDate && window.ThaiDate.dateTime ? window.ThaiDate.dateTime(v, v) : v;
+  }
+
+  /* ============================================================
+   *  ใบรับเข้า: ช่องดูใบบิลคู่กับรายการ (#rcStage)
+   * ============================================================
+   *  ผู้ตรวจต้องไล่ดูบิลทีละบรรทัดเทียบกับตาราง — เปิดพรีวิวเต็มจอทับตารางไว้
+   *  ทำให้ต้องสลับไปมา จึงวางบิลไว้ข้างตารางตลอด (จอแคบวางไว้ด้านบน)
+   *  รูป: ซูมเข้า/ออก (ภาพใหญ่เลื่อนดูได้) และหมุนทีละ 90° — รูปบิลที่ถ่ายจากมือถือมักตะแคง
+   *  PDF: ใช้ตัวแสดง PDF ของเบราว์เซอร์ (มีซูม/เลื่อนหน้าในตัว)
+   *  คลิกไฟล์ในรายการด้านล่าง = สลับไฟล์ที่แสดง (Ctrl/⌘-คลิก ยังเปิดแท็บใหม่ได้)
+   */
+  var rcView = { docId: 0, idx: 0, zoom: 1, rot: 0 };
+  var RC_ZOOMS = [1, 1.5, 2, 3];
+
+  function rcFiles() {
+    return openDoc && openDoc.attachments ? openDoc.attachments : [];
+  }
+
+  function renderViewer(doc) {
+    var stage = el("rcStage");
+    if (!stage || !doc || doc.doc_type !== "receive") {
+      return;
+    }
+    if (rcView.docId !== doc.doc_id) {
+      rcView = { docId: doc.doc_id, idx: 0, zoom: 1, rot: 0 };
+    }
+    var files = doc.attachments || [];
+    if (rcView.idx >= files.length) {
+      rcView.idx = Math.max(0, files.length - 1);
+    }
+    var A = window.DocAttach;
+
+    if (!files.length || !A) {
+      stage.innerHTML =
+        '<div class="bv-empty">' +
+        '<i data-lucide="file-x-2" class="h-8 w-8" aria-hidden="true"></i>' +
+        "<b>ไม่มีไฟล์ใบบิล</b>" +
+        "<span>" +
+        (doc.can_attach
+          ? 'กด "+ แนบ" ด้านล่างเพื่อเพิ่มรูปหรือ PDF ของบิล แล้วจึงตรวจเทียบ'
+          : "ใบนี้ไม่ได้แนบบิลไว้ ตรวจกับบิลตัวจริงแทน") +
+        "</span></div>";
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+      return;
+    }
+
+    var f = files[rcView.idx];
+    var isPdf = !f.is_image && A.isPdf(f.mime_type);
+    var tools =
+      '<div class="bv-bar">' +
+      '<span class="bv-name" title="' + A.esc(f.orig_name) + '">' + A.esc(f.orig_name) + "</span>" +
+      (files.length > 1
+        ? '<span class="bv-count">' + (rcView.idx + 1) + "/" + files.length + "</span>" +
+          '<button type="button" class="bv-tool" data-rc="prev" title="ไฟล์ก่อนหน้า" aria-label="ไฟล์ก่อนหน้า"><i data-lucide="chevron-left" class="h-4 w-4"></i></button>' +
+          '<button type="button" class="bv-tool" data-rc="next" title="ไฟล์ถัดไป" aria-label="ไฟล์ถัดไป"><i data-lucide="chevron-right" class="h-4 w-4"></i></button>'
+        : "") +
+      (f.is_image
+        ? '<span class="bv-sep"></span>' +
+          '<button type="button" class="bv-tool" data-rc="zoomout" title="ย่อ" aria-label="ย่อ"' + (rcView.zoom <= RC_ZOOMS[0] ? " disabled" : "") + '><i data-lucide="zoom-out" class="h-4 w-4"></i></button>' +
+          '<span class="bv-zoom">' + Math.round(rcView.zoom * 100) + "%</span>" +
+          '<button type="button" class="bv-tool" data-rc="zoomin" title="ขยาย" aria-label="ขยาย"' + (rcView.zoom >= RC_ZOOMS[RC_ZOOMS.length - 1] ? " disabled" : "") + '><i data-lucide="zoom-in" class="h-4 w-4"></i></button>' +
+          '<button type="button" class="bv-tool" data-rc="rotate" title="หมุน 90°" aria-label="หมุน 90 องศา"><i data-lucide="rotate-cw" class="h-4 w-4"></i></button>'
+        : "") +
+      '<span class="bv-sep"></span>' +
+      '<button type="button" class="bv-tool" data-rc="full" title="ดูเต็มจอ" aria-label="ดูเต็มจอ"><i data-lucide="maximize-2" class="h-4 w-4"></i></button>' +
+      '<a class="bv-tool" href="' + A.esc(f.url) + '" target="_blank" rel="noopener" title="เปิดในแท็บใหม่" aria-label="เปิดในแท็บใหม่"><i data-lucide="external-link" class="h-4 w-4"></i></a>' +
+      "</div>";
+
+    var body;
+    if (f.is_image) {
+      /* หมุนด้วยการวาดลง canvas ใหม่ ไม่ใช้ CSS transform — transform ไม่เปลี่ยนขนาดในหน้า
+         ภาพที่ซูมแล้วหมุนจึงล้นออกนอกพื้นที่เลื่อนจนดูบางส่วนไม่ได้ (ไฟล์มาจากโดเมนเดียวกัน วาดได้) */
+      body =
+        '<div class="bv-canvas' + (rcView.zoom > 1 ? " is-zoomed" : "") + '">' +
+        '<img src="' + A.esc(f.url) + '" alt="' + A.esc(f.orig_name) + '" class="bv-img"' +
+        (rcView.zoom > 1 ? ' style="width:' + rcView.zoom * 100 + '%;max-width:none;max-height:none"' : "") +
+        ' draggable="false">' +
+        "</div>";
+    } else if (isPdf) {
+      body = '<iframe class="bv-pdf" src="' + A.esc(f.url) + '#view=FitH" title="' + A.esc(f.orig_name) + '"></iframe>';
+    } else {
+      body = '<div class="bv-empty"><b>เปิดไฟล์ชนิดนี้ในหน้านี้ไม่ได้</b><span>กดปุ่มเปิดในแท็บใหม่ด้านบน</span></div>';
+    }
+
+    stage.innerHTML = tools + body;
+
+    /* หมุนภาพ: รอโหลดเสร็จแล้ววาดลง canvas ที่สลับกว้าง-สูง แล้วแทนที่ <img> */
+    if (f.is_image && rcView.rot) {
+      var img = stage.querySelector(".bv-img");
+      var rot = rcView.rot;
+      var draw = function () {
+        if (!img.naturalWidth || !img.parentNode) {
+          return;
+        }
+        var side = rot % 180 !== 0;
+        var cv = document.createElement("canvas");
+        cv.width = side ? img.naturalHeight : img.naturalWidth;
+        cv.height = side ? img.naturalWidth : img.naturalHeight;
+        var ctx = cv.getContext("2d");
+        ctx.translate(cv.width / 2, cv.height / 2);
+        ctx.rotate((rot * Math.PI) / 180);
+        ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+        cv.className = img.className;
+        cv.setAttribute("role", "img");
+        cv.setAttribute("aria-label", img.alt);
+        cv.style.cssText = img.style.cssText;
+        img.parentNode.replaceChild(cv, img);
+      };
+      if (img.complete) {
+        draw();
+      } else {
+        img.addEventListener("load", draw);
+      }
+    }
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+
+    /* ไฮไลต์ไฟล์ที่กำลังแสดงในรายการด้านล่าง */
+    var items = document.querySelectorAll("#docAttach .att-item");
+    for (var i = 0; i < items.length; i++) {
+      items[i].classList.toggle("is-active", i === rcView.idx);
+    }
+  }
+
+  function bindViewer() {
+    var stage = el("rcStage");
+    if (!stage) {
+      return;
+    }
+    stage.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest("[data-rc]") : null;
+      if (!b || b.disabled || !openDoc) {
+        return;
+      }
+      var act = b.getAttribute("data-rc");
+      var files = rcFiles();
+      var zi = RC_ZOOMS.indexOf(rcView.zoom);
+      if (act === "prev" || act === "next") {
+        rcView.idx = (rcView.idx + (act === "next" ? 1 : files.length - 1)) % files.length;
+        rcView.zoom = 1;
+        rcView.rot = 0;
+      } else if (act === "zoomin" && zi < RC_ZOOMS.length - 1) {
+        rcView.zoom = RC_ZOOMS[zi + 1];
+      } else if (act === "zoomout" && zi > 0) {
+        rcView.zoom = RC_ZOOMS[zi - 1];
+      } else if (act === "rotate") {
+        rcView.rot = (rcView.rot + 90) % 360;
+      } else if (act === "full" && window.DocAttach) {
+        var A = window.DocAttach;
+        var list = [];
+        for (var k = 0; k < files.length; k++) {
+          list.push({
+            url: files[k].url,
+            name: files[k].orig_name,
+            kind: files[k].is_image ? "image" : A.isPdf(files[k].mime_type) ? "pdf" : "other",
+            download: files[k].url.replace("action=view", "action=download"),
+          });
+        }
+        A.preview(list, rcView.idx);
+        return;
+      }
+      renderViewer(openDoc);
+    });
+  }
+
+  /* ---------- ติ๊กแถวที่ตรวจตรงกับบิลแล้ว ----------
+   * ตัวช่วยจำระหว่างไล่ตรวจ เก็บไว้ในหน้าเท่านั้น (ปิดกล่อง/เปิดใบอื่น = เริ่มใหม่)
+   * ไม่บันทึกลงระบบ เพราะผลการตรวจจริงคือการกดอนุมัติ/ไม่อนุมัติทั้งใบ */
+  var rcChecked = { docId: 0, rows: {} };
+
+  function rcCheckSync() {
+    var body = document.querySelector("#docItems tbody");
+    if (!body || !openDoc || openDoc.doc_type !== "receive") {
+      return;
+    }
+    if (rcChecked.docId !== openDoc.doc_id) {
+      rcChecked = { docId: openDoc.doc_id, rows: {} };
+    }
+    var rows = body.querySelectorAll("tr");
+    var n = 0;
+    for (var i = 0; i < rows.length; i++) {
+      var on = !!rcChecked.rows[i];
+      if (on) {
+        n++;
+      }
+      rows[i].classList.add("bv-row");
+      rows[i].classList.toggle("is-checked", on);
+      rows[i].setAttribute("tabindex", "0");
+      rows[i].setAttribute("aria-pressed", on ? "true" : "false");
+      rows[i].setAttribute("data-bv-row", String(i));
+    }
+    var c = el("rcCheckCount");
+    if (c) {
+      c.innerHTML = rows.length
+        ? '<i data-lucide="list-checks" class="h-3.5 w-3.5" aria-hidden="true"></i> ตรวจแล้ว <b class="num">' +
+          n + "/" + rows.length + "</b>" +
+          (n === rows.length ? ' <span class="bv-all">ครบทุกรายการ</span>' : "")
+        : "";
+      c.classList.toggle("is-done", rows.length > 0 && n === rows.length);
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+    }
+  }
+
+  function bindRowCheck() {
+    var table = el("docItems");
+    if (!table || !el("rcStage")) {
+      return;
+    }
+    /* ติ๊กแล้วพาไปแถวถัดไปที่ยังไม่ได้ติ๊ก — ไล่ตรวจทีละบรรทัดได้ด้วยมือเดียว (Space ๆ ๆ) */
+    var toggle = function (tr) {
+      var i = Number(tr.getAttribute("data-bv-row"));
+      rcChecked.rows[i] = !rcChecked.rows[i];
+      rcCheckSync();
+      if (!rcChecked.rows[i]) {
+        tr.focus();
+        return;
+      }
+      var rows = table.querySelectorAll("tbody tr[data-bv-row]");
+      for (var k = 1; k <= rows.length; k++) {
+        var next = rows[(i + k) % rows.length];
+        if (!next.classList.contains("is-checked")) {
+          next.focus();
+          next.scrollIntoView({ block: "nearest" });
+          return;
+        }
+      }
+    };
+    table.addEventListener("click", function (e) {
+      var tr = e.target.closest ? e.target.closest("tr[data-bv-row]") : null;
+      if (tr) {
+        toggle(tr);
+      }
+    });
+    table.addEventListener("keydown", function (e) {
+      var tr = e.target.closest ? e.target.closest("tr[data-bv-row]") : null;
+      if (!tr) {
+        return;
+      }
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        toggle(tr);
+      } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        var sib = e.key === "ArrowDown" ? tr.nextElementSibling : tr.previousElementSibling;
+        while (sib && sib.offsetParent === null) {
+          sib = e.key === "ArrowDown" ? sib.nextElementSibling : sib.previousElementSibling;
+        }
+        if (sib) {
+          sib.focus();
+        }
+      }
+    });
+    var hide = el("rcHideChecked");
+    if (hide) {
+      hide.addEventListener("change", function () {
+        el("docItems").classList.toggle("is-hide-checked", hide.checked);
+      });
+    }
   }
 
   function bindAttach() {
@@ -2403,6 +2769,16 @@
     box.addEventListener("click", function (e) {
       /* คลิกไฟล์ = พรีวิวในหน้า (Ctrl/⌘-คลิก หรือคลิกกลาง ยังเปิดแท็บใหม่ตามปกติของลิงก์) */
       var open = e.target.closest ? e.target.closest(".att-open") : null;
+      /* ใบรับเข้า (มีช่องดูบิลข้างตาราง): คลิกไฟล์ = แสดงในช่องนั้นแทนพรีวิวเต็มจอ */
+      if (open && openDoc && el("rcStage") && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
+        e.preventDefault();
+        var lst = openDoc.attachments || [];
+        for (var q = 0; q < lst.length; q++) {
+          if (lst[q].url === open.getAttribute("href")) { rcView.idx = q; rcView.zoom = 1; rcView.rot = 0; }
+        }
+        renderViewer(openDoc);
+        return;
+      }
       if (open && openDoc && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0) {
         e.preventDefault();
         var files = openDoc.attachments || [];
@@ -3053,6 +3429,7 @@
               { field: "note", type: "like", value: value },
               { field: "department_name", type: "like", value: value },
               { field: "requester_name", type: "like", value: value },
+              { field: "created_by_name", type: "like", value: value },
             ],
           ]);
         }
@@ -3118,6 +3495,8 @@
     bindRowActions();
     reviewInit();
     bindAttach();
+    bindViewer();
+    bindRowCheck();
     load();
   }
 

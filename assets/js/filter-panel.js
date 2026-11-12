@@ -116,11 +116,6 @@
             if (e.key === 'Escape' && panel.classList.contains('is-open')) { close(); }
         });
 
-        /* จอกว้างแถบกางค้างอยู่แล้ว ถ้ายังค้างสถานะ "เปิด" จากตอนจอเล็กไว้
-           พอหมุนจอกลับมาจะมีฉากหลังทึบค้างบังหน้าจอ */
-        window.addEventListener('resize', function () {
-            if (window.matchMedia('(min-width: 1280px)').matches) { close(); }
-        });
 
 
         /* ---------- ล้างตัวกรอง ---------- */
