@@ -204,6 +204,24 @@ if ($deny === '') {
         $ur_form_code = uniform_receipt_form_code();
     }
 
+    /* ---------- เซ็นรับของบนหน้านี้ ----------
+     * ใบจ่ายที่ยัง "จ่ายแล้ว" (ยังไม่เซ็นรับ) — ผู้ขอเบิกของใบนี้ หรือผู้ดูแลระบบที่เซ็นแทน
+     * เซ็นได้ที่แผงด้านบนกระดาษ (ไม่ติดไปตอนพิมพ์) บันทึกผ่าน api/documents.php action acknowledge
+     * กติกาเดียวกับ issue_acknowledge() — ฝั่งเซิร์ฟเวอร์ตรวจซ้ำเสมอ ไม่เชื่อหน้าจอ
+     * ไม่เปิดให้: เอกสารสมมติ / ตัวอย่างใน iframe / คนที่เข้าด้วยกุญแจลิงก์ (ใช้ sign.php) */
+    $can_sign = (!$is_mock && !$by_token
+                 && !(isset($_GET['embed']) && $_GET['embed'] === '1')
+                 && $doc['doc_type'] === 'issue' && $doc['status'] === 'issued'
+                 && (($doc['requester'] !== '' && $doc['requester'] === $sess_username)
+                     || in_array($sess_role, array('super_admin', 'admin'))));
+    $sign_suggest = '';
+    if ($can_sign) {
+        if (empty($_SESSION['csrf_token'])) { $_SESSION['csrf_token'] = md5(uniqid(mt_rand(), true)); }
+        $sign_suggest = (string)$doc['receiver_name'] !== '' ? $doc['receiver_name']
+                      : ((string)$doc['employee_receiver'] !== '' ? $doc['employee_receiver']
+                      : $doc['requester_name']);
+    }
+
     /* ค่าตั้งของเอกสารประเภทนี้ (Admin mode > เอกสารพิมพ์ แยกตั้งได้ทั้ง 5 แบบ) */
     $PC = print_cfg($print_type);
     $paper_title = $PC['title'];
@@ -364,9 +382,45 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
     border-radius: 12px; text-align: center; font-size: 15px; color: #b91c1c;
 }
 
+/* ---------- แผงเซ็นรับของ (จอเท่านั้น) ---------- */
+.signbox {
+    width: 210mm; margin: 0 auto 14px; padding: 16px 18px;
+    background: #fff; border: 2px solid #0891b2; border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(8, 145, 178, .15);
+}
+.signbox-head b { display: block; font-size: 16px; color: #0e7490; }
+.signbox-head span { display: block; font-size: 13px; color: #475569; margin: 2px 0 12px; }
+.signbox-label { display: block; font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 4px; }
+.signbox-label-row { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+.signbox-input {
+    width: 100%; height: 40px; padding: 0 12px; font: inherit; font-size: 15px;
+    border: 1px solid #cbd5e1; border-radius: 8px;
+}
+.signbox-input:focus { outline: none; border-color: #0891b2; box-shadow: 0 0 0 3px rgba(8, 145, 178, .18); }
+.signbox-clear { border: 0; background: none; color: #dc2626; font: inherit; font-size: 13px; cursor: pointer; }
+.signbox-pad {
+    position: relative; height: 170px; border: 2px dashed #94a3b8; border-radius: 10px; background: #f8fafc;
+}
+.signbox-pad canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+.signbox-ph {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: #94a3b8; font-size: 14px; pointer-events: none;
+}
+.signbox-msg { margin-top: 10px; padding: 8px 12px; border-radius: 8px; background: #fef2f2; color: #b91c1c; font-size: 13px; }
+.signbox-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+.signbox-actions .primary {
+    padding: 10px 22px; border: 0; border-radius: 8px; background: #0891b2; color: #fff;
+    font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.signbox-actions .primary:disabled { opacity: .6; cursor: wait; }
+/* ช่องผู้รับของบนกระดาษที่ยังรอเซ็น — ไฮไลต์บนจอ ให้รู้ว่าลายเซ็นจะไปลงตรงไหน */
+.sign.is-pending { outline: 2px dashed #0891b2; outline-offset: 4px; border-radius: 4px; background: #ecfeff; }
+
 @media print {
     body   { background: #fff; padding: 0; }
     .bar   { display: none; }
+    .signbox { display: none; }
+    .sign.is-pending { outline: 0; background: none; }
     .paper { width: auto; min-height: auto; margin: 0; padding: 0; box-shadow: none; }
 
     /* ให้เบราว์เซอร์รู้ว่าเป็น A4 และไม่ต้องเติมหัว/ท้ายกระดาษของตัวเองมาทับ */
@@ -377,7 +431,7 @@ table.items tfoot td { font-weight: 700; background: #f3f4f6; }
 }
 
 @media (max-width: 230mm) {
-    .paper, .bar, .deny { width: 100%; }
+    .paper, .bar, .deny, .signbox { width: 100%; }
 }
 </style>
 <?php
@@ -414,6 +468,33 @@ body.is-embed .bar { display: none; }
   <button type="button" class="ghost" onclick="window.close()">ปิดหน้าต่าง</button>
   <span class="hint">เลือกปลายทางเป็น &ldquo;บันทึกเป็น PDF&rdquo; ในหน้าต่างพิมพ์ เพื่อส่งทางอีเมล</span>
 </div>
+
+<?php if ($can_sign): ?>
+<!-- ============ แผงเซ็นรับของ (ไม่ติดไปตอนพิมพ์) ============
+     ช่อง "ผู้รับของ" บนกระดาษเล็กเกินจะเซ็นสะดวก จึงเซ็นในผืนใหญ่ตรงนี้
+     บันทึกแล้วหน้าโหลดใหม่ ลายเซ็นไปขึ้นในช่องผู้รับของบนกระดาษ -->
+<div class="signbox" id="signBox">
+  <div class="signbox-head">
+    <b>เซ็นรับของ <?php echo pd_esc($doc['doc_no']); ?></b>
+    <span>ตรวจรายการบนเอกสารด้านล่างให้ครบก่อน แล้วเซ็นยืนยันว่าได้รับของครบตามใบจ่ายนี้</span>
+  </div>
+  <label class="signbox-label" for="signName">ชื่อผู้รับของ</label>
+  <input type="text" id="signName" class="signbox-input" maxlength="150"
+         value="<?php echo pd_esc($sign_suggest); ?>" placeholder="ชื่อ-นามสกุลผู้รับของ">
+  <div class="signbox-label-row">
+    <span class="signbox-label">ลายเซ็น</span>
+    <button type="button" class="signbox-clear" id="signClear">ล้างลายเซ็น</button>
+  </div>
+  <div class="signbox-pad">
+    <canvas id="signCanvas"></canvas>
+    <span class="signbox-ph" id="signPh">เซ็นตรงนี้ด้วยนิ้วหรือเมาส์</span>
+  </div>
+  <div class="signbox-msg" id="signMsg" hidden></div>
+  <div class="signbox-actions">
+    <button type="button" class="primary" id="signSave">ยืนยันรับของ</button>
+  </div>
+</div>
+<?php endif; ?>
 
 <div class="paper">
 
@@ -669,12 +750,12 @@ body.is-embed .bar { display: none; }
 
     <?php
     /* ป้ายชื่อเหนือเส้น + ชื่อกำกับใต้เส้น เขียนครั้งเดียวใช้ทั้งสี่ช่อง */
-    function pd_sign_box($caption, $name, $date_text, $sign_img)
+    function pd_sign_box($caption, $name, $date_text, $sign_img, $extra = '')
     {
         $has_img = (trim((string)$sign_img) !== '');
         $name    = trim((string)$name);
         ?>
-        <div class="sign">
+        <div class="sign<?php echo $extra !== '' ? ' ' . pd_esc($extra) : ''; ?>">
           <div class="sign-line">
             <?php if ($has_img): ?>
               <img src="<?php echo pd_esc($sign_img); ?>" alt="ลายเซ็น<?php echo pd_esc($caption); ?>" class="sign-img">
@@ -717,12 +798,12 @@ body.is-embed .bar { display: none; }
             pd_sign_box($PC['sign4'],
                         $doc['receiver_name'] !== '' ? $doc['receiver_name'] : $uniform_receipt['employee_name'],
                         $doc['received_at'] !== '' ? pd_esc(thai_date_long($doc['received_at'])) : '............',
-                        $receiver_sign);
+                        $receiver_sign, $can_sign ? 'is-pending' : '');
         } else {
             /* ใบจ่ายของใบเบิกสวัสดิการ ที่ยังไม่มีชื่อผู้รับ (ใบเก่า) = ชื่อพนักงานในใบเบิกต้นทาง */
             pd_sign_box($PC['sign4'], (string)$doc['receiver_name'] !== '' ? $doc['receiver_name'] : $doc['employee_receiver'],
                         $doc['received_at'] !== '' ? pd_esc(thai_date_long($doc['received_at'])) : '............',
-                        $receiver_sign);
+                        $receiver_sign, $can_sign ? 'is-pending' : '');
         }
     }
     ?>
@@ -750,6 +831,68 @@ body.is-embed .bar { display: none; }
 
 </div>
 
+
+<?php if ($can_sign): ?>
+<script src="assets/js/signpad.js?v=<?php echo (int)@filemtime(dirname(__FILE__) . '/assets/js/signpad.js'); ?>"></script>
+<script>
+/* ---------- เซ็นรับของบนหน้าเอกสาร ----------
+ * บันทึกผ่าน api/documents.php (action acknowledge) ตัวเดียวกับที่ระบบใช้ทุกที่
+ * สำเร็จแล้วโหลดหน้าใหม่ — ลายเซ็นไปขึ้นในช่องผู้รับของบนกระดาษ พร้อมพิมพ์ได้ทันที */
+(function () {
+    var CSRF   = <?php echo json_encode($_SESSION['csrf_token']); ?>;
+    var DOC_ID = <?php echo (int)$doc['doc_id']; ?>;
+    var pad    = window.SignPad ? window.SignPad.create(document.getElementById('signCanvas')) : null;
+    var ph     = document.getElementById('signPh');
+    var msg    = document.getElementById('signMsg');
+    var btn    = document.getElementById('signSave');
+
+    function say(text) {
+        msg.textContent = text;
+        msg.hidden = (text === '');
+    }
+    if (!pad) {
+        say('เบราว์เซอร์นี้ไม่รองรับการเซ็นบนจอ กรุณาเปิดด้วย Chrome / Edge / Safari รุ่นใหม่');
+        btn.disabled = true;
+        return;
+    }
+    pad.onStart(function () { ph.style.display = 'none'; say(''); });
+    document.getElementById('signClear').addEventListener('click', function () {
+        pad.clear();
+        ph.style.display = '';
+    });
+
+    btn.addEventListener('click', function () {
+        var name = document.getElementById('signName').value.replace(/^\s+|\s+$/g, '');
+        if (name === '') { say('กรุณากรอกชื่อผู้รับของ'); return; }
+        if (pad.isEmpty()) { say('กรุณาเซ็นในช่องลายเซ็นก่อนยืนยัน'); return; }
+        if (!window.confirm('ยืนยันว่า ' + name + ' ได้รับของครบตามใบจ่ายนี้แล้ว?')) { return; }
+
+        btn.disabled = true;
+        say('');
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', 'api/documents.php', true);
+        xhr.setRequestHeader('Content-Type', 'application/json; charset=utf-8');
+        xhr.onload = function () {
+            var res = null;
+            try { res = JSON.parse(xhr.responseText); } catch (e) { res = null; }
+            if (res && res.ok) {
+                /* บอกแท็บรายการที่เปิดหน้านี้มา ให้โหลดตารางใหม่ */
+                try { if (window.opener && window.opener.postMessage) { window.opener.postMessage({ type: 'doc-signed', doc_id: DOC_ID }, window.location.origin); } } catch (e) {}
+                window.location.reload();
+                return;
+            }
+            btn.disabled = false;
+            say((res && res.message) || 'บันทึกไม่สำเร็จ กรุณาลองใหม่');
+        };
+        xhr.onerror = function () { btn.disabled = false; say('ติดต่อเซิร์ฟเวอร์ไม่ได้ กรุณาตรวจการเชื่อมต่อ'); };
+        xhr.send(JSON.stringify({
+            action: 'acknowledge', doc_id: DOC_ID, csrf_token: CSRF,
+            receiver_name: name, receiver_sign: pad.toDataURL()
+        }));
+    });
+})();
+</script>
+<?php endif; ?>
 
 <script>
 

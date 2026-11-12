@@ -320,9 +320,6 @@ window.DOCLIST = {
 <script src="<?php echo asset_url('assets/js/tabulator.min.js', $ASSET_BASE); ?>"></script>
 <script src="<?php echo asset_url('assets/js/grid-common.js', $ASSET_BASE); ?>"></script>
 <script src="<?php echo asset_url('assets/js/grid-export.js', $ASSET_BASE); ?>"></script>
-<!-- ผืนเซ็นชื่อ ใช้ตอนกด "เซ็นรับของ" ในกล่องรายละเอียดใบจ่าย
-     ต้องมาก่อน doc-list.js เพราะที่นั่นเรียก window.SignPad -->
-<script src="<?php echo asset_url('assets/js/signpad.js', $ASSET_BASE); ?>"></script>
 <?php if ($doc_type === 'receive') { ?>
 <script src="<?php echo asset_url('assets/js/doc-attach.js', $ASSET_BASE); ?>"></script>
 <?php } ?>

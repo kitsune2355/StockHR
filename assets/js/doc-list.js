@@ -426,7 +426,7 @@
       if (doc.status === "issued" && (doc.requester === ME || isManager())) {
         out.push({
           key: "ack",
-          label: "เซ็นรับของ",
+          label: "เซ็นรับของ (เปิดหน้าเอกสาร)",
           icon: "pen-line",
           tone: "ok",
         });
@@ -3171,115 +3171,15 @@
   }
 
   /* ---------- เซ็นรับของ ----------
-   * เดิมกรอกแค่ชื่อ ซึ่งใครพิมพ์ก็ได้และไม่มีน้ำหนักเป็นหลักฐาน
-   * ตอนนี้ต้องเซ็นด้วยนิ้วหรือเมาส์จริง แล้วเก็บภาพลายเซ็นไว้กับเอกสาร
-   * ใบจ่ายที่พิมพ์ออกมาจะมีลายเซ็นติดไปด้วย ใช้เป็นหลักฐานส่งมอบได้
-   *
-   * ยังเก็บชื่อไว้เหมือนเดิม เพราะลายเซ็นหลายคนอ่านไม่ออกว่าเป็นใคร
-   * และรายงานกับหน้าจอต้องแสดงชื่อที่ค้นหาได้
+   * ไม่มีกล่องเซ็นในหน้านี้แล้ว — เปิดหน้าเอกสาร (print_doc.php) ในแท็บใหม่
+   * ผู้รับตรวจรายการบนตัวเอกสารจริง แล้วเซ็นในแผงด้านบนกระดาษ ลายเซ็นลงช่องผู้รับของทันที
+   * เซ็นเสร็จ หน้าเอกสารส่งข้อความ doc-signed กลับมา ตารางนี้โหลดใหม่ให้เอง (ดู init)
    */
   function acknowledge() {
-    var suggest =
-      openDoc.receiver_name ||
-      openDoc.employee_receiver ||
-      openDoc.requester_name ||
-      openDoc.requester ||
-      "";
-
-    var run = function (name, sign) {
-      if (name === null || String(name).trim() === "") {
-        return;
-      }
-      post(
-        {
-          action: "acknowledge",
-          csrf_token: CFG.csrfToken,
-          doc_id: openDoc.doc_id,
-          receiver_name: String(name).trim(),
-          receiver_sign: sign || "",
-        },
-        function (res) {
-          ok(res.message);
-          closeDetail();
-          load();
-        },
-        bad,
-      );
-    };
-
-    if (!window.Swal || !window.SignPad) {
-      run(window.prompt("ชื่อผู้รับของ", suggest), "");
+    if (!openDoc || openDoc._demo) {
       return;
     }
-
-    var pad = null;
-
-    window.Swal.fire({
-      title: "เซ็นรับของ " + openDoc.doc_no,
-      html:
-        '<p class="ack-lead">ยืนยันว่าได้รับของครบตามใบจ่ายนี้แล้ว</p>' +
-        '<label class="ack-label" for="ackName">ชื่อผู้รับของ</label>' +
-        '<input type="text" id="ackName" class="swal2-input ack-input"' +
-        ' placeholder="ชื่อ-นามสกุลผู้รับ" value="' +
-        escapeHtml(suggest) +
-        '">' +
-        '<div class="ack-sign-head">' +
-        '<span class="ack-label">ลายเซ็น</span>' +
-        '<button type="button" id="ackClear" class="ack-clear">ล้างลายเซ็น</button>' +
-        "</div>" +
-        '<div class="ack-pad"><canvas id="ackCanvas"></canvas>' +
-        '<span class="ack-pad-hint">เซ็นตรงนี้</span></div>',
-      showCancelButton: true,
-      confirmButtonText: "ยืนยันรับของ",
-      cancelButtonText: "ยกเลิก",
-      reverseButtons: true,
-      buttonsStyling: false,
-      heightAuto: false,
-      width: "32rem",
-      customClass: {
-        popup: "app-swal ack-swal",
-        confirmButton: "app-swal-confirm",
-        cancelButton: "app-swal-cancel",
-      },
-
-      didOpen: function () {
-        pad = window.SignPad.create(document.getElementById("ackCanvas"));
-
-        document
-          .getElementById("ackClear")
-          .addEventListener("click", function () {
-            pad.clear();
-          });
-
-        /* ผืนเซ็นซ่อนคำใบ้ทันทีที่เริ่มลากเส้น ไม่งั้นข้อความจะทับลายเซ็น */
-        pad.onStart(function () {
-          var hint = document.querySelector(".ack-pad-hint");
-          if (hint) {
-            hint.hidden = true;
-          }
-        });
-      },
-
-      preConfirm: function () {
-        var name = String(
-          document.getElementById("ackName").value || "",
-        ).trim();
-
-        if (name === "") {
-          window.Swal.showValidationMessage("กรุณากรอกชื่อผู้รับของ");
-          return false;
-        }
-        if (pad.isEmpty()) {
-          window.Swal.showValidationMessage("กรุณาเซ็นชื่อในกรอบด้านล่าง");
-          return false;
-        }
-        return { name: name, sign: pad.toDataURL() };
-      },
-    }).then(function (r) {
-      if (r.isConfirmed && r.value) {
-        run(r.value.name, r.value.sign);
-      }
-    });
+    window.open("print_doc.php?doc_id=" + openDoc.doc_id, "_blank");
   }
 
   /* ---------- ยกเลิกเอกสาร ---------- */
@@ -3480,6 +3380,17 @@
     }
 
     el("btnCloseDoc").addEventListener("click", closeDetail);
+
+    /* หน้าเอกสารที่เปิดไปเซ็นรับของ (print_doc.php) แจ้งกลับมาว่าเซ็นแล้ว — โหลดตารางใหม่ */
+    window.addEventListener("message", function (e) {
+      if (e.origin !== window.location.origin || !e.data || e.data.type !== "doc-signed") {
+        return;
+      }
+      if (openDoc && openDoc.doc_id === e.data.doc_id) {
+        closeDetail();
+      }
+      load();
+    });
     el("docPanel").addEventListener("click", function (e) {
       if (e.target === el("docPanel")) {
         closeDetail();
