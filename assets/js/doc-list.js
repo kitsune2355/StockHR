@@ -1248,25 +1248,9 @@
         if (window.lucide) {
           window.lucide.createIcons();
         }
-        detailGuide(true);
       },
       bad,
     );
-  }
-
-  /* ---------- คู่มือของกล่องเทียบใบบิล (ใบรับเข้า) ----------
-   * กล่องนี้บังปุ่มคู่มือบนแถบบน จึงมีปุ่ม ? ของตัวเอง (#btnDocGuide)
-   * เปิดกล่องครั้งแรก = เปิดคู่มือให้เอง (ถ้ายังไม่เคยดู) หน่วงให้กล่องวาดเสร็จก่อน */
-  var DETAIL_GUIDE = "receive_detail";
-  function detailGuide(auto) {
-    if (!el("btnDocGuide") || !window.AppGuide || !window.AppGuide.openKey) {
-      return;
-    }
-    window.setTimeout(function () {
-      window.AppGuide.openKey(DETAIL_GUIDE, auto, function (has) {
-        setHidden(el("btnDocGuide"), !has);
-      });
-    }, auto ? 700 : 0);
   }
 
   function closeDetail() {
@@ -1728,6 +1712,13 @@
     if (!openDoc) {
       return;
     }
+    /* กล่องตัวอย่างของคู่มือ — ปุ่มกดได้แต่ไม่ทำงานจริง */
+    if (openDoc._demo) {
+      if (typeof window.appInfo === "function") {
+        window.appInfo("นี่คือใบตัวอย่างสำหรับสาธิต กดใช้งานจริงไม่ได้ ปิดคู่มือแล้วลองกับใบจริงได้เลย");
+      }
+      return;
+    }
 
     if (key === "selfapprove") {
       if (typeof window.appInfo === "function") {
@@ -1789,6 +1780,9 @@
   /* ส่งคำสั่งของไอคอนหนึ่งอันไปทำงาน — ใช้ร่วมกันทั้งปุ่มในแถวและรายการในเมนู ⋮ */
   function dispatchRowAction(key, doc, id) {
     if (key === "open") {
+      if (doc && doc._demo) {
+        return; // แถวสาธิต — กล่องตัวอย่างเปิดโดยคู่มือเอง
+      }
       openDetail(id);
       return;
     }
@@ -3486,11 +3480,6 @@
     }
 
     el("btnCloseDoc").addEventListener("click", closeDetail);
-    if (el("btnDocGuide")) {
-      el("btnDocGuide").addEventListener("click", function () {
-        detailGuide(false);
-      });
-    }
     el("docPanel").addEventListener("click", function (e) {
       if (e.target === el("docPanel")) {
         closeDetail();
@@ -3620,6 +3609,131 @@
     return base;
   }
 
+  /* ============================================================
+   *  กล่องรายละเอียดตัวอย่างสำหรับคู่มือ
+   * ============================================================
+   *  คู่มือของหน้าพาดูไอคอนรูปตาแล้วต่อด้วยของในกล่องรายละเอียด
+   *  (ใบรับเข้า: ช่องดูบิล / ตารางติ๊กตรวจ / ปุ่มตัดสิน, ใบเบิก: หัวเอกสาร / รายการ / ปุ่ม)
+   *  จึงเติมกล่องด้วยข้อมูลสมมติไว้ตั้งแต่ตอนเปิดคู่มือ — app-guide.js ตัดขั้นที่มองไม่เห็นทิ้ง
+   *  ตอนสร้างชุดขั้นตอน กล่องจึงต้องเปิดอยู่ตอนนั้น แล้ว beforeStep ค่อยเปิด/ปิดกล่องทีละขั้น
+   *  ปุ่มในกล่องตัวอย่างกดแล้วไม่ทำงานจริง (ดู runAction)
+   */
+  var demoDetailOn = false;
+
+  /* รูปใบบิลตัวอย่าง (SVG) — รายการตรงกับตารางในกล่อง ให้เห็นภาพการเทียบ */
+  function demoBillUrl(items) {
+    var rows = "";
+    var y = 196;
+    var sum = 0;
+    for (var i = 0; i < items.length; i++) {
+      var amt = items[i].qty * items[i].unit_cost;
+      sum += amt;
+      rows +=
+        '<text x="40" y="' + y + '">' + (i + 1) + ". " + items[i].product_name + "</text>" +
+        '<text x="560" y="' + y + '" text-anchor="end">' + items[i].qty + "</text>" +
+        '<text x="680" y="' + y + '" text-anchor="end">' + money(items[i].unit_cost) + "</text>" +
+        '<text x="800" y="' + y + '" text-anchor="end">' + money(amt) + "</text>";
+      y += 34;
+    }
+    var svg =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="840" height="' + (y + 120) + '" font-family="Tahoma, sans-serif" font-size="18" fill="#1e293b">' +
+      '<rect width="100%" height="100%" fill="#fffdf7"/>' +
+      '<text x="40" y="60" font-size="30" font-weight="bold">ใบส่งของ / ใบกำกับภาษี</text>' +
+      '<text x="40" y="96" fill="#64748b">ร้านเครื่องแบบตัวอย่าง จำกัด · เลขที่ INV-0000 (ตัวอย่างสำหรับคู่มือ)</text>' +
+      '<line x1="40" y1="140" x2="800" y2="140" stroke="#94a3b8"/>' +
+      '<text x="40" y="166" font-weight="bold">รายการ</text><text x="560" y="166" text-anchor="end" font-weight="bold">จำนวน</text>' +
+      '<text x="680" y="166" text-anchor="end" font-weight="bold">ราคา</text><text x="800" y="166" text-anchor="end" font-weight="bold">รวม</text>' +
+      rows +
+      '<line x1="40" y1="' + (y - 14) + '" x2="800" y2="' + (y - 14) + '" stroke="#94a3b8"/>' +
+      '<text x="680" y="' + (y + 20) + '" text-anchor="end" font-weight="bold">รวมทั้งสิ้น</text>' +
+      '<text x="800" y="' + (y + 20) + '" text-anchor="end" font-weight="bold">' + money(sum) + "</text>" +
+      '<text x="40" y="' + (y + 80) + '" fill="#94a3b8" font-size="15">ภาพนี้เป็นตัวอย่าง — ใบจริงคือรูปหรือ PDF ที่ผู้บันทึกแนบมา</text>' +
+      "</svg>";
+    return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  }
+
+  function demoDetailDoc() {
+    var d = demoRow();
+    d.items = [];
+    d.history = [];
+    d.dept_approvers = ["ชื่อผู้อนุมัติตัวอย่าง"];
+    var lines = TYPE === "receive"
+      ? [
+          ["EX-PMB-002", "เสื้อฟอร์ม ผู้ชาย PRO (ดำ) ไซซ์ M", "ตัว", 20, 180, ""],
+          ["EX-PMB-003", "เสื้อฟอร์ม ผู้ชาย PRO (ดำ) ไซซ์ L", "ตัว", 15, 180, ""],
+          ["EX-PWB-002", "เสื้อฟอร์ม ผู้หญิง PRO (ดำ) ไซซ์ M", "ตัว", 12, 175, "ล็อตใหม่"],
+          ["EX-SHO-004", "รองเท้าเซฟตี้ เบอร์ 40", "คู่", 6, 650, ""],
+          ["EX-SHO-005", "รองเท้าเซฟตี้ เบอร์ 41", "คู่", 6, 650, ""],
+          ["EX-CAP-001", "หมวกแก๊ป", "ใบ", 30, 85, "แถมจากผู้ขาย 5 ใบ"],
+        ]
+      : [
+          ["EX-PMB-002", "เสื้อฟอร์ม ผู้ชาย PRO (ดำ) ไซซ์ M", "ตัว", 3, 0, ""],
+          ["EX-SHO-004", "รองเท้าเซฟตี้ เบอร์ 40", "คู่", 1, 0, ""],
+          ["EX-CAP-001", "หมวกแก๊ป", "ใบ", 2, 0, "ไซซ์ฟรี"],
+        ];
+    for (var i = 0; i < lines.length; i++) {
+      var l = lines[i];
+      d.items.push({
+        product_code: l[0], product_name: l[1], unit_name: l[2], qty: l[3],
+        unit_cost: l[4], note: l[5], balance: 40, must_return: 0,
+      });
+    }
+    d.line_count = d.items.length;
+    d.created_by_name = TYPE === "request" ? "ชื่อผู้ขอเบิกตัวอย่าง" : "ชื่อผู้บันทึกตัวอย่าง";
+    if (TYPE === "receive") {
+      /* ใบรับเข้าไม่มีบริษัท/หน่วยงาน/ผู้ขอ — ใบจริงไม่มีบรรทัดพวกนี้ในกล่อง */
+      d.company_name = "";
+      d.department_name = "";
+      d.requester = "";
+      d.requester_name = "";
+      d.note = "บิลตัวอย่างสำหรับคู่มือ";
+      d.can_attach = false;
+      d.attach_max = 10;
+      d.attachments = [{
+        attach_id: -1, orig_name: "ใบบิลตัวอย่าง.svg", mime_type: "image/svg+xml", is_image: true,
+        file_size: 48213, created_at: "", created_by: "", can_delete: false, url: demoBillUrl(d.items),
+      }];
+    }
+    return d;
+  }
+
+  function demoDetail(on) {
+    var panel = el("docPanel");
+    if (!panel) {
+      return;
+    }
+    if (!on) {
+      if (demoDetailOn) {
+        demoDetailOn = false;
+        setHidden(panel, true);
+        openDoc = null;
+        rcChecked = { docId: 0, rows: {} };
+      }
+      return;
+    }
+    if (!panel.hasAttribute("hidden")) {
+      return; // ผู้ใช้เปิดใบจริงค้างอยู่ — ไม่เอาของตัวอย่างไปทับ
+    }
+    demoDetailOn = true;
+    openDoc = demoDetailDoc();
+    /* ใบรับเข้า: ติ๊กให้ดูเป็นตัวอย่างสองบรรทัดแรก */
+    rcChecked = { docId: openDoc.doc_id, rows: { 0: true, 1: true } };
+    renderDetail(openDoc);
+    setHidden(panel, false);
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+  }
+
+  /* เรียกก่อนไฮไลต์แต่ละขั้น: ขั้นที่ชี้ของในกล่อง = เปิดกล่อง, ขั้นอื่น = ปิดกล่อง */
+  function demoBeforeStep(element) {
+    var panel = el("docPanel");
+    if (!demoDetailOn || !panel) {
+      return;
+    }
+    setHidden(panel, !(element && panel.contains(element)));
+  }
+
   function demoSetup() {
     if (demoOn || !table) {
       return false;
@@ -3643,6 +3757,7 @@
       openRowMenu(moreBtn, drow.getData(), true);
     }
 
+    demoDetail(true);
     return true;
   }
 
@@ -3661,6 +3776,7 @@
 
     demoBanner(false);
     reviewDemo(false);
+    demoDetail(false);
   }
 
   function demoBanner(on) {
@@ -3702,6 +3818,7 @@
           }[TYPE],
     setup: demoSetup,
     teardown: demoTeardown,
+    beforeStep: demoBeforeStep,
   };
 
   if (document.readyState === "loading") {

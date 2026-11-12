@@ -202,6 +202,16 @@
              * ทำให้ทุกอย่างบนหน้าขยับ แต่กล่องคำอธิบายกับกรอบไฮไลต์ถูกวางไว้
              * ตามตำแหน่งเก่าไปแล้ว ถ้าไม่คำนวณใหม่จะเหลื่อมกันเท่ากับระยะที่ดึงกลับ
              */
+            /* ก่อนไฮไลต์แต่ละขั้น ให้หน้าที่มีของสาธิตจัดฉากเองได้
+             * เช่น หน้าประวัติเอกสารเปิดกล่องรายละเอียดตัวอย่างเฉพาะขั้นที่ชี้ของในกล่อง
+             * และปิดกล่องในขั้นที่ชี้ของบนหน้า (ดู GuideDemo.beforeStep ใน doc-list.js)
+             * ต้องทำก่อน driver.js วัดตำแหน่ง ไม่งั้นกรอบไฮไลต์จะไปตีที่กล่องที่ยังซ่อนอยู่ */
+            onHighlightStarted: function (element) {
+                if (demoOn && demo && typeof demo.beforeStep === 'function') {
+                    try { demo.beforeStep(element || null); } catch (e) { /* สาธิตพังต้องไม่ล้มคู่มือ */ }
+                }
+            },
+
             onHighlighted: function (element) {
 
                 /* ขั้นตอนนี้ชี้ไปที่ฝั่งที่ถูกซ่อนอยู่หลังแท็บบนจอเล็กหรือเปล่า
@@ -357,7 +367,6 @@
         if (!pageKey || leaving) { return; }
 
         if (loaded && loaded.page_key === pageKey) { loaded.seen = true; }
-        if (byKey[pageKey]) { byKey[pageKey].seen = true; }
 
         post({ action: 'seen', page_key: pageKey })['catch'](function () { });
     }
@@ -430,36 +439,9 @@
 
     /* ---------- เปิดให้หน้าอื่นสั่งได้ ----------
      * หน้าตั้งค่าระบบใช้ปุ่ม "ดูตัวอย่างคู่มือหน้านี้" ผ่านทางนี้ */
-    /* ---------- คู่มือเฉพาะส่วน (ไม่ผูกกับหน้า) ----------
-     * ใช้กับกล่อง popup ที่บังปุ่มคู่มือบนแถบบน เช่น กล่องเทียบใบบิลของใบรับเข้า (receive_detail)
-     * openKey(key)        เปิดเสมอ (ปุ่ม ? ในกล่อง)
-     * openKey(key, true)  เปิดเองเฉพาะครั้งแรกที่คนนี้ยังไม่เคยดู และคู่มือตั้ง auto_start ไว้
-     * ไม่มีคู่มือ key นั้น / driver.js โหลดไม่ผ่าน = ไม่ทำอะไร */
-    var byKey = {};
-
-    function openKey(key, auto, done) {
-        if (!key || !driverFn() || starting) { return; }
-        var go = function (guide) {
-            if (typeof done === 'function') { done(!!guide); }
-            if (!guide) { return; }
-            if (auto && (guide.seen || !guide.auto_start)) { return; }
-            if (current) { stop(); }
-            start(guide);
-        };
-        if (byKey.hasOwnProperty(key)) { go(byKey[key]); return; }
-        starting = true;
-        post({ action: 'get', page_key: key })
-            .then(function (res) {
-                starting = false;
-                byKey[key] = (res && res.ok && res.guide) ? res.guide : null;
-                go(byKey[key]);
-            })['catch'](function () { starting = false; });
-    }
-
     window.AppGuide = {
         open:    toggle,
         close:   stop,
-        openKey: openKey,
         active:  function () { return !!current; }
     };
 })();

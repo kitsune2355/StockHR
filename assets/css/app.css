@@ -8443,7 +8443,3 @@ html.apv-open { overflow: hidden; }
 .dark .bv-items tfoot td { background: #0f172a; border-color: #1e293b; }
 .dark .bv-note { color: #fbbf24; }
 .dark .bv-hide-checked { color: #94a3b8; }
-
-/* ปุ่ม ? คู่มือในหัวกล่องรายละเอียด — ชิดซ้ายของปุ่มปิด (ปุ่มปิดเลิกดันตัวเองด้วย margin-left:auto) */
-.doc-guide-btn { margin-left: auto; }
-.doc-guide-btn ~ .doc-close { margin-left: .25rem; }

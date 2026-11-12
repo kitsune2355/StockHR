@@ -243,14 +243,6 @@ include dirname(__FILE__) . '/_filter_head.php';
         <h2 id="docTitle" class="truncate text-base font-semibold text-slate-800 dark:text-slate-100"></h2>
         <span id="docStatus" class="mt-1 block"></span>
       </div>
-      <?php if ($doc_type === 'receive') { ?>
-      <!-- คู่มือของกล่องนี้ (page_key receive_detail) — กล่องบังปุ่มคู่มือบนแถบบน จึงมีปุ่มของตัวเอง
-           ซ่อนไว้จนกว่าจะรู้ว่ามีคู่มือ (doc-list.js) -->
-      <button type="button" id="btnDocGuide" class="doc-close doc-guide-btn" hidden
-              title="คู่มือการตรวจเทียบใบบิล" aria-label="คู่มือการตรวจเทียบใบบิล">
-        <i data-lucide="circle-help" class="h-4 w-4" aria-hidden="true"></i>
-      </button>
-      <?php } ?>
       <button type="button" id="btnCloseDoc" class="doc-close" aria-label="ปิด">
         <i data-lucide="x" class="h-4 w-4" aria-hidden="true"></i>
       </button>
