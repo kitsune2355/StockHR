@@ -150,7 +150,7 @@ function doc_next_no($doc_type, $doc_date, $prefix_override = '')
  * $options
  *   doc_type     receive | request | issue  (บังคับ)
  *   status       สถานะเดียว หรือ array ของสถานะ
- *   search       ค้นจากเลขที่เอกสารหรือหมายเหตุ
+ *   search       ค้นจากเลขที่เอกสาร ชื่อผู้รับของ หรือหมายเหตุ
  *   date_from / date_to
  *   requester    เอาเฉพาะใบที่คนนี้เป็นผู้ขอเบิก (ใช้ทำหน้า "ใบเบิกของฉัน")
  *   department_id / department_ids
@@ -184,9 +184,10 @@ function doc_list($options = array())
 
     $search = isset($options['search']) ? trim($options['search']) : '';
     if ($search !== '') {
-        $where[]  = "(h.`doc_no` LIKE ? OR h.`note` LIKE ?)";
-        $types   .= 'ss';
+        $where[]  = "(h.`doc_no` LIKE ? OR h.`note` LIKE ? OR h.`receiver_name` LIKE ?)";
+        $types   .= 'sss';
         $like     = '%' . $search . '%';
+        $values[] = $like;
         $values[] = $like;
         $values[] = $like;
     }
@@ -306,6 +307,11 @@ function doc_list($options = array())
 
     $rows = array();
     while (mysqli_stmt_fetch($stmt)) {
+        /* ใบเบิกที่ออกก่อนมีช่องผู้รับของ (สวัสดิการ/พนักงานใหม่) = ชื่อพนักงานในใบ */
+        if ((string)$receiver_name === '' && $dtype === 'request') {
+            $receiver_name = ($welfare_name !== null) ? $welfare_name : (string)$new_staff_name;
+        }
+
         $rows[] = array(
             'doc_id'          => (int)$doc_id,
             'doc_type'        => $dtype,
@@ -373,9 +379,9 @@ function doc_find($doc_id)
                 ns.`employee_name`, ns.`employee_code`, ns.`position_name`, ns.`start_date`,
                 wf.`employee_name`, wf.`employee_code`, wf.`position_name`, wf.`site_name`,
                 wf.`event`, wf.`entitlement_key`, wf.`requested_by_name`,
-                /* ใบจ่ายของใบเบิกจากระบบสวัสดิการ / ใบพนักงานใหม่: ผู้รับของจริงคือพนักงานในใบเบิกต้นทาง
+                /* ใบจ่าย: ผู้รับของที่ระบุไว้ในใบเบิกต้นทาง ไม่มี = พนักงานในใบเบิกสวัสดิการ / พนักงานใหม่
                    (แถวข้อมูลพนักงานผูกกับใบเบิก ไม่ใช่ใบจ่าย) */
-                COALESCE(rwf.`employee_name`, rns.`employee_name`)
+                COALESCE(NULLIF(r.`receiver_name`, ''), rwf.`employee_name`, rns.`employee_name`)
          FROM `tb_doc_header` h
          LEFT JOIN `tb_department` dp ON dp.`department_id` = h.`department_id`
          LEFT JOIN `tb_company`    cp ON cp.`company_id`    = dp.`company_id`
@@ -464,11 +470,12 @@ function doc_find($doc_id)
         'new_staff'       => $new_staff,
         'is_welfare'      => ($welfare !== null),
         'welfare'         => $welfare,
-        /* ชื่อพนักงานที่เป็นผู้รับของ — ใบเบิกสวัสดิการ/พนักงานใหม่ = ชื่อในใบเอง
-           ใบจ่ายของใบเบิกนั้น = ชื่อในใบเบิกต้นทาง · ใบอื่น = '' (ผู้รับคือผู้ขอเบิกตามเดิม) */
-        'employee_receiver' => ($welfare !== null) ? $wf_name
+        /* ชื่อผู้รับของที่รู้ตั้งแต่ใบเบิก — ใบเบิก = ช่องผู้รับของ ไม่ได้กรอก = พนักงานในใบสวัสดิการ/พนักงานใหม่
+           ใบจ่าย = ค่าเดียวกันจากใบเบิกต้นทาง · ไม่มีเลย = '' (ผู้รับคือผู้ขอเบิกตามเดิม) */
+        'employee_receiver' => ($dtype === 'request' && (string)$receiver_name !== '') ? $receiver_name
+                             : (($welfare !== null) ? $wf_name
                              : (($new_staff !== null) ? $ns_name
-                             : (($ref_employee === null) ? '' : $ref_employee)),
+                             : (($ref_employee === null) ? '' : $ref_employee))),
         'items'           => doc_items($doc_id)
     );
 }
@@ -676,6 +683,11 @@ function doc_validate($data)
        ถ้ายอมให้ลงวันที่ล่วงหน้า รายงานย้อนหลังจะมีรายการที่ยังไม่เกิดขึ้นปนอยู่ */
     if (strtotime($doc_date) > strtotime(date('Y-m-d'))) {
         return 'ลงวันที่ล่วงหน้าไม่ได้ — เอกสารต้องเป็นวันที่ของจริงที่ทำรายการ';
+    }
+
+    /* คอลัมน์ยาว 150 — MySQL 5.0 ตัดทิ้งเงียบ ๆ จึงต้องบอกก่อน */
+    if (isset($data['receiver_name']) && db_text_length(trim($data['receiver_name'])) > 150) {
+        return 'ชื่อผู้รับของยาวเกิน 150 ตัวอักษร';
     }
 
     $items = isset($data['items']) && is_array($data['items']) ? $data['items'] : array();

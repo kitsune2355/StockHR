@@ -186,6 +186,7 @@ if ($action === 'bootstrap') {
                     'department_id'   => (int)$edit_doc['department_id'],
                     'department_name' => $edit_doc['department_name'],
                     'doc_date'        => $edit_doc['doc_date'],
+                    'receiver_name'   => $edit_doc['receiver_name'],
                     'note'            => $edit_doc['note'],
                     'items'           => $lines
                 );
@@ -401,6 +402,8 @@ if ($action === 'update') {
         'note'          => isset($input['note'])          ? $input['note']               : '',
         'items'         => $items
     );
+    /* หน้าจอรุ่นก่อนมีช่องนี้ไม่ได้ส่งมา — request_update คงชื่อเดิมไว้ */
+    if (isset($input['receiver_name'])) { $data['receiver_name'] = $input['receiver_name']; }
 
     $res = request_update(
         isset($input['doc_id']) ? (int)$input['doc_id'] : 0,
@@ -603,6 +606,7 @@ if ($action === 'export_lines') {
                 'department_name' => $doc['department_name'],
                 'requester_name'  => ($doc['requester_name'] !== '') ? $doc['requester_name'] : $doc['requester'],
                 'approved_by'     => ($doc['approved_by_name'] !== '') ? $doc['approved_by_name'] : $doc['approved_by'],
+                'receiver_name'   => ($doc['receiver_name'] !== '') ? $doc['receiver_name'] : $doc['employee_receiver'],
                 'ref_doc_no'      => $doc['ref_doc_no'],
                 'line_no'         => $j + 1,
                 'product_code'    => $it['product_code'],

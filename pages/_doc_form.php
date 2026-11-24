@@ -12,7 +12,8 @@
  *
  *  ช่องในส่วนหัวจะโผล่ตามประเภทเอกสารเอง:
  *      หน่วยงาน   เฉพาะใบเบิก
- *      เลือกใบเบิก + ชื่อผู้รับ   เฉพาะใบจ่าย
+ *      เลือกใบเบิก   เฉพาะใบจ่าย
+ *      ชื่อผู้รับของ  ใบเบิก (ไม่บังคับ) และใบจ่าย (บังคับ — เติมให้จากใบเบิก)
  *  JavaScript ดูจาก id ของช่องที่มีอยู่จริง (ดู has() ใน doc-form.js)
  *  จึงไม่ต้องส่งค่าบอกซ้ำอีกชั้น
  *
@@ -198,13 +199,18 @@ $btn_soft = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 p
           </select>
         </div>
 
+        <?php } ?>
+
+        <?php if ($doc_type !== 'receive') { ?>
         <div>
-          <label for="receiverName" class="<?php echo $label; ?>">ชื่อผู้รับของ</label>
-          <input type="text" id="receiverName" placeholder="ชื่อ-นามสกุลผู้มารับของ" class="<?php echo $input; ?>">
+          <label for="receiverName" class="<?php echo $label; ?>">ชื่อผู้รับของ<?php if ($doc_type === 'request') { ?> <span class="font-normal text-slate-400">(ไม่บังคับ)</span><?php } ?></label>
+          <input type="text" id="receiverName" maxlength="150"
+                 placeholder="<?php echo ($doc_type === 'request') ? 'เว้นว่าง = ผู้ขอเบิกรับเอง' : 'ชื่อ-นามสกุลผู้มารับของ'; ?>"
+                 class="<?php echo $input; ?>">
         </div>
         <?php } ?>
 
-        <div class="<?php echo ($doc_type === 'receive') ? 'sm:col-span-2 lg:col-span-3' : 'sm:col-span-2'; ?>">
+        <div class="<?php echo ($doc_type === 'receive') ? 'sm:col-span-2 lg:col-span-3' : (($doc_type === 'request') ? 'sm:col-span-1' : 'sm:col-span-2'); ?>">
           <label for="docNote" class="<?php echo $label; ?>">หมายเหตุ</label>
           <input type="text" id="docNote" maxlength="500"
                  placeholder="<?php echo ($doc_type === 'receive') ? 'เช่น ที่มาของของ เลขที่ใบส่งของ' : 'ระบุเพิ่มเติมได้ ไม่บังคับ'; ?>"

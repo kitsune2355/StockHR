@@ -247,6 +247,9 @@
       el("docDate").value = d.doc_date;
     }
     el("docNote").value = d.note || "";
+    if (has("receiverName")) {
+      el("receiverName").value = d.receiver_name || "";
+    }
 
     var rows = [];
     var src = d.items || [];
@@ -439,10 +442,11 @@
       " · วันที่ขอ " +
       (dateLong(picked.doc_date) || "ไม่ระบุ");
 
-    /* ผู้รับของ: ใบเบิกจากระบบสวัสดิการ / พนักงานใหม่ = ตัวพนักงาน (ผู้ขอเบิกคือ HR ที่กดส่ง)
-       ใบอื่น = ผู้ขอเบิก · เปลี่ยนใบเบิกแล้วชื่อที่ระบบเติมไว้เปลี่ยนตาม ส่วนที่พิมพ์เองคงไว้ */
+    /* ผู้รับของ: ชื่อที่ระบุในใบเบิก (ใบสวัสดิการ / พนักงานใหม่ = ตัวพนักงาน)
+       ไม่ได้ระบุ = ผู้ขอเบิก · เปลี่ยนใบเบิกแล้วชื่อที่ระบบเติมไว้เปลี่ยนตาม ส่วนที่พิมพ์เองคงไว้ */
     if (has("receiverName")) {
       var suggest =
+        picked.receiver_name ||
         picked.welfare_name ||
         picked.new_staff_name ||
         picked.requester_name ||
@@ -1649,7 +1653,8 @@
       el("refDocId").focus();
       return;
     }
-    if (has("receiverName") && el("receiverName").value.trim() === "") {
+    /* ใบเบิกไม่บังคับ — เว้นว่าง = ผู้ขอเบิกรับเอง */
+    if (TYPE === "issue" && el("receiverName").value.trim() === "") {
       showError("กรุณากรอกชื่อผู้รับของ");
       el("receiverName").focus();
       return;

@@ -225,6 +225,9 @@ function new_staff_save($data, $actor, $actor_role = '')
 
     $data['requester'] = $actor;
 
+    /* ผู้รับของ = ตัวพนักงานใหม่ (ใบจ่ายดึงไปใช้ต่อ) */
+    $data['receiver_name'] = $name;
+
     /* ชุดเลขของตัวเอง NRQ-ปปดด-#### แยกจากใบเบิกธรรมดา (RQ) ให้แยกออกได้แค่ดูเลขที่
        ยังเป็น doc_type='request' เส้นทางอนุมัติ/จ่ายจึงเหมือนเดิมทุกอย่าง */
     $data['doc_prefix'] = 'NRQ';

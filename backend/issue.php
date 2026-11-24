@@ -44,8 +44,8 @@ function issue_save($data, $actor)
     $error = doc_validate($data);
     if ($error !== '') { return db_fail($error); }
 
-    /* ใบเบิกจากระบบสวัสดิการ / พนักงานใหม่: ไม่ได้กรอกชื่อผู้รับมา = ชื่อพนักงานในใบเบิก
-       (ผู้ขอเบิกของใบพวกนี้คือ HR ที่กดส่ง ไม่ใช่คนที่มารับชุด) */
+    /* ไม่ได้กรอกชื่อผู้รับมา = ผู้รับของที่ระบุในใบเบิก (ใบสวัสดิการ / พนักงานใหม่ = ชื่อพนักงาน
+       เพราะผู้ขอเบิกของใบพวกนี้คือ HR ที่กดส่ง ไม่ใช่คนที่มารับชุด) */
     if ((!isset($data['receiver_name']) || trim($data['receiver_name']) === '')
         && $request['employee_receiver'] !== '') {
         $data['receiver_name'] = $request['employee_receiver'];

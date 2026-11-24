@@ -548,6 +548,11 @@ body.is-embed .bar { display: none; }
     <?php endif; ?>
 
     <div><b>ผู้ขอเบิก:</b> <span><?php echo pd_esc($doc['requester_name'] !== '' ? $doc['requester_name'] : $doc['requester']); ?></span></div>
+    <?php /* ใบพนักงานใหม่/เอกสารรับชุดเครื่องแบบมีชื่อพนักงานด้านบนแล้ว ไม่ต้องซ้ำ */
+          $pd_receiver = (string)$doc['receiver_name'] !== '' ? $doc['receiver_name'] : (string)$doc['employee_receiver']; ?>
+    <?php if ($pd_receiver !== '' && $new_staff === null && $uniform_receipt === null): ?>
+    <div><b>ผู้รับของ:</b> <span><?php echo pd_esc($pd_receiver); ?></span></div>
+    <?php endif; ?>
     <div><b>สถานะ:</b> <span><?php echo pd_esc($doc['status_label']); ?></span></div>
 
     <?php /* เปิด/ปิดได้ที่ Admin mode > เอกสารพิมพ์ */ ?>

@@ -21,7 +21,7 @@ require_once dirname(__FILE__) . '/notify_events.php';
 
 
 /* ---------- ผู้ขอเบิกสร้างใบเบิก ----------
- * $data = array('doc_date', 'department_id', 'note', 'items' => [...])
+ * $data = array('doc_date', 'department_id', 'receiver_name', 'note', 'items' => [...])
  * $actor = username ผู้ขอ (มาจาก session เท่านั้น ห้ามรับจากฟอร์ม)
  */
 function request_save($data, $actor, $actor_role = '')
@@ -350,7 +350,8 @@ function request_ready_list()
  *
  *  แก้แล้ว: ลิงก์อนุมัติในอีเมลเดิมถือ snapshot เก่า ต้องเผาทิ้งแล้วส่งใหม่
  *
- *  $data = array('doc_date', 'department_id', 'note', 'items' => [...])
+ *  $data = array('doc_date', 'department_id', 'receiver_name', 'note', 'items' => [...])
+ *  ไม่ส่ง receiver_name มา = คงชื่อเดิม
  * ============================================================ */
 function request_update($doc_id, $data, $actor, $actor_role = '')
 {
@@ -412,17 +413,18 @@ function request_update($doc_id, $data, $actor, $actor_role = '')
     $id       = (int)$doc['doc_id'];
     $doc_date = trim($data['doc_date']);
     $note     = isset($data['note']) ? trim($data['note']) : '';
+    $receiver = isset($data['receiver_name']) ? trim($data['receiver_name']) : $doc['receiver_name'];
 
     db_begin();
 
     /* WHERE ... AND status='waiting' กันกรณีผู้อนุมัติเพิ่งกดอนุมัติพอดี */
     $stmt = mysqli_prepare($connect,
         "UPDATE `tb_doc_header`
-         SET `doc_date` = ?, `department_id` = ?, `note` = ?, `updated_by` = ?
+         SET `doc_date` = ?, `department_id` = ?, `note` = ?, `receiver_name` = ?, `updated_by` = ?
          WHERE `doc_id` = ? AND `status` = 'waiting'");
     if (!$stmt) { db_rollback(); return db_fail('แก้ไขใบเบิกไม่สำเร็จ'); }
 
-    mysqli_stmt_bind_param($stmt, 'sissi', $doc_date, $dept, $note, $actor, $id);
+    mysqli_stmt_bind_param($stmt, 'sisssi', $doc_date, $dept, $note, $receiver, $actor, $id);
     if (!mysqli_stmt_execute($stmt)) {
         $errno = mysqli_stmt_errno($stmt);
         mysqli_stmt_close($stmt);

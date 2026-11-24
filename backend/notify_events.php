@@ -82,6 +82,15 @@ function notify_doc_pairs($doc, $extra = array())
         array('ผู้ขอเบิก',      $doc['requester_name'] !== '' ? $doc['requester_name'] : $doc['requester'])
     );
 
+    $receiver = (string)$doc['receiver_name'] !== '' ? $doc['receiver_name'] : $doc['employee_receiver'];
+    /* เมลของใบสวัสดิการใส่ "พนักงานที่รับ" มาเองแล้ว ไม่ต้องซ้ำ */
+    for ($i = 0; $i < count($extra); $i++) {
+        if ($extra[$i][0] === 'พนักงานที่รับ') { $receiver = ''; }
+    }
+    if ($receiver !== '' && $doc['doc_type'] !== 'receive') {
+        $pairs[] = array('ผู้รับของ', $receiver);
+    }
+
     for ($i = 0; $i < count($extra); $i++) {
         $pairs[] = $extra[$i];
     }

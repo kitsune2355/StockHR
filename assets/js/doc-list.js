@@ -843,6 +843,7 @@
       cols.push({ key: "company_name", label: "บริษัท" });
       cols.push({ key: "department_name", label: "หน่วยงาน" });
       cols.push({ key: "requester_name", label: "ผู้ขอเบิก" });
+      cols.push({ key: "receiver_name", label: "ผู้รับของ" });
     }
     if (TYPE === "request") {
       cols.push({ key: "approved_by", label: "ผู้อนุมัติ" });
@@ -1075,6 +1076,24 @@
               html += ' <span class="grid-tag grid-tag-self">คุณ</span>';
             }
             return html;
+          },
+        }),
+      );
+    }
+
+    /* ผู้รับของ — หน้าใบเบิกพนักงานใหม่มีคอลัมน์ชื่อพนักงานอยู่แล้ว ไม่ต้องซ้ำ */
+    if ((TYPE === "request" && KIND !== "new_staff") || TYPE === "issue") {
+      cols.push(
+        G.col(G.filterText("ค้นผู้รับของ"), {
+          title: "ผู้รับของ",
+          field: "receiver_name",
+          minWidth: 130,
+          responsive: 4,
+          download: true,
+          clipboard: true,
+          formatter: function (cell) {
+            var v = cell.getValue();
+            return v ? escapeHtml(v) : '<span class="grid-empty">—</span>';
           },
         }),
       );
@@ -1433,8 +1452,8 @@
     meta += line("หมายเหตุการอนุมัติ", doc.approve_note);
     meta += line(
       "ผู้รับของ",
-      doc.receiver_name
-        ? doc.receiver_name +
+      doc.receiver_name || doc.employee_receiver
+        ? (doc.receiver_name || doc.employee_receiver) +
             (doc.received_at ? " · " + dt(doc.received_at) : "")
         : "",
     );
@@ -2977,6 +2996,9 @@
         "พนักงาน",
         emp.employee_name + (emp.position_name ? " · " + emp.position_name : ""),
       ]);
+    }
+    if (!emp && doc.receiver_name) {
+      meta.push(["ผู้รับของ", doc.receiver_name]);
     }
     if (doc.new_staff) {
       meta.push(["เริ่มงาน", shortDate(doc.new_staff.start_date)]);

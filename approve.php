@@ -476,6 +476,9 @@ textarea:focus { outline: none; border-color: #0891b2; box-shadow: 0 0 0 4px #cf
         <tr><th>ผู้ขอเบิก</th><td><?php
             echo ap_esc($doc['requester_name'] !== '' ? $doc['requester_name'] : $doc['requester']); ?></td></tr>
 <?php   } ?>
+<?php   if (!$is_adjust && !$is_receive && $doc['employee_receiver'] !== '') { ?>
+        <tr><th>ผู้รับของ</th><td><?php echo ap_esc($doc['employee_receiver']); ?></td></tr>
+<?php   } ?>
 <?php   if ($doc['note'] !== '') { ?>
         <tr><th><?php echo $is_adjust ? 'เหตุผลการปรับยอด' : 'หมายเหตุ'; ?></th><td><?php echo ap_esc($doc['note']); ?></td></tr>
 <?php   } ?>

@@ -395,7 +395,9 @@ function welfare_submit($p)
         'requester_name' => $by_name,
         /* ชุดเลขของ backend เท่านั้น (ดู doc_insert) — NRQ ตรงกับใบที่ทำจากหน้าพนักงานใหม่ */
         'doc_prefix'    => $new_staff ? 'NRQ' : 'WRQ',
-        'note'          => welfare_doc_note($event, $ent_key, $name, $note),
+        /* พนักงานเจ้าของสิทธิ์คือผู้รับของ — ช่องของตัวเอง ไม่ปนในหมายเหตุ และใบจ่ายดึงไปใช้ต่อ */
+        'receiver_name' => $name,
+        'note'          => $note,
         'items'         => $items
     );
     $error = doc_validate($data);
@@ -515,16 +517,6 @@ function welfare_event_label($event)
 {
     $labels = array('START' => 'เริ่มงาน', 'PROBATION' => 'ผ่านทดลองงาน', 'ANNUAL' => 'ประจำปี');
     return isset($labels[$event]) ? $labels[$event] : $event;
-}
-
-/* หมายเหตุของใบ — คลังเห็นในรายการทันทีว่าเบิกให้ใคร รอบไหน */
-function welfare_doc_note($event, $ent_key, $name, $extra)
-{
-    $label = welfare_event_label($event);
-    if ($event === 'ANNUAL') { $label .= ' ' . (substr($ent_key, 7) + 543); }
-    $note = $name;
-    if ($extra !== '') { $note .= ' — ' . $extra; }
-    return $note;
 }
 
 /* ใบที่ผูกกับสิทธิ์นี้อยู่ (active_ref) — null = ไม่มี
